@@ -17,6 +17,10 @@
     <!-- Transformers.js CDN -->
     <script type="module" src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js"></script>
     
+    <!-- Google APIs -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
+    
     <!-- CSS -->
     <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -660,15 +664,45 @@
 
             <!-- Backup Section -->
             <div class="backup-section">
-                <h3>☁️ Backup Seguro</h3>
-                <p>Salve seus dados criptografados no Google Drive</p>
-                <div class="backup-buttons">
-                    <button id="backup-data" class="btn-secondary">
-                        📤 Fazer Backup
+                <h3>💾 Backup de Dados</h3>
+                <p>Seus dados ficam seguros localmente. Sincronize com Google Drive quando quiser:</p>
+                
+                <!-- Google Drive Status -->
+                <div class="drive-status" id="drive-status">
+                    <div class="status-indicator offline" id="status-indicator">
+                        <span class="status-icon">🔴</span>
+                        <span class="status-text">Faça login primeiro</span>
+                    </div>
+                    <button id="disconnect-drive" class="disconnect-btn">Desconectar</button>
+                </div>
+                
+                <div class="backup-controls">
+                    <button id="backup-data" class="btn-secondary backup-btn">
+                        <span class="btn-icon">☁️</span>
+                        <span class="btn-text">Backup Seguro</span>
+                        <span class="btn-loading">⏳</span>
                     </button>
                     <button id="restore-data" class="btn-secondary">
-                        📥 Restaurar
+                        <span class="btn-icon">📥</span>
+                        Restaurar
                     </button>
+                </div>
+                
+                <!-- Login Prompt -->
+                <div class="login-prompt" id="login-prompt">
+                    <p class="prompt-text">🔐 Para fazer backup, conecte-se ao Google Drive</p>
+                </div>
+                
+                <!-- Backup Confirmation Modal -->
+                <div class="backup-modal" id="backup-modal">
+                    <div class="backup-modal-content">
+                        <h3>🔒 Backup Criptografado</h3>
+                        <p>Vamos salvar seus dados criptografados no seu Google Drive? Nada fica armazenado lá sem sua chave.</p>
+                        <div class="backup-modal-actions">
+                            <button class="modal-btn primary" id="confirm-backup">Sim, fazer backup</button>
+                            <button class="modal-btn secondary" id="cancel-backup">Cancelar</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
