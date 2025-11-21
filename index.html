@@ -51,6 +51,7 @@
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/pdf-addon.css">
     <link rel="stylesheet" href="css/auth-styles.css">
+    <link rel="stylesheet" href="css/status-indicator.css">
 </head>
 <body>
     <!-- Loading Overlay -->
@@ -71,7 +72,10 @@
         <div class="header-content">
             <h1 class="logo">
                 🧠 MentalIA 3.0
-                <span class="privacy-badge">100% Local & Criptografado</span>
+                <div class="status-indicator" id="status-indicator">
+                    <div class="status-dot" id="status-dot"></div>
+                    <span class="status-text" id="status-text">Offline</span>
+                </div>
             </h1>
             
             <div class="header-actions">

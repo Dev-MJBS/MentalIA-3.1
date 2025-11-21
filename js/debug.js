@@ -93,8 +93,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // Error handler global
 window.addEventListener('error', (event) => {
-    console.error('🔧 [DEBUG] Erro global capturado:', event.error);
-    captureLog('global-error', [event.error.message, event.error.stack]);
+    if (event.error) {
+        console.error('🔧 [DEBUG] Erro global capturado:', event.error.message || event.error);
+        captureLog('global-error', [event.error.message || 'Erro desconhecido', event.error.stack || 'Stack não disponível']);
+    } else {
+        console.error('🔧 [DEBUG] Erro global sem detalhes:', event.filename, event.lineno, event.colno);
+        captureLog('global-error', [`Erro em ${event.filename}:${event.lineno}:${event.colno}`]);
+    }
 });
 
 window.addEventListener('unhandledrejection', (event) => {

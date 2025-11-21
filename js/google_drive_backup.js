@@ -400,6 +400,10 @@ class GoogleDriveBackup {
             }
             
             console.log('📄 [BACKUP] Arquivo de credenciais não encontrado');
+            console.log('💡 [BACKUP] Para configurar backup automático:');
+            console.log('   1. Renomeie credentials_EXEMPLO.json para credentials.json');
+            console.log('   2. Adicione suas credenciais do Google Cloud Console');
+            console.log('   3. O backup será configurado automaticamente');
             return null;
             
         } catch (error) {

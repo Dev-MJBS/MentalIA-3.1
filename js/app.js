@@ -28,14 +28,79 @@ class MentalIA {
         // Load data and update UI
         await this.loadData();
         
+        // Check authentication status and show appropriate screen
+        this.checkAuthenticationStatus();
+        
         console.log('✅ MentalIA 3.0 pronto!');
         this.showToast('Bem-vindo ao MentalIA 3.0! 🧠', 'success');
+        
+        // Initialize status indicator
+        this.updateStatusIndicator('offline');
+    }
+
+    updateStatusIndicator(status) {
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        
+        if (!statusDot || !statusText) return;
+        
+        // Remove previous status classes
+        statusDot.classList.remove('online', 'connecting', 'offline');
+        
+        // Add current status
+        statusDot.classList.add(status);
+        
+        // Update text
+        const statusTexts = {
+            'online': 'Online',
+            'connecting': 'Conectando...',
+            'offline': 'Offline'
+        };
+        
+        statusText.textContent = statusTexts[status] || 'Desconhecido';
+        
+        console.log(`🔘 Status atualizado para: ${status}`);
+    }
+
+    checkOnlineStatus() {
+        if (navigator.onLine) {
+            // Test actual connectivity
+            this.updateStatusIndicator('connecting');
+            
+            // Try to fetch a small resource to verify real connectivity
+            fetch('https://www.google.com/favicon.ico', { 
+                mode: 'no-cors',
+                cache: 'no-cache'
+            })
+            .then(() => {
+                this.updateStatusIndicator('online');
+            })
+            .catch(() => {
+                this.updateStatusIndicator('offline');
+            });
+        } else {
+            this.updateStatusIndicator('offline');
+        }
     }
 
     setupEventListeners() {
         // Theme toggle
         const themeToggle = document.getElementById('theme-toggle');
         themeToggle?.addEventListener('click', () => this.toggleTheme());
+        
+        // Online/Offline status listeners
+        window.addEventListener('online', () => {
+            console.log('🌐 Conexão restaurada');
+            this.checkOnlineStatus();
+        });
+        
+        window.addEventListener('offline', () => {
+            console.log('📴 Conexão perdida');
+            this.updateStatusIndicator('offline');
+        });
+        
+        // Check initial status
+        setTimeout(() => this.checkOnlineStatus(), 1000);
 
         // Navigation buttons
         const navButtons = document.querySelectorAll('.nav-btn');
@@ -847,6 +912,10 @@ class MentalIA {
         console.log('🔍 [SYSTEM CHECK] AI Analysis:', aiExists ? '✅ Existe' : '❌ Não existe');
         console.log('🔍 [SYSTEM CHECK] AI Methods:', aiMethodsOk ? '✅ OK' : '❌ FALHA');
         
+        // Check auth system
+        const authOk = !!window.authSystem;
+        console.log('🔍 [SYSTEM CHECK] Auth System:', authOk ? '✅ OK' : '❌ FALHA');
+        
         // Check backup
         const backupOk = !!window.googleDriveBackup;
         console.log('🔍 [SYSTEM CHECK] Backup:', backupOk ? '✅ OK' : '❌ FALHA');
@@ -1271,9 +1340,34 @@ Continue registrando seus humores para análises mais detalhadas.
             }, 300);
         }, 5000);
     }
+    checkAuthenticationStatus() {
+        // Wait for auth system to be available
+        setTimeout(() => {
+            if (window.authSystem) {
+                const isLoggedIn = window.authSystem.isLoggedIn();
+                console.log('🔐 Status de autenticação:', isLoggedIn ? 'Logado' : 'Não logado');
+                
+                if (!isLoggedIn) {
+                    console.log('🔐 Redirecionando para tela de login...');
+                    window.authSystem.showLoginScreen();
+                } else {
+                    // Update auth reference for the app
+                    this.auth = {
+                        isLoggedIn: true,
+                        isPremium: window.authSystem.isPremium(),
+                        user: window.authSystem.getCurrentUser()
+                    };
+                    console.log('🔐 Usuário autenticado:', this.auth.user?.name);
+                }
+            } else {
+                console.warn('⚠️ Sistema de autenticação não disponível');
+            }
+        }, 100);
+    }
+
     checkEntryLimit() {
         // Verificar se o usuário está logado e é premium
-        const auth = window.mentalIA?.auth;
+        const auth = this.auth || window.mentalIA?.auth;
         
         if (!auth?.isLoggedIn) {
             // Usuário não logado - permitir apenas demonstração
@@ -1416,6 +1510,15 @@ window.showScreen = function(screenName) {
 
 // Initialize app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize auth system first
+    if (typeof AuthSystem !== 'undefined') {
+        window.authSystem = new AuthSystem();
+        console.log('🔐 Sistema de autenticação inicializado');
+    } else {
+        console.warn('⚠️ AuthSystem não encontrado');
+    }
+    
+    // Then initialize main app
     window.mentalIA = new MentalIA();
 });
 
