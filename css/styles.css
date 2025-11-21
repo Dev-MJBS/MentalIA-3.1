@@ -522,17 +522,69 @@ body {
   padding: 1rem 0;
 }
 
+/* FIX DEFINITIVO DO SLIDER - O CÍRCULO VOLTA A APARECER EM TODOS OS NAVEGADORES */
 .mood-slider {
-  width: 100%;
-  height: 12px;
-  border-radius: 6px;
-  background: var(--mood-gradient);
-  outline: none;
-  appearance: none;
-  cursor: pointer;
-  position: relative;
-  z-index: 2;
-  /* Slider agora é visível com estilos customizados */
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 14px;
+    background: var(--mood-gradient);
+    border-radius: 14px;
+    outline: none;
+    cursor: pointer;
+    margin: 30px 0;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* Trilho (track) */
+.mood-slider::-webkit-slider-runnable-track {
+    height: 14px;
+    border-radius: 14px;
+    background: var(--mood-gradient);
+}
+.mood-slider::-moz-range-track {
+    height: 14px;
+    border-radius: 14px;
+    background: var(--mood-gradient);
+    border: none;
+}
+
+/* Thumb (o círculo que você arrasta) - ESSA É A PARTE QUE ESTAVA FALTANDO */
+.mood-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 36px;
+    height: 36px;
+    background: white;
+    border: 4px solid var(--accent-primary);
+    border-radius: 50%;
+    cursor: grab;
+    margin-top: -11px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    transition: all 0.2s ease;
+}
+
+.mood-slider::-moz-range-thumb {
+    width: 36px;
+    height: 36px;
+    background: white;
+    border: 4px solid var(--accent-primary);
+    border-radius: 50%;
+    cursor: grab;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    border: none;
+}
+
+/* Hover e active */
+.mood-slider:hover::-webkit-slider-thumb,
+.mood-slider:hover::-moz-range-thumb {
+    transform: scale(1.15);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+}
+.mood-slider:active::-webkit-slider-thumb,
+.mood-slider:active::-moz-range-thumb {
+    cursor: grabbing;
+    transform: scale(1.05);
 }
 
 .slider-track {
@@ -2538,7 +2590,7 @@ html, body {
  
  
  
- / *   = = = = =   F I X   S L I D E R   I N V I S � V E L   D E F I N I T I V O   = = = = =   * / 
+ / *   = = = = =   F I X   S L I D E R   I N V I S � V E L   D E F I N I T I V O   = = = = =   * / 
  i n p u t [ t y p e = " r a n g e " ] ,   
  . m o o d - s l i d e r , 
  # m o o d - s l i d e r   { 
@@ -2636,7 +2688,7 @@ html, body {
          t r a n s f o r m :   s c a l e ( 1 . 0 5 )   ! i m p o r t a n t ; 
  } 
  
- / *   F i x   e s p e c � f i c o   p a r a   m o b i l e   * / 
+ / *   F i x   e s p e c � f i c o   p a r a   m o b i l e   * / 
  @ m e d i a   ( m a x - w i d t h :   7 6 8 p x )   { 
          i n p u t [ t y p e = " r a n g e " ] ,   
          . m o o d - s l i d e r , 
@@ -2655,5 +2707,6 @@ html, body {
                  h e i g h t :   4 0 p x   ! i m p o r t a n t ; 
                  m a r g i n - t o p :   - 1 2 p x   ! i m p o r t a n t ; 
          } 
- }  
+ } 
+ 
  
