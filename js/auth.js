@@ -451,6 +451,25 @@ class AuthSystem {
         }
     }
     
+    // Admin account pre-registered
+    getAdminAccounts() {
+        return [
+            {
+                email: 'mjbs.dev@gmail.com',
+                password: '!Band9al7',
+                name: 'Administrador MJBS',
+                role: 'admin',
+                isPremium: true,
+                created: new Date().toISOString()
+            }
+        ];
+    }
+    
+    isAdminAccount(email) {
+        const adminAccounts = this.getAdminAccounts();
+        return adminAccounts.some(admin => admin.email === email);
+    }
+    
     showLoginScreen() {
         // Hide all screens
         document.querySelectorAll('.screen').forEach(screen => {
@@ -529,7 +548,10 @@ class AuthSystem {
                 const sessionData = {
                     email: email,
                     token: response.token,
-                    loginTime: Date.now()
+                    loginTime: Date.now(),
+                    name: response.name || email.split('@')[0],
+                    role: response.role || 'user',
+                    isAdmin: response.isAdmin || false
                 };
                 
                 localStorage.setItem('mentalia_session', JSON.stringify(sessionData));
@@ -538,7 +560,11 @@ class AuthSystem {
                 this.currentUser = sessionData;
                 this.isPremium = response.isPremium;
                 
-                this.showToast('Login realizado com sucesso! 🎉', 'success');
+                const welcomeMsg = response.isAdmin ? 
+                    'Bem-vindo, Administrador! 👑' : 
+                    'Login realizado com sucesso! 🎉';
+                
+                this.showToast(welcomeMsg, 'success');
                 
                 // Return to welcome screen
                 setTimeout(() => {
@@ -667,14 +693,32 @@ class AuthSystem {
             if (loginToggle) loginToggle.classList.add('hidden');
             if (userStatus) userStatus.classList.remove('hidden');
             
-            if (userEmail) userEmail.textContent = this.currentUser.email;
+            if (userEmail) {
+                const displayName = this.currentUser.name || this.currentUser.email;
+                userEmail.textContent = displayName;
+            }
+            
             if (userPlan) {
-                let planText = this.isPremium ? 'Premium' : 'Gratuito';
+                let planText = '';
+                let planClass = '';
+                
+                if (this.currentUser.isAdmin) {
+                    planText = 'Administrador';
+                    planClass = 'admin';
+                } else if (this.isPremium) {
+                    planText = 'Premium';
+                    planClass = 'premium';
+                } else {
+                    planText = 'Gratuito';
+                    planClass = 'free';
+                }
+                
                 if (this.currentUser.provider === 'google' && this.currentUser.googleAccessToken) {
                     planText += ' + Drive';
                 }
+                
                 userPlan.textContent = planText;
-                userPlan.className = `plan-badge ${this.isPremium ? 'premium' : 'free'}`;
+                userPlan.className = `plan-badge ${planClass}`;
             }
             
             // Show premium upgrade section if not premium
@@ -766,7 +810,24 @@ class AuthSystem {
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         if (action === 'login') {
-            // Mock login validation
+            // Check admin accounts first
+            const adminAccounts = this.getAdminAccounts();
+            const adminAccount = adminAccounts.find(admin => 
+                admin.email === data.email && admin.password === data.password
+            );
+            
+            if (adminAccount) {
+                return {
+                    success: true,
+                    token: 'admin_token_' + Date.now(),
+                    isPremium: true,
+                    isAdmin: true,
+                    name: adminAccount.name,
+                    role: adminAccount.role
+                };
+            }
+            
+            // Mock login validation for other users
             if (data.email === 'demo@mentalia.com' && data.password === '123456') {
                 return {
                     success: true,

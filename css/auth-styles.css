@@ -45,6 +45,13 @@
     color: #b8860b;
 }
 
+.plan-badge.admin {
+    background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+    color: white;
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+    font-weight: bold;
+}
+
 .btn-login {
     background: var(--primary);
     color: white;

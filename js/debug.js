@@ -93,12 +93,15 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // Error handler global
 window.addEventListener('error', (event) => {
-    if (event.error) {
-        console.error('🔧 [DEBUG] Erro global capturado:', event.error.message || event.error);
-        captureLog('global-error', [event.error.message || 'Erro desconhecido', event.error.stack || 'Stack não disponível']);
+    if (event.error && event.error.message) {
+        console.error('🔧 [DEBUG] Erro global capturado:', event.error.message);
+        captureLog('global-error', [event.error.message, event.error.stack || 'Stack não disponível']);
+    } else if (event.filename && event.lineno) {
+        console.error('🔧 [DEBUG] Erro em script:', `${event.filename}:${event.lineno}:${event.colno || 0}`);
+        captureLog('global-error', [`Erro em ${event.filename}:${event.lineno}:${event.colno || 0}`]);
     } else {
-        console.error('🔧 [DEBUG] Erro global sem detalhes:', event.filename, event.lineno, event.colno);
-        captureLog('global-error', [`Erro em ${event.filename}:${event.lineno}:${event.colno}`]);
+        // Ignore null/undefined errors without context
+        console.log('🔧 [DEBUG] Erro ignorado (sem contexto útil)');
     }
 });
 

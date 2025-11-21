@@ -34,8 +34,14 @@ class MentalIA {
         console.log('✅ MentalIA 3.0 pronto!');
         this.showToast('Bem-vindo ao MentalIA 3.0! 🧠', 'success');
         
+        // Remove any old privacy badges that might exist
+        this.removeOldPrivacyBadges();
+        
         // Initialize status indicator
         this.updateStatusIndicator('offline');
+        
+        // Log successful initialization
+        console.log('🔘 Indicador de status inicializado');
     }
 
     updateStatusIndicator(status) {
@@ -911,6 +917,10 @@ class MentalIA {
         
         console.log('🔍 [SYSTEM CHECK] AI Analysis:', aiExists ? '✅ Existe' : '❌ Não existe');
         console.log('🔍 [SYSTEM CHECK] AI Methods:', aiMethodsOk ? '✅ OK' : '❌ FALHA');
+        
+        // Check auth system
+        const authOk = !!window.authSystem;
+        console.log('🔍 [SYSTEM CHECK] Auth System:', authOk ? '✅ OK' : '❌ FALHA');
         
         // Check auth system
         const authOk = !!window.authSystem;

@@ -1,5 +1,13 @@
 /* === Status Indicator === */
 
+/* Remove any old privacy badge that might be cached */
+.privacy-badge,
+.logo .privacy-badge,
+.header .privacy-badge {
+    display: none !important;
+    visibility: hidden !important;
+}
+
 /* Status indicator */
 .status-indicator {
     display: inline-flex;
