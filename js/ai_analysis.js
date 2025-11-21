@@ -25,18 +25,30 @@ class AIAnalysis {
 
     async init() {
         try {
-            console.log('🤖 Inicializando módulo de IA...');
+            console.log('🤖 [AI DEBUG] Inicializando módulo de IA...');
             
+            // Verificar se já foi inicializado
+            if (this.worker) {
+                console.log('🤖 [AI DEBUG] Módulo já inicializado');
+                return true;
+            }
+            
+            console.log('🤖 [AI DEBUG] Inicializando web worker...');
             // Initialize web worker for local AI processing
             await this.initWorker();
+            console.log('🤖 [AI DEBUG] Web worker inicializado');
             
+            console.log('🤖 [AI DEBUG] Verificando APIs externas...');
             // Check external API availability
             await this.checkExternalAPIs();
+            console.log('🤖 [AI DEBUG] APIs externas verificadas');
             
-            console.log('✅ Módulo de IA inicializado');
+            console.log('✅ [AI DEBUG] Módulo de IA inicializado com sucesso');
             return true;
         } catch (error) {
-            console.error('Erro ao inicializar IA:', error);
+            console.error('🤖 [AI DEBUG] Erro ao inicializar IA:', error);
+            console.error('🤖 [AI DEBUG] Stack trace:', error.stack);
+            // Mesmo com erro, não falhar completamente - pode usar modo fallback
             return false;
         }
     }
@@ -351,8 +363,11 @@ class AIAnalysis {
 
     async generateLocalReport(entries) {
         return new Promise((resolve, reject) => {
+            console.log('🤖 [AI DEBUG] generateLocalReport chamado');
+            
             if (!this.worker) {
-                reject(new Error('Worker não disponível'));
+                console.log('🤖 [AI DEBUG] Worker não disponível, usando fallback');
+                resolve(this.generateSimpleFallbackReport(entries));
                 return;
             }
             
@@ -403,9 +418,14 @@ class AIAnalysis {
                 return await this.generateLocalReport(entries);
             }
         } catch (error) {
-            console.error('Erro na geração rápida:', error);
-            // Fallback to local model
-            return await this.generateLocalReport(entries);
+            console.error('🤖 [AI DEBUG] Erro na geração rápida:', error);
+            // Fallback to local model, and if that fails, use simple fallback
+            try {
+                return await this.generateLocalReport(entries);
+            } catch (localError) {
+                console.error('🤖 [AI DEBUG] Erro na geração local, usando fallback simples:', localError);
+                return this.generateSimpleFallbackReport(entries);
+            }
         }
     }
 
@@ -606,6 +626,69 @@ Seja empático, acolhedor e sempre reforce que esta análise não substitui acom
         return sections;
     }
 
+    generateSimpleFallbackReport(entries) {
+        console.log('🤖 [AI DEBUG] Gerando relatório de fallback simples');
+        
+        if (!entries || entries.length === 0) {
+            return "Não há dados suficientes para gerar um relatório.";
+        }
+
+        // Análise básica dos dados
+        const totalEntries = entries.length;
+        const moodSum = entries.reduce((sum, entry) => sum + entry.mood, 0);
+        const avgMood = (moodSum / totalEntries).toFixed(1);
+        
+        // Humor mais comum
+        const moodCounts = {};
+        entries.forEach(entry => {
+            const moodLevel = Math.round(entry.mood);
+            moodCounts[moodLevel] = (moodCounts[moodLevel] || 0) + 1;
+        });
+        const mostCommonMood = Object.keys(moodCounts).reduce((a, b) => 
+            moodCounts[a] > moodCounts[b] ? a : b
+        );
+
+        // Sentimentos mais frequentes
+        const allFeelings = entries.flatMap(entry => entry.feelings || []);
+        const feelingCounts = {};
+        allFeelings.forEach(feeling => {
+            feelingCounts[feeling] = (feelingCounts[feeling] || 0) + 1;
+        });
+        const topFeelings = Object.entries(feelingCounts)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 3)
+            .map(([feeling]) => feeling);
+
+        // Período analisado
+        const dates = entries.map(entry => new Date(entry.timestamp));
+        const startDate = new Date(Math.min(...dates)).toLocaleDateString('pt-BR');
+        const endDate = new Date(Math.max(...dates)).toLocaleDateString('pt-BR');
+
+        return `# Relatório de Humor - MentalIA
+
+**Período:** ${startDate} a ${endDate}
+**Total de registros:** ${totalEntries}
+
+## Análise Geral
+Sua média de humor no período foi de ${avgMood}/5.0, o que indica um estado ${avgMood >= 4 ? 'muito positivo' : avgMood >= 3 ? 'equilibrado' : 'que pode precisar de atenção'}.
+
+O nível de humor mais frequente foi ${mostCommonMood}/5, aparecendo em ${Math.round((moodCounts[mostCommonMood] / totalEntries) * 100)}% dos registros.
+
+## Sentimentos Principais
+${topFeelings.length > 0 ? `Os sentimentos mais presentes foram: ${topFeelings.join(', ')}.` : 'Poucos sentimentos específicos foram registrados.'}
+
+## Recomendações Básicas
+${avgMood >= 4 ? 
+    '✅ Continue mantendo suas práticas atuais, elas estão funcionando bem!\n✅ Considere compartilhar suas estratégias positivas com outros.\n✅ Use este momento positivo para estabelecer novos objetivos.' :
+    avgMood >= 3 ?
+    '⚖️ Seu humor está equilibrado. Considere:\n• Identificar padrões em dias melhores\n• Manter rotinas que te fazem bem\n• Estar atento a mudanças significativas' :
+    '💙 Considere buscar apoio profissional se necessário\n💙 Tente atividades que tragam bem-estar\n💙 Mantenha conexões sociais positivas'
+}
+
+---
+*Relatório gerado automaticamente. Para análises mais detalhadas, certifique-se de que sua conexão com internet está funcionando.*`;
+    }
+
     handleReportComplete(report) {
         // Handle completion of local report generation
         if (window.mentalIA) {
@@ -654,16 +737,42 @@ Para usar o modo rápido, você precisa configurar pelo menos uma API:
 // Initialize and expose globally
 window.aiAnalysis = new AIAnalysis();
 
-// Auto-initialize when first used
+// Auto-initialize when first used with better error handling
 const originalMethods = ['generateLocalReport', 'generateFastReport'];
 originalMethods.forEach(method => {
     const original = window.aiAnalysis[method];
-    window.aiAnalysis[method] = async function(...args) {
-        if (!this.worker) {
-            await this.init();
-        }
-        return original.apply(this, args);
-    };
+    if (typeof original === 'function') {
+        window.aiAnalysis[method] = async function(...args) {
+            try {
+                console.log(`🤖 [AI DEBUG] Método ${method} chamado`);
+                if (!this.worker) {
+                    console.log(`🤖 [AI DEBUG] Inicializando worker para ${method}...`);
+                    const initResult = await this.init();
+                    if (!initResult) {
+                        throw new Error('Falha na inicialização do módulo de IA');
+                    }
+                }
+                console.log(`🤖 [AI DEBUG] Executando ${method}...`);
+                return await original.apply(this, args);
+            } catch (error) {
+                console.error(`🤖 [AI DEBUG] Erro em ${method}:`, error);
+                throw error;
+            }
+        };
+    } else {
+        console.error(`🤖 [AI DEBUG] Método ${method} não é uma função:`, typeof original);
+    }
+});
+
+// Inicialização automática no carregamento
+window.addEventListener('DOMContentLoaded', async () => {
+    try {
+        console.log('🤖 [AI DEBUG] Inicializando aiAnalysis automaticamente...');
+        await window.aiAnalysis.init();
+        console.log('🤖 [AI DEBUG] aiAnalysis inicializado com sucesso');
+    } catch (error) {
+        console.error('🤖 [AI DEBUG] Erro na inicialização automática:', error);
+    }
 });
 
 console.log('🤖 Módulo de análise de IA carregado');

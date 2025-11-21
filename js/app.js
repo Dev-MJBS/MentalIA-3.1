@@ -845,6 +845,11 @@ class MentalIA {
             if (!window.aiAnalysis) {
                 throw new Error('Sistema de análise não disponível');
             }
+            
+            // Verificar se os métodos existem
+            if (!window.aiAnalysis.generateLocalReport || !window.aiAnalysis.generateFastReport) {
+                throw new Error('Métodos de análise não carregados');
+            }
 
             const entries = await window.mentalStorage.getAllMoodEntries();
             
@@ -858,8 +863,15 @@ class MentalIA {
             
             let report;
             try {
+                // Garantir que o aiAnalysis está inicializado
+                if (!window.aiAnalysis.worker) {
+                    console.log('🤖 [REPORT DEBUG] Inicializando aiAnalysis...');
+                    await window.aiAnalysis.init();
+                }
+                
                 if (this.aiMode === 'private') {
                     // Use local AI with timeout
+                    console.log('🤖 [REPORT DEBUG] Gerando relatório local...');
                     const reportPromise = window.aiAnalysis.generateLocalReport(entries);
                     const timeoutPromise = new Promise((_, reject) => 
                         setTimeout(() => reject(new Error('Timeout na geração local')), 30000)
@@ -867,6 +879,7 @@ class MentalIA {
                     report = await Promise.race([reportPromise, timeoutPromise]);
                 } else {
                     // Use external API with timeout
+                    console.log('🤖 [REPORT DEBUG] Gerando relatório online...');
                     const reportPromise = window.aiAnalysis.generateFastReport(entries);
                     const timeoutPromise = new Promise((_, reject) => 
                         setTimeout(() => reject(new Error('Timeout na API externa')), 20000)
@@ -874,7 +887,14 @@ class MentalIA {
                     report = await Promise.race([reportPromise, timeoutPromise]);
                 }
             } catch (aiError) {
-                console.error('Erro na geração de IA:', aiError);
+                console.error('🤖 [REPORT DEBUG] Erro na geração de IA:', aiError);
+                console.error('🤖 [REPORT DEBUG] Stack trace:', aiError.stack);
+                console.error('🤖 [REPORT DEBUG] aiAnalysis state:', {
+                    exists: !!window.aiAnalysis,
+                    hasWorker: !!(window.aiAnalysis && window.aiAnalysis.worker),
+                    hasGenerateLocal: !!(window.aiAnalysis && window.aiAnalysis.generateLocalReport),
+                    hasGenerateFast: !!(window.aiAnalysis && window.aiAnalysis.generateFastReport)
+                });
                 throw new Error('Falha na análise de IA: ' + aiError.message);
             }
 
