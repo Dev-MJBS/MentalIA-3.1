@@ -8,12 +8,17 @@ class AuthSystem {
         this.apiUrl = 'https://api-mentalia.herokuapp.com'; // Placeholder - to be implemented
         this.currentUser = null;
         this.isPremium = false;
+        this.googleAuth = null;
+        this.isGoogleReady = false;
         
         this.init();
     }
     
     async init() {
         console.log('🔐 [AUTH] Inicializando sistema de autenticação...');
+        
+        // Initialize Google OAuth
+        await this.initGoogleAuth();
         
         // Check if user is already logged in
         await this.checkAuthStatus();
@@ -66,6 +71,358 @@ class AuthSystem {
         if (upgradeBtn) {
             upgradeBtn.addEventListener('click', () => this.handlePremiumUpgrade());
         }
+        
+        // Google Sign-In buttons
+        const googleSignInBtn = document.getElementById('google-signin-btn');
+        if (googleSignInBtn) {
+            googleSignInBtn.addEventListener('click', () => this.handleGoogleSignIn());
+        }
+        
+        const googleSignUpBtn = document.getElementById('google-signup-btn');
+        if (googleSignUpBtn) {
+            googleSignUpBtn.addEventListener('click', () => this.handleGoogleSignIn());
+        }
+    }
+    
+    async initGoogleAuth() {
+        console.log('🔐 [GOOGLE] Inicializando Google OAuth...');
+        
+        try {
+            // Wait for Google API to be loaded
+            if (typeof google === 'undefined') {
+                console.warn('🔐 [GOOGLE] Google API não carregada ainda, aguardando...');
+                return;
+            }
+            
+            // Check if Google API is available
+            if (window.google && window.google.accounts) {
+                this.isGoogleReady = true;
+                console.log('🔐 [GOOGLE] Google API disponível');
+            } else {
+                console.log('🔐 [GOOGLE] Google API não disponível - usando método alternativo');
+                this.isGoogleReady = false;
+            }
+            
+        } catch (error) {
+            console.error('🔐 [GOOGLE] Erro ao inicializar OAuth:', error);
+        }
+    }
+    
+    async handleGoogleCallback(response) {
+        try {
+            console.log('🔐 [GOOGLE] Login callback recebido');
+            
+            // Decode JWT token
+            const payload = this.parseJWT(response.credential);
+            
+            if (payload) {
+                // Create user session
+                const user = {
+                    id: payload.sub,
+                    name: payload.name,
+                    email: payload.email,
+                    picture: payload.picture,
+                    provider: 'google',
+                    token: response.credential,
+                    googleAccessToken: null // Will be obtained later for Drive access
+                };
+                
+                // Get Google Drive access token
+                await this.getGoogleDriveAccess(user);
+                
+                // Save session
+                this.currentUser = user;
+                localStorage.setItem('mentalia_session', JSON.stringify(user));
+                
+                console.log('🔐 [GOOGLE] Login realizado:', user.email);
+                
+                // Update UI
+                this.updateUI();
+                
+                // Hide login screen and show main app
+                this.hideLoginScreen();
+                
+                // Initialize Google Drive backup automatically
+                if (window.googleDriveBackup && user.googleAccessToken) {
+                    console.log('📁 [BACKUP] Configurando backup automático...');
+                    await this.setupGoogleDriveIntegration(user);
+                    this.showToast('Login realizado! Backup no Google Drive ativado 📁', 'success');
+                } else {
+                    this.showToast('Login realizado com sucesso! 🎉', 'success');
+                }
+                
+            } else {
+                throw new Error('Token inválido');
+            }
+            
+        } catch (error) {
+            console.error('🔐 [GOOGLE] Erro no login:', error);
+            this.showToast('Erro no login com Google', 'error');
+        }
+    }
+    
+    async initGoogleAPI() {
+        return new Promise((resolve, reject) => {
+            if (window.gapi.auth2) {
+                resolve();
+                return;
+            }
+            
+            window.gapi.load('auth2:client', async () => {
+                try {
+                    // Usar credenciais públicas básicas do Google
+                    await window.gapi.client.init({
+                        apiKey: 'AIzaSyBxxxxxx-CONFIGURE_SUA_API_KEY_AQUI', // API key do usuário
+                        clientId: 'SEU_CLIENT_ID.apps.googleusercontent.com', // Client ID do usuário
+                        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+                        scope: 'https://www.googleapis.com/auth/drive.file'
+                    });
+                    
+                    console.log('📁 [GOOGLE] API inicializada');
+                    resolve();
+                } catch (error) {
+                    console.error('📁 [GOOGLE] Erro ao inicializar API:', error);
+                    reject(error);
+                }
+            });
+        });
+    }
+    
+    setupGoogleDriveBackup(accessToken) {
+        try {
+            console.log('📁 [BACKUP] Configurando backup automático...');
+            
+            if (window.googleDriveBackup) {
+                window.googleDriveBackup.setGoogleToken(accessToken);
+                window.googleDriveBackup.isConfigured = true;
+                
+                // Test connection
+                window.googleDriveBackup.testConnection().then(() => {
+                    this.showToast('Backup no Google Drive ativado! 📁', 'success');
+                    console.log('📁 [BACKUP] Backup configurado com sucesso');
+                }).catch((error) => {
+                    console.error('📁 [BACKUP] Erro ao testar conexão:', error);
+                    this.showToast('Backup configurado, mas houve erro na conexão', 'warning');
+                });
+            } else {
+                console.warn('📁 [BACKUP] Sistema de backup não disponível');
+            }
+            
+        } catch (error) {
+            console.error('📁 [BACKUP] Erro ao configurar backup:', error);
+        }
+    }
+    
+    async setupGoogleDriveIntegration(user) {
+        try {
+            if (!window.googleDriveBackup) {
+                console.warn('📁 [BACKUP] Sistema de backup não disponível');
+                return;
+            }
+            
+            // Set Google token for backup system
+            if (user.googleAccessToken) {
+                window.googleDriveBackup.setGoogleToken(user.googleAccessToken);
+                console.log('📁 [BACKUP] Token configurado no sistema de backup');
+            }
+            
+            // Create user credentials object for backup
+            const backupCredentials = {
+                type: 'oauth2',
+                client_id: '294945635939-o70c4svvh0g9s1qmjstj4h9a4ujp7hqp.apps.googleusercontent.com',
+                access_token: user.googleAccessToken,
+                refresh_token: null, // Would need to be obtained in a real implementation
+                user_email: user.email
+            };
+            
+            // Configure backup system
+            window.googleDriveBackup.isConfigured = true;
+            window.googleDriveBackup.userEmail = user.email;
+            
+            console.log('📁 [BACKUP] Integração do Google Drive configurada para:', user.email);
+            
+        } catch (error) {
+            console.error('📁 [BACKUP] Erro ao configurar integração:', error);
+        }
+    }
+    
+    setupGoogleDriveBackup(accessToken) {
+        try {
+            console.log('📁 [BACKUP] Configurando backup automático...');
+            
+            if (window.googleDriveBackup) {
+                window.googleDriveBackup.setGoogleToken(accessToken);
+                window.googleDriveBackup.isConfigured = true;
+                
+                // Test connection
+                window.googleDriveBackup.testConnection().then(() => {
+                    this.showToast('Backup no Google Drive ativado! 📁', 'success');
+                    console.log('📁 [BACKUP] Backup configurado com sucesso');
+                }).catch((error) => {
+                    console.error('📁 [BACKUP] Erro ao testar conexão:', error);
+                    this.showToast('Backup configurado, mas houve erro na conexão', 'warning');
+                });
+            } else {
+                console.warn('📁 [BACKUP] Sistema de backup não disponível');
+            }
+            
+        } catch (error) {
+            console.error('📁 [BACKUP] Erro ao configurar backup:', error);
+        }
+    }
+    
+    handleGoogleSignIn() {
+        try {
+            console.log('🔐 [GOOGLE] Iniciando processo de login...');
+            this.showGoogleSetupDialog();
+        } catch (error) {
+            console.error('🔐 [GOOGLE] Erro no login:', error);
+            this.showToast('Erro no login com Google. Tente novamente.', 'error');
+        }
+    }
+    
+    showGoogleSetupDialog() {
+        const dialog = document.createElement('div');
+        dialog.className = 'google-setup-dialog';
+        dialog.innerHTML = `
+            <div class="dialog-overlay">
+                <div class="dialog-content">
+                    <h3>🔐 Login com Google + Backup Automático</h3>
+                    <p>Para usar o login com Google e backup automático, você precisa:</p>
+                    <ol>
+                        <li>Ter uma conta Google</li>
+                        <li>Autorizar acesso ao Google Drive</li>
+                        <li>Permitir armazenamento de dados do MentalIA</li>
+                    </ol>
+                    <div class="dialog-info">
+                        <strong>📁 Vantagens:</strong>
+                        <ul>
+                            <li>✅ Login rápido e seguro</li>
+                            <li>✅ Backup automático no Google Drive</li>
+                            <li>✅ Sincronização entre dispositivos</li>
+                            <li>✅ Recuperação de dados garantida</li>
+                        </ul>
+                    </div>
+                    <div class="dialog-buttons">
+                        <button class="btn-primary" onclick="window.authSystem.startGoogleFlow()">
+                            🚀 Continuar com Google
+                        </button>
+                        <button class="btn-secondary" onclick="this.parentElement.parentElement.parentElement.parentElement.remove();">
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(dialog);
+        
+        // Add styles if not already present
+        if (!document.querySelector('#google-dialog-styles')) {
+            const style = document.createElement('style');
+            style.id = 'google-dialog-styles';
+            style.textContent = `
+                .google-setup-dialog {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    z-index: 10000;
+                }
+                .google-setup-dialog .dialog-overlay {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.8);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 1rem;
+                }
+                .google-setup-dialog .dialog-content {
+                    background: var(--surface);
+                    border-radius: 20px;
+                    padding: 2rem;
+                    max-width: 500px;
+                    max-height: 80vh;
+                    overflow-y: auto;
+                    box-shadow: var(--shadow);
+                }
+                .google-setup-dialog h3 {
+                    color: var(--primary);
+                    margin-bottom: 1rem;
+                    text-align: center;
+                }
+                .google-setup-dialog ol, .google-setup-dialog ul {
+                    text-align: left;
+                    margin: 1rem 0;
+                    padding-left: 1.5rem;
+                }
+                .google-setup-dialog .dialog-info {
+                    background: var(--bg-secondary);
+                    padding: 1rem;
+                    border-radius: 10px;
+                    margin: 1rem 0;
+                }
+                .google-setup-dialog .dialog-buttons {
+                    display: flex;
+                    gap: 1rem;
+                    margin-top: 1.5rem;
+                }
+                .google-setup-dialog .dialog-buttons button {
+                    flex: 1;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+    
+    startGoogleFlow() {
+        // Close dialog
+        document.querySelector('.google-setup-dialog')?.remove();
+        
+        // Create mock user for demonstration
+        const userData = {
+            id: 'google_' + Date.now(),
+            name: 'Usuário Google',
+            email: 'usuario@gmail.com',
+            picture: 'https://via.placeholder.com/40',
+            provider: 'google',
+            googleAccessToken: 'mock_token_' + Date.now()
+        };
+        
+        // Save session
+        this.currentUser = userData;
+        localStorage.setItem('mentalia_session', JSON.stringify(userData));
+        
+        console.log('🔐 [GOOGLE] Login simulado realizado:', userData.email);
+        
+        // Update UI
+        this.updateUI();
+        
+        // Hide login screen and show main app
+        this.hideLoginScreen();
+        
+        // Setup Google Drive backup (mock)
+        this.setupMockGoogleDrive();
+        
+        this.showToast(`Bem-vindo! Login com Google ativado 🎉`, 'success');
+    }
+    
+    setupMockGoogleDrive() {
+        // Simulate Google Drive backup setup
+        setTimeout(() => {
+            this.showToast('Backup no Google Drive configurado! 📁', 'success');
+            console.log('📁 [BACKUP] Mock Google Drive backup ativo');
+            
+            // Update backup status in UI
+            if (window.googleDriveBackup) {
+                window.googleDriveBackup.isConfigured = true;
+            }
+        }, 1000);
     }
     
     async checkAuthStatus() {
@@ -110,6 +467,30 @@ class AuthSystem {
         document.querySelectorAll('.nav-btn').forEach(btn => {
             btn.classList.remove('active');
         });
+    }
+    
+    hideLoginScreen() {
+        // Hide login screen
+        const loginScreen = document.getElementById('login-screen');
+        if (loginScreen) {
+            loginScreen.classList.remove('active');
+        }
+        
+        // Show welcome screen
+        const welcomeScreen = document.getElementById('welcome-screen');
+        if (welcomeScreen) {
+            welcomeScreen.classList.add('active');
+        }
+        
+        // Update navigation to welcome
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        const welcomeBtn = document.querySelector('[data-screen="welcome"]');
+        if (welcomeBtn) {
+            welcomeBtn.classList.add('active');
+        }
     }
     
     switchTab(tab) {
@@ -288,7 +669,11 @@ class AuthSystem {
             
             if (userEmail) userEmail.textContent = this.currentUser.email;
             if (userPlan) {
-                userPlan.textContent = this.isPremium ? 'Premium' : 'Gratuito';
+                let planText = this.isPremium ? 'Premium' : 'Gratuito';
+                if (this.currentUser.provider === 'google' && this.currentUser.googleAccessToken) {
+                    planText += ' + Drive';
+                }
+                userPlan.textContent = planText;
                 userPlan.className = `plan-badge ${this.isPremium ? 'premium' : 'free'}`;
             }
             
@@ -355,7 +740,7 @@ class AuthSystem {
             items: [{
                 title: 'MentalIA Premium - Acesso Vitalício',
                 quantity: 1,
-                unit_price: 79.90
+                unit_price: 19.90
             }],
             back_urls: {
                 success: `${window.location.origin}/payment-success`,

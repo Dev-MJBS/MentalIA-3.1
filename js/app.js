@@ -1415,7 +1415,7 @@ Continue registrando seus humores para análises mais detalhadas.
                         <li>✅ Relatórios em PDF</li>
                     </ul>
                     <div class="dialog-price">
-                        <span class="price">R$ 79,90</span>
+                        <span class="price">R$ 19,90</span>
                         <span class="price-note">Pagamento único</span>
                     </div>
                     <div class="dialog-buttons">
