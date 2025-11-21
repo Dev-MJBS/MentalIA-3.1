@@ -1,7 +1,7 @@
 // js/premium.js - Sistema de Premium do MentalIA 3.1
 class PremiumManager {
     constructor() {
-        this.stripePublicKey = 'pk_test_51234567890'; // Substituir pela chave real
+        this.stripePublicKey = 'pk_test_51SW0TqABSqS06Hy4NGhKbXDQPLAjX5nHqgQe3XJEkBV2O67BDroG8n7lVy0Rzg3O7YYJTcFUh98kFwgCJUx6UMVe00VC8DGRYz'; // Substituir pela chave real
         this.stripe = null;
         this.plans = {
             monthly: 'price_monthly_590', // ID do preço mensal no Stripe
@@ -69,6 +69,30 @@ class PremiumManager {
                 throw new Error('Faça login com Google primeiro');
             }
 
+            // Modo desenvolvimento - usa mock API
+            if (window.location.hostname === 'localhost' || 
+                window.location.hostname.includes('github.io')) {
+                
+                console.log('🧪 Modo desenvolvimento - usando Mock API');
+                
+                const mockResult = await window.mockStripeAPI.createCheckout(
+                    this.plans[plan], 
+                    user.email
+                );
+                
+                this.hideLoading();
+                
+                // Simula sucesso após 2 segundos
+                setTimeout(() => {
+                    this.showSuccess('Checkout simulado! Ativando premium... 🎉');
+                    localStorage.setItem('mock_premium', 'true');
+                    this.checkPremiumStatus();
+                }, 2000);
+                
+                return;
+            }
+
+            // Modo produção - usa API real
             const response = await fetch('/api/create-checkout', {
                 method: 'POST',
                 headers: {
@@ -152,7 +176,23 @@ class PremiumManager {
                 return true;
             }
 
-            // Verifica no servidor se status local expirou
+            // Modo desenvolvimento - usa mock API
+            if (window.location.hostname === 'localhost' || 
+                window.location.hostname.includes('github.io')) {
+                
+                const mockResult = await window.mockStripeAPI.checkPremium(user.email);
+                
+                if (mockResult.isPremium) {
+                    await this.setLocalPremiumStatus(user.email, mockResult.expiresAt);
+                    this.updatePremiumUI(true);
+                    return true;
+                }
+                
+                this.updatePremiumUI(false);
+                return false;
+            }
+
+            // Modo produção - verifica no servidor
             const response = await fetch('/api/check-premium', {
                 method: 'POST',
                 headers: {

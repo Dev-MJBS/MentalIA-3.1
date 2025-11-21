@@ -2,7 +2,7 @@
 const functions = require('firebase-functions/v2');
 const express = require('express');
 const cors = require('cors');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_...');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); // nunca hardcode aqui
 
 const app = express();
 
@@ -169,12 +169,13 @@ app.post('/check-premium', async (req, res) => {
 // Webhook Stripe para eventos de pagamento
 app.post('/webhook', (req, res) => {
     const sig = req.headers['stripe-signature'];
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_...';
+    // Webhook
+    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
     let event;
 
     try {
-        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
     } catch (err) {
         console.error('Webhook signature verification failed:', err.message);
         return res.status(400).send(`Webhook Error: ${err.message}`);

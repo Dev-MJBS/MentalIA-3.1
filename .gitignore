@@ -3,8 +3,15 @@ client_secret_*-*.json
 credentials.json
 config.json
 
+# Stripe keys e environment variables
+functions/.env
+.env
+*.key
+*.pem
+
 # Permitir arquivos de exemplo
 !client_secret_EXEMPLO.json
+!functions/.env.example
 
 # Logs
 *.log
