@@ -487,6 +487,12 @@ class MentalIA {
                 throw new Error('Selecione um nível de humor');
             }
 
+            // Check entry limits for free users
+            if (!this.checkEntryLimit()) {
+                this.hideLoading();
+                return;
+            }
+
             // Save to encrypted storage
             await window.mentalStorage.saveMoodEntry(moodData);
             
@@ -1264,6 +1270,140 @@ Continue registrando seus humores para análises mais detalhadas.
                 container.removeChild(toast);
             }, 300);
         }, 5000);
+    }
+    checkEntryLimit() {
+        // Verificar se o usuário está logado e é premium
+        const auth = window.mentalIA?.auth;
+        
+        if (!auth?.isLoggedIn) {
+            // Usuário não logado - permitir apenas demonstração
+            this.showToast('Faça login para salvar seus registros permanentemente', 'warning');
+            if (window.authSystem) {
+                setTimeout(() => window.authSystem.showLoginScreen(), 1000);
+            }
+            return false;
+        }
+        
+        if (auth.isPremium) {
+            // Usuário premium - sem limites
+            return true;
+        }
+        
+        // Usuário gratuito - verificar limite de 30 registros
+        const currentEntries = this.moodData?.length || 0;
+        
+        if (currentEntries >= 30) {
+            this.showPremiumLimitDialog();
+            return false;
+        }
+        
+        // Mostrar aviso quando próximo do limite
+        if (currentEntries >= 25) {
+            this.showToast(`Você tem ${30 - currentEntries} registros restantes no plano gratuito`, 'warning');
+        }
+        
+        return true;
+    }
+    
+    showPremiumLimitDialog() {
+        const dialog = document.createElement('div');
+        dialog.className = 'premium-limit-dialog';
+        dialog.innerHTML = `
+            <div class="dialog-overlay">
+                <div class="dialog-content">
+                    <h3>🔒 Limite Atingido</h3>
+                    <p>Você atingiu o limite de 30 registros do plano gratuito.</p>
+                    <p><strong>Torne-se Premium</strong> para:</p>
+                    <ul>
+                        <li>✅ Histórico ilimitado</li>
+                        <li>✅ Backup no Google Drive</li>
+                        <li>✅ IA avançada local</li>
+                        <li>✅ Relatórios em PDF</li>
+                    </ul>
+                    <div class="dialog-price">
+                        <span class="price">R$ 79,90</span>
+                        <span class="price-note">Pagamento único</span>
+                    </div>
+                    <div class="dialog-buttons">
+                        <button class="btn-premium" onclick="this.parentElement.parentElement.parentElement.parentElement.remove(); window.authSystem?.handlePremiumUpgrade();">
+                            🚀 Adquirir Premium
+                        </button>
+                        <button class="btn-secondary" onclick="this.parentElement.parentElement.parentElement.parentElement.remove();">
+                            Agora Não
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(dialog);
+        
+        // Add styles if not already present
+        if (!document.querySelector('#premium-dialog-styles')) {
+            const style = document.createElement('style');
+            style.id = 'premium-dialog-styles';
+            style.textContent = `
+                .premium-limit-dialog {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    z-index: 10000;
+                }
+                .dialog-overlay {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.8);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 1rem;
+                }
+                .dialog-content {
+                    background: var(--surface);
+                    border-radius: 20px;
+                    padding: 2rem;
+                    max-width: 400px;
+                    text-align: center;
+                    box-shadow: var(--shadow);
+                }
+                .dialog-content h3 {
+                    color: var(--primary);
+                    margin-bottom: 1rem;
+                }
+                .dialog-content ul {
+                    text-align: left;
+                    margin: 1rem 0;
+                    padding-left: 1rem;
+                }
+                .dialog-price {
+                    margin: 1.5rem 0;
+                }
+                .dialog-price .price {
+                    font-size: 2rem;
+                    font-weight: bold;
+                    color: var(--primary);
+                    display: block;
+                }
+                .dialog-price .price-note {
+                    font-size: 0.9rem;
+                    color: var(--text-secondary);
+                }
+                .dialog-buttons {
+                    display: flex;
+                    gap: 1rem;
+                    margin-top: 1.5rem;
+                }
+                .dialog-buttons button {
+                    flex: 1;
+                }
+            `;
+            document.head.appendChild(style);
+        }
     }
 }
 
