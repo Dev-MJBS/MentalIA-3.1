@@ -1,0 +1,28 @@
+# Arquivos de credenciais e secrets
+client_secret_*.json
+*.json
+credentials.json
+config.json
+
+# Logs
+*.log
+logs/
+
+# Node modules (se usar)
+node_modules/
+
+# Cache
+.cache/
+dist/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Arquivos temporários
+*.tmp
+*.temp
