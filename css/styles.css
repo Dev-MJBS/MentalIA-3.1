@@ -1836,6 +1836,19 @@ body {
   display: none !important;
 }
 
+/* Admin-only elements - hidden by default */
+.admin-only {
+  display: none !important;
+}
+
+.admin-only.admin-visible {
+  display: block !important;
+}
+
+.admin-only.admin-visible.btn-secondary {
+  display: inline-flex !important;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

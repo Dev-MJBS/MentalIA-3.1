@@ -14,6 +14,9 @@ class MentalIA {
     async init() {
         console.log('🧠 MentalIA 3.1 inicializando...');
 
+        // Check admin status and setup admin features
+        this.initAdminFeatures();
+
         // Setup all event listeners AFTER DOM is ready
         this.setupEventListeners();
 
@@ -32,9 +35,93 @@ class MentalIA {
         this.showToast('MentalIA 3.1 carregado com sucesso! 🧠', 'success');
     }
 
+    // ===== ADMIN FEATURES =====
+    initAdminFeatures() {
+        console.log('👑 Verificando status de administrador...');
+        
+        // Simple admin detection - can be improved later
+        const isAdmin = this.checkAdminStatus();
+        
+        if (isAdmin) {
+            console.log('👑 Usuário administrador detectado - mostrando funcionalidades admin');
+            this.showAdminElements();
+        } else {
+            console.log('👤 Usuário normal - escondendo funcionalidades admin');
+            this.hideAdminElements();
+        }
+    }
+
+    checkAdminStatus() {
+        // Method 1: Check URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('admin') === 'true') {
+            console.log('👑 Admin mode ativado via URL parameter');
+            return true;
+        }
+
+        // Method 2: Check localStorage
+        if (localStorage.getItem('mentalIA_admin') === 'true') {
+            console.log('👑 Admin mode ativado via localStorage');
+            return true;
+        }
+
+        // Method 3: Check for special key combination (Ctrl+Shift+A+D+M)
+        // This will be set up in setupEventListeners
+
+        // Method 4: Check if running on localhost/development
+        if (window.location.hostname === 'localhost' || 
+            window.location.hostname === '127.0.0.1' ||
+            window.location.hostname.includes('dev-mjbs.github.io')) {
+            console.log('👑 Admin mode ativado - desenvolvimento/GitHub Pages');
+            return true;
+        }
+
+        return false;
+    }
+
+    showAdminElements() {
+        const adminElements = document.querySelectorAll('.admin-only');
+        console.log('👑 Mostrando elementos admin:', adminElements.length);
+        
+        adminElements.forEach(element => {
+            element.classList.remove('hidden');
+            element.classList.add('admin-visible');
+        });
+    }
+
+    hideAdminElements() {
+        const adminElements = document.querySelectorAll('.admin-only');
+        console.log('👤 Escondendo elementos admin:', adminElements.length);
+        
+        adminElements.forEach(element => {
+            element.classList.add('hidden');
+            element.classList.remove('admin-visible');
+        });
+    }
+
+    // Toggle admin mode (for testing)
+    toggleAdminMode() {
+        const isCurrentlyAdmin = localStorage.getItem('mentalIA_admin') === 'true';
+        
+        if (isCurrentlyAdmin) {
+            localStorage.removeItem('mentalIA_admin');
+            this.hideAdminElements();
+            this.showToast('👤 Modo usuário ativado', 'info');
+            console.log('👤 Modo admin desativado');
+        } else {
+            localStorage.setItem('mentalIA_admin', 'true');
+            this.showAdminElements();
+            this.showToast('👑 Modo admin ativado', 'success');
+            console.log('👑 Modo admin ativado');
+        }
+    }
+
     setupEventListeners() {
         try {
             console.log('🔧 Configurando event listeners...');
+
+        // Admin key combination (Ctrl+Shift+D+E+V)
+        this.setupAdminKeyListener();
 
         // Theme toggle
         const themeToggle = document.getElementById('theme-toggle');
@@ -97,6 +184,33 @@ class MentalIA {
         } catch (error) {
             console.error('❌ Erro ao configurar event listeners:', error);
         }
+    }
+
+    setupAdminKeyListener() {
+        let keySequence = [];
+        const adminSequence = ['Control', 'Shift', 'd', 'e', 'v'];
+        
+        document.addEventListener('keydown', (e) => {
+            // Add current key to sequence
+            keySequence.push(e.key);
+            
+            // Keep only last 5 keys
+            if (keySequence.length > adminSequence.length) {
+                keySequence.shift();
+            }
+            
+            // Check if sequence matches admin pattern
+            const sequenceString = keySequence.join(',').toLowerCase();
+            const adminString = adminSequence.join(',').toLowerCase();
+            
+            if (sequenceString === adminString) {
+                console.log('👑 Sequência admin detectada! Ativando modo desenvolvedor...');
+                localStorage.setItem('mentalIA_admin', 'true');
+                this.showAdminElements();
+                this.showToast('🚀 Modo Desenvolvedor Ativado!', 'success');
+                keySequence = []; // Reset sequence
+            }
+        });
     }
 
     // ===== MOOD SLIDER =====

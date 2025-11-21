@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste Sentimentos</title>
+</head>
+<body>
+    <h1>Teste dos Sentimentos</h1>
+    
+    <script>
+        // Teste rápido para verificar se os elementos existem
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('=== TESTE DOS ELEMENTOS DE SENTIMENTOS ===');
+            
+            const primaryCards = document.querySelectorAll('.primary-feeling-card');
+            console.log('Primary feeling cards:', primaryCards.length);
+            
+            const subFeelings = document.querySelectorAll('.sub-feeling-item');
+            console.log('Sub feeling items:', subFeelings.length);
+            
+            const clearBtn = document.getElementById('clear-feelings');
+            console.log('Clear button:', !!clearBtn);
+            
+            if (primaryCards.length === 0) {
+                console.error('❌ PROBLEMA: Nenhum primary feeling card encontrado!');
+            }
+            
+            if (subFeelings.length === 0) {
+                console.error('❌ PROBLEMA: Nenhum sub feeling item encontrado!');
+            }
+        });
+    </script>
+    
+    <p>Abra o console do navegador para ver os resultados do teste.</p>
+    <p><a href="/index.html">Voltar ao app</a></p>
+</body>
+</html>
