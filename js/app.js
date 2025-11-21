@@ -1,6 +1,8 @@
 // MentalIA 3.1 - Main App JavaScript
 // Complete rewrite with all fixes
 
+console.log('🚀 MentalIA app.js carregado!');
+
 class MentalIA {
     constructor() {
         this.currentScreen = 'welcome';
@@ -11,13 +13,6 @@ class MentalIA {
 
     async init() {
         console.log('🧠 MentalIA 3.1 inicializando...');
-
-        // Check dependencies
-        if (!window.mentalStorage) {
-            console.error('Storage não carregado! Inclua storage.js antes de app.js');
-            this.showToast('Erro interno: armazenamento não disponível', 'error');
-            return;
-        }
 
         // Setup all event listeners AFTER DOM is ready
         this.setupEventListeners();
@@ -38,7 +33,8 @@ class MentalIA {
     }
 
     setupEventListeners() {
-        console.log('🔧 Configurando event listeners...');
+        try {
+            console.log('🔧 Configurando event listeners...');
 
         // Theme toggle
         const themeToggle = document.getElementById('theme-toggle');
@@ -47,9 +43,13 @@ class MentalIA {
 
         // Navigation
         const navBtns = document.querySelectorAll('.nav-btn');
-        console.log('🧭 Botões de navegação encontrados:', navBtns.length);
+        console.log('🧭 Botões de navegação encontrados:', navBtns.length, navBtns);
         navBtns.forEach(btn => {
+            console.log('🧭 Configurando event listener para botão:', btn.dataset.screen, btn);
             btn.addEventListener('click', (e) => {
+                console.log('🧭 Botão clicado! Event:', e);
+                console.log('🧭 Target:', e.currentTarget);
+                console.log('🧭 Dataset screen:', e.currentTarget.dataset.screen);
                 const screen = e.currentTarget.dataset.screen;
                 console.log('🧭 Navegando para:', screen);
                 this.showScreen(screen);
@@ -86,6 +86,9 @@ class MentalIA {
         });
 
         console.log('✅ Event listeners configurados');
+        } catch (error) {
+            console.error('❌ Erro ao configurar event listeners:', error);
+        }
     }
 
     // ===== MOOD SLIDER =====
@@ -592,7 +595,7 @@ class MentalIA {
     }
 
     showScreen(screenName) {
-        console.log('🧭 Navegando para tela:', screenName);
+        console.log('🧭 showScreen chamado com:', screenName);
 
         // Hide all screens
         document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
@@ -679,86 +682,78 @@ class MentalIA {
     }
 }
 
-// Initialize app
-document.addEventListener('DOMContentLoaded', () => {
-    window.mentalIA = new MentalIA();
+// ===== API CONFIGURATION FUNCTIONS =====
+// Função global para configurar API keys facilmente
+window.configureGoogleAPI = async (apiKey) => {
+    if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === '') {
+        console.error('❌ Erro: API key inválida');
+        return false;
+    }
+    
+    try {
+        await window.mentalStorage.saveSetting('google-api-key', apiKey.trim());
+        console.log('✅ API key do Google Cloud configurada com sucesso!');
+        console.log('🔄 Recarregue a página para aplicar as mudanças.');
+        return true;
+    } catch (error) {
+        console.error('❌ Erro ao salvar API key:', error);
+        return false;
+    }
+};
 
-    // Make showScreen globally available for HTML onclick handlers
-    window.showScreen = (screenName) => window.mentalIA.showScreen(screenName);
+window.configureClaudeAPI = async (apiKey) => {
+    if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === '') {
+        console.error('❌ Erro: API key inválida');
+        return false;
+    }
+    
+    try {
+        await window.mentalStorage.saveSetting('claude-api-key', apiKey.trim());
+        console.log('✅ API key do Claude configurada com sucesso!');
+        console.log('🔄 Recarregue a página para aplicar as mudanças.');
+        return true;
+    } catch (error) {
+        console.error('❌ Erro ao salvar API key:', error);
+        return false;
+    }
+};
 
-    // ===== API CONFIGURATION FUNCTIONS =====
-    // Função global para configurar API keys facilmente
-    window.configureGoogleAPI = async (apiKey) => {
-        if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === '') {
-            console.error('❌ Erro: API key inválida');
-            return false;
-        }
+window.configureGeminiAPI = async (apiKey) => {
+    if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === '') {
+        console.error('❌ Erro: API key inválida');
+        return false;
+    }
+    
+    try {
+        await window.mentalStorage.saveSetting('gemini-api-key', apiKey.trim());
+        console.log('✅ API key do Gemini configurada com sucesso!');
+        console.log('🔄 Recarregue a página para aplicar as mudanças.');
+        return true;
+    } catch (error) {
+        console.error('❌ Erro ao salvar API key:', error);
+        return false;
+    }
+};
+
+// Função para verificar APIs configuradas
+window.checkAPIs = async () => {
+    try {
+        const googleKey = await window.mentalStorage.getSetting('google-api-key');
+        const claudeKey = await window.mentalStorage.getSetting('claude-api-key');
+        const geminiKey = await window.mentalStorage.getSetting('gemini-api-key');
         
-        try {
-            await window.mentalStorage.saveSetting('google-api-key', apiKey.trim());
-            console.log('✅ API key do Google Cloud configurada com sucesso!');
-            console.log('🔄 Recarregue a página para aplicar as mudanças.');
-            return true;
-        } catch (error) {
-            console.error('❌ Erro ao salvar API key:', error);
-            return false;
-        }
-    };
-
-    window.configureClaudeAPI = async (apiKey) => {
-        if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === '') {
-            console.error('❌ Erro: API key inválida');
-            return false;
-        }
+        console.log('🔍 Status das APIs:');
+        console.log('🌐 Google Cloud API:', googleKey ? '✅ Configurada' : '❌ Não configurada');
+        console.log('🤖 Claude API:', claudeKey ? '✅ Configurada' : '❌ Não configurada');
+        console.log('🤖 Gemini API:', geminiKey ? '✅ Configurada' : '❌ Não configurada');
         
-        try {
-            await window.mentalStorage.saveSetting('claude-api-key', apiKey.trim());
-            console.log('✅ API key do Claude configurada com sucesso!');
-            console.log('🔄 Recarregue a página para aplicar as mudanças.');
-            return true;
-        } catch (error) {
-            console.error('❌ Erro ao salvar API key:', error);
-            return false;
-        }
-    };
-
-    window.configureGeminiAPI = async (apiKey) => {
-        if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === '') {
-            console.error('❌ Erro: API key inválida');
-            return false;
-        }
-        
-        try {
-            await window.mentalStorage.saveSetting('gemini-api-key', apiKey.trim());
-            console.log('✅ API key do Gemini configurada com sucesso!');
-            console.log('🔄 Recarregue a página para aplicar as mudanças.');
-            return true;
-        } catch (error) {
-            console.error('❌ Erro ao salvar API key:', error);
-            return false;
-        }
-    };
-
-    // Função para verificar APIs configuradas
-    window.checkAPIs = async () => {
-        try {
-            const googleKey = await window.mentalStorage.getSetting('google-api-key');
-            const claudeKey = await window.mentalStorage.getSetting('claude-api-key');
-            const geminiKey = await window.mentalStorage.getSetting('gemini-api-key');
-            
-            console.log('🔍 Status das APIs:');
-            console.log('🌐 Google Cloud API:', googleKey ? '✅ Configurada' : '❌ Não configurada');
-            console.log('🤖 Claude API:', claudeKey ? '✅ Configurada' : '❌ Não configurada');
-            console.log('🤖 Gemini API:', geminiKey ? '✅ Configurada' : '❌ Não configurada');
-            
-            return {
-                google: !!googleKey,
-                claude: !!claudeKey,
-                gemini: !!geminiKey
-            };
-        } catch (error) {
-            console.error('❌ Erro ao verificar APIs:', error);
-            return null;
-        }
-    };
-});
+        return {
+            google: !!googleKey,
+            claude: !!claudeKey,
+            gemini: !!geminiKey
+        };
+    } catch (error) {
+        console.error('❌ Erro ao verificar APIs:', error);
+        return null;
+    }
+};
