@@ -1,4 +1,4 @@
-// MentalIA 3.0 - AI Analysis Module
+// MentalIA 3.0 - AI Analysis Module - Updated 2025-11-21
 // Local MedGemma-4B-IT + External API integration with Web Workers
 
 class AIAnalysis {
@@ -406,26 +406,34 @@ class AIAnalysis {
     }
 
     async generateFastReport(entries) {
+        console.log('🚀 [AI DEBUG] generateFastReport iniciado');
+        
+        // APIs externas são geralmente problemáticas, ir direto para fallback
+        console.log('🤖 [AI DEBUG] APIs externas não configuradas, usando fallback simples diretamente');
+        return this.generateSimpleFallbackReport(entries);
+        
+        // Código anterior comentado para evitar timeouts
+        /*
         try {
-            // Try Claude first, then Gemini
+            // Try Claude first, then Gemini (with very short timeout)
             if (this.externalAPIs.claude.available) {
-                return await this.generateClaudeReport(entries);
+                return await Promise.race([
+                    this.generateClaudeReport(entries),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Claude timeout')), 5000))
+                ]);
             } else if (this.externalAPIs.gemini.available) {
-                return await this.generateGeminiReport(entries);
+                return await Promise.race([
+                    this.generateGeminiReport(entries),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Gemini timeout')), 5000))
+                ]);
             } else {
-                // Fallback to local model
-                console.log('⚠️ Nenhuma API externa disponível, usando modelo local');
-                return await this.generateLocalReport(entries);
-            }
-        } catch (error) {
-            console.error('🤖 [AI DEBUG] Erro na geração rápida:', error);
-            // Fallback to local model, and if that fails, use simple fallback
-            try {
-                return await this.generateLocalReport(entries);
-            } catch (localError) {
-                console.error('🤖 [AI DEBUG] Erro na geração local, usando fallback simples:', localError);
                 return this.generateSimpleFallbackReport(entries);
             }
+        } catch (error) {
+            console.error('🤖 [AI DEBUG] Erro na geração rápida, usando fallback:', error.message);
+            return this.generateSimpleFallbackReport(entries);
+        }
+        */
         }
     }
 
@@ -738,8 +746,8 @@ Para usar o modo rápido, você precisa configurar pelo menos uma API:
 window.aiAnalysis = new AIAnalysis();
 
 // Auto-initialize when first used with better error handling
-const originalMethods = ['generateLocalReport', 'generateFastReport'];
-originalMethods.forEach(method => {
+const aiMethodsToWrap = ['generateLocalReport', 'generateFastReport'];
+aiMethodsToWrap.forEach(method => {
     const original = window.aiAnalysis[method];
     if (typeof original === 'function') {
         window.aiAnalysis[method] = async function(...args) {

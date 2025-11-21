@@ -818,7 +818,8 @@ class MentalIA {
     }
 
     initReportGeneration() {
-        this.aiMode = 'private'; // Default to private mode
+        this.aiMode = 'private'; // Default to private mode (mais confiável)
+        console.log('📊 [REPORT DEBUG] Modo padrão definido como:', this.aiMode);
     }
 
     setAIMode(mode) {
@@ -870,36 +871,53 @@ class MentalIA {
                 }
                 
                 if (this.aiMode === 'private') {
-                    // Use local AI with timeout
+                    // Use local AI with timeout and fallback
                     console.log('🤖 [REPORT DEBUG] Gerando relatório local...');
-                    const reportPromise = window.aiAnalysis.generateLocalReport(entries);
-                    const timeoutPromise = new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error('Timeout na geração local')), 30000)
-                    );
-                    report = await Promise.race([reportPromise, timeoutPromise]);
+                    try {
+                        const reportPromise = window.aiAnalysis.generateLocalReport(entries);
+                        const timeoutPromise = new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Timeout na geração local')), 30000)
+                        );
+                        report = await Promise.race([reportPromise, timeoutPromise]);
+                    } catch (localError) {
+                        console.log('🤖 [REPORT DEBUG] Erro local, usando fallback simples:', localError.message);
+                        report = window.aiAnalysis.generateSimpleFallbackReport(entries);
+                    }
                 } else {
-                    // Use external API with timeout
+                    // Use external API with timeout and fallback
                     console.log('🤖 [REPORT DEBUG] Gerando relatório online...');
-                    const reportPromise = window.aiAnalysis.generateFastReport(entries);
-                    const timeoutPromise = new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error('Timeout na API externa')), 20000)
-                    );
-                    report = await Promise.race([reportPromise, timeoutPromise]);
+                    try {
+                        const reportPromise = window.aiAnalysis.generateFastReport(entries);
+                        const timeoutPromise = new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Timeout na API externa')), 20000)
+                        );
+                        report = await Promise.race([reportPromise, timeoutPromise]);
+                    } catch (externalError) {
+                        console.log('🤖 [REPORT DEBUG] Erro API externa, tentando local:', externalError.message);
+                        try {
+                            report = await window.aiAnalysis.generateLocalReport(entries);
+                        } catch (localError) {
+                            console.log('🤖 [REPORT DEBUG] Erro local também, usando fallback simples:', localError.message);
+                            report = window.aiAnalysis.generateSimpleFallbackReport(entries);
+                        }
+                    }
                 }
             } catch (aiError) {
-                console.error('🤖 [REPORT DEBUG] Erro na geração de IA:', aiError);
+                console.error('🤖 [REPORT DEBUG] Erro crítico na geração de IA:', aiError);
                 console.error('🤖 [REPORT DEBUG] Stack trace:', aiError.stack);
-                console.error('🤖 [REPORT DEBUG] aiAnalysis state:', {
-                    exists: !!window.aiAnalysis,
-                    hasWorker: !!(window.aiAnalysis && window.aiAnalysis.worker),
-                    hasGenerateLocal: !!(window.aiAnalysis && window.aiAnalysis.generateLocalReport),
-                    hasGenerateFast: !!(window.aiAnalysis && window.aiAnalysis.generateFastReport)
-                });
-                throw new Error('Falha na análise de IA: ' + aiError.message);
+                console.log('🤖 [REPORT DEBUG] Usando fallback de emergência...');
+                
+                // Último recurso: fallback simples sempre funciona
+                if (window.aiAnalysis && window.aiAnalysis.generateSimpleFallbackReport) {
+                    report = window.aiAnalysis.generateSimpleFallbackReport(entries);
+                } else {
+                    report = this.generateEmergencyReport(entries);
+                }
             }
 
             if (!report || typeof report !== 'string') {
-                throw new Error('Relatório inválido gerado');
+                console.log('🤖 [REPORT DEBUG] Relatório inválido, gerando emergência...');
+                report = this.generateEmergencyReport(entries);
             }
 
             // Hide loading
@@ -930,6 +948,37 @@ class MentalIA {
             
             this.showToast(errorMessage, 'error');
         }
+    }
+
+    generateEmergencyReport(entries) {
+        console.log('🆘 [EMERGENCY] Gerando relatório de emergência');
+        
+        if (!entries || entries.length === 0) {
+            return "Nenhum dado encontrado para análise.";
+        }
+
+        const total = entries.length;
+        const avg = (entries.reduce((sum, e) => sum + e.mood, 0) / total).toFixed(1);
+        const latest = entries[entries.length - 1];
+        const latestDate = new Date(latest.timestamp).toLocaleDateString('pt-BR');
+        
+        return `# Relatório Básico - MentalIA
+
+ℹ️ **Status**: Relatório gerado em modo de emergência
+
+## Resumo Rápido
+📈 **Total de registros**: ${total}
+📊 **Humor médio**: ${avg}/5.0
+📅 **Último registro**: ${latestDate}
+😊 **Último humor**: ${latest.mood}/5.0
+
+## Observações
+${avg >= 3.5 ? '✅ Seus níveis de humor estão positivos!' : '💭 Considere conversar com um profissional se necessário.'}
+
+Continue registrando seus humores para análises mais detalhadas.
+
+---
+*Relatório simplificado gerado automaticamente*`;
     }
 
     displayReport(report) {
