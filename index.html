@@ -686,6 +686,10 @@
                         <span class="btn-icon">📥</span>
                         Restaurar
                     </button>
+                    <button id="debug-logs" class="btn-secondary debug-btn" onclick="window.exportDebugLogs()">
+                        <span class="btn-icon">🐛</span>
+                        Debug Logs
+                    </button>
                 </div>
                 
                 <!-- Login Prompt -->
@@ -712,6 +716,7 @@
     <div id="toast-container" class="toast-container"></div>
 
     <!-- Scripts -->
+    <script src="js/debug.js"></script>
     <script src="js/storage.js"></script>
     <script src="js/ai_analysis.js"></script>
     <script src="js/google_drive_backup.js"></script>

@@ -62,10 +62,9 @@ class MentalIA {
         const generateReportBtn = document.getElementById('generate-report');
         generateReportBtn?.addEventListener('click', () => this.generateReport());
 
-        // Backup buttons
-        const backupBtn = document.getElementById('backup-data');
+        // Backup and restore buttons
+        // Backup button is handled by GoogleDriveBackup class
         const restoreBtn = document.getElementById('restore-data');
-        backupBtn?.addEventListener('click', () => this.backupData());
         restoreBtn?.addEventListener('click', () => this.restoreData());
 
         // Mode switch
@@ -894,7 +893,22 @@ class MentalIA {
         } catch (error) {
             console.error('Erro ao gerar relatório:', error);
             this.hideLoading();
-            this.showToast('Erro ao gerar relatório. Tente novamente.', 'error');
+            
+            let errorMessage = 'Erro ao gerar relatório. Tente novamente.';
+            
+            if (error.message.includes('Sistema de armazenamento não disponível')) {
+                errorMessage = 'Sistema de dados não inicializado. Recarregue a página.';
+            } else if (error.message.includes('Sistema de análise não disponível')) {
+                errorMessage = 'Sistema de IA não carregado. Recarregue a página.';
+            } else if (error.message.includes('Timeout')) {
+                errorMessage = 'Análise demorou muito. Tente novamente.';
+            } else if (error.message.includes('Falha na análise de IA')) {
+                errorMessage = 'Erro na IA. Tente mudar para modo online/privado.';
+            } else if (error.message.includes('Relatório inválido')) {
+                errorMessage = 'Resposta inválida da IA. Tente novamente.';
+            }
+            
+            this.showToast(errorMessage, 'error');
         }
     }
 
@@ -919,48 +933,62 @@ class MentalIA {
             });
         }
 
-        // Update content
-        if (generalAnalysis && report.general) {
-            generalAnalysis.innerHTML = `<p>${report.general}</p>`;
-        }
+        // Handle both string and object report formats
+        if (typeof report === 'string') {
+            // If it's a string, put it all in general analysis
+            if (generalAnalysis) {
+                generalAnalysis.innerHTML = `<div class="report-text">${report.replace(/\n/g, '<br>')}</div>`;
+            }
+            
+            // Clear other sections
+            if (patternsAnalysis) patternsAnalysis.innerHTML = '';
+            if (recommendations) recommendations.innerHTML = '';
+            
+        } else if (typeof report === 'object' && report !== null) {
+            // Handle object format
+            if (generalAnalysis && report.general) {
+                generalAnalysis.innerHTML = `<p>${report.general}</p>`;
+            }
 
-        if (patternsAnalysis && report.patterns) {
-            patternsAnalysis.innerHTML = report.patterns.map(pattern => 
-                `<p>• ${pattern}</p>`
-            ).join('');
-        }
+            if (patternsAnalysis && report.patterns && Array.isArray(report.patterns)) {
+                patternsAnalysis.innerHTML = report.patterns.map(pattern => 
+                    `<p>• ${pattern}</p>`
+                ).join('');
+            }
 
-        if (recommendations && report.recommendations) {
-            recommendations.innerHTML = report.recommendations.map(rec => 
-                `<p>• ${rec}</p>`
-            ).join('');
+            if (recommendations && report.recommendations && Array.isArray(report.recommendations)) {
+                recommendations.innerHTML = report.recommendations.map(rec => 
+                    `<p>• ${rec}</p>`
+                ).join('');
+            }
+        } else {
+            // Fallback for invalid report format
+            if (generalAnalysis) {
+                generalAnalysis.innerHTML = '<p>Erro: Formato de relatório inválido.</p>';
+            }
         }
     }
 
+    // Backup is now handled directly by GoogleDriveBackup class
+    // This method is kept for backward compatibility if needed
     async backupData() {
-        try {
-            this.showLoading('Fazendo backup...', 'Salvando seus dados no Google Drive...');
-            
-            await window.googleDriveBackup.backupToGoogleDrive();
-            
-            this.hideLoading();
-            this.showToast('Backup realizado com sucesso! ☁️', 'success');
-            
-        } catch (error) {
-            console.error('Erro no backup:', error);
-            this.hideLoading();
-            this.showToast('Erro ao fazer backup. Verifique sua conexão.', 'error');
+        if (window.googleDriveBackup && window.googleDriveBackup.handleBackupClick) {
+            await window.googleDriveBackup.handleBackupClick();
+        } else {
+            this.showToast('Sistema de backup não carregado. Recarregue a página.', 'error');
         }
     }
 
     async restoreData() {
         try {
-            this.showLoading('Restaurando dados...', 'Baixando backup do Google Drive...');
+            if (!window.googleDriveBackup) {
+                throw new Error('Sistema de backup não disponível');
+            }
             
-            await window.googleDriveBackup.restoreFromGoogleDrive();
+            this.showToast('Funcionalidade de restaurar em desenvolvimento', 'info');
             
-            this.hideLoading();
-            this.showToast('Dados restaurados com sucesso! 📥', 'success');
+            // TODO: Implement restore functionality
+            // await window.googleDriveBackup.restoreFromGoogleDrive();
             
             // Reload data
             await this.loadData();

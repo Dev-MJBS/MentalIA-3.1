@@ -266,21 +266,30 @@ class GoogleDriveBackup {
 
     async performBackup() {
         try {
+            console.log('📤 [BACKUP DEBUG] Iniciando backup...');
+            console.log('📤 [BACKUP DEBUG] isSignedIn:', this.isSignedIn);
+            console.log('📤 [BACKUP DEBUG] isInitialized:', this.isInitialized);
+            
             if (!this.isSignedIn) {
                 throw new Error('Usuário não está logado');
             }
 
-            console.log('📤 Iniciando backup...');
+            console.log('📤 [BACKUP DEBUG] Usuário logado, continuando...');
             this.setBackupLoading(true);
 
             // Get all mood entries from storage
+            console.log('📤 [BACKUP DEBUG] Buscando dados do storage...');
+            console.log('📤 [BACKUP DEBUG] window.mentalStorage existe:', !!window.mentalStorage);
+            
             const entries = await window.mentalStorage.getAllMoodEntries();
+            console.log('📤 [BACKUP DEBUG] Dados obtidos:', entries ? entries.length : 0, 'entradas');
             
             if (!entries || entries.length === 0) {
                 throw new Error('Nenhum dado para fazer backup');
             }
 
             // Create backup data
+            console.log('📤 [BACKUP DEBUG] Criando dados de backup...');
             const backupData = {
                 version: '3.1',
                 timestamp: new Date().toISOString(),
@@ -288,12 +297,17 @@ class GoogleDriveBackup {
                 entries: entries,
                 totalEntries: entries.length
             };
+            console.log('📤 [BACKUP DEBUG] Dados criados, tamanho:', JSON.stringify(backupData).length, 'chars');
 
             // Encrypt backup data
+            console.log('📤 [BACKUP DEBUG] Iniciando criptografia...');
             const encryptedData = await this.encryptBackupData(JSON.stringify(backupData));
+            console.log('📤 [BACKUP DEBUG] Dados criptografados, tamanho:', encryptedData.length, 'chars');
             
             // Upload to Google Drive
+            console.log('📤 [BACKUP DEBUG] Iniciando upload para Google Drive...');
             const fileId = await this.uploadToDrive(encryptedData);
+            console.log('📤 [BACKUP DEBUG] Upload concluído, file ID:', fileId);
             
             console.log('✅ Backup realizado com sucesso:', fileId);
             this.showToast('Backup realizado com sucesso! 🎉', 'success');
@@ -301,7 +315,10 @@ class GoogleDriveBackup {
             return fileId;
             
         } catch (error) {
-            console.error('❌ Erro no backup:', error);
+            console.error('❌ [BACKUP DEBUG] Erro no backup:', error);
+            console.error('❌ [BACKUP DEBUG] Tipo do erro:', typeof error);
+            console.error('❌ [BACKUP DEBUG] Stack trace:', error.stack);
+            console.error('❌ [BACKUP DEBUG] Mensagem completa:', error.message);
             
             let errorMessage = 'Erro ao fazer backup. Tente novamente.';
             if (error.message.includes('não está logado')) {
@@ -310,9 +327,13 @@ class GoogleDriveBackup {
                 errorMessage = 'Nenhum dado encontrado para backup.';
             } else if (error.message.includes('criptografia')) {
                 errorMessage = 'Erro na criptografia dos dados.';
+            } else if (error.message.includes('GAPI não está inicializado')) {
+                errorMessage = 'Google APIs não carregadas. Recarregue a página.';
+            } else if (error.message.includes('Failed to fetch')) {
+                errorMessage = 'Erro de conexão. Verifique sua internet.';
             }
             
-            this.showToast(errorMessage, 'error');
+            this.showToast(errorMessage + ' (Detalhes no console)', 'error');
             throw error;
             
         } finally {
@@ -321,17 +342,20 @@ class GoogleDriveBackup {
     }
 
     async uploadToDrive(encryptedData) {
+        console.log('☁️ [BACKUP DEBUG] Preparando upload para Drive...');
         const boundary = '-------314159265358979323846';
         const delimiter = "\r\n--" + boundary + "\r\n";
         const close_delim = "\r\n--" + boundary + "--";
 
         const fileName = `MentalIA_Backup_${new Date().toISOString().split('T')[0]}.json`;
+        console.log('☁️ [BACKUP DEBUG] Nome do arquivo:', fileName);
         
         const metadata = {
             'name': fileName,
             'parents': ['appDataFolder'], // Hidden from user
             'description': 'MentalIA encrypted backup'
         };
+        console.log('☁️ [BACKUP DEBUG] Metadata:', metadata);
 
         const multipartRequestBody =
             delimiter +
@@ -342,6 +366,12 @@ class GoogleDriveBackup {
             encryptedData +
             close_delim;
 
+        console.log('☁️ [BACKUP DEBUG] Verificando GAPI...');
+        if (typeof gapi === 'undefined' || !gapi.client) {
+            throw new Error('GAPI não está inicializado');
+        }
+        
+        console.log('☁️ [BACKUP DEBUG] Criando requisição...');
         const request = gapi.client.request({
             'path': 'https://www.googleapis.com/upload/drive/v3/files',
             'method': 'POST',
@@ -352,7 +382,9 @@ class GoogleDriveBackup {
             'body': multipartRequestBody
         });
 
+        console.log('☁️ [BACKUP DEBUG] Executando requisição...');
         const response = await request;
+        console.log('☁️ [BACKUP DEBUG] Resposta recebida:', response);
         return response.result.id;
     }
 
@@ -444,8 +476,8 @@ class GoogleDriveBackup {
     }
 
     showToast(message, type = 'info') {
-        if (window.app && window.app.showToast) {
-            window.app.showToast(message, type);
+        if (window.mentalIA && window.mentalIA.showToast) {
+            window.mentalIA.showToast(message, type);
         } else {
             console.log(`${type.toUpperCase()}: ${message}`);
         }
@@ -489,15 +521,22 @@ class GoogleDriveBackup {
     }
 
     async handleBackupClick() {
+        console.log('🔘 [BACKUP DEBUG] handleBackupClick chamado');
+        console.log('🔘 [BACKUP DEBUG] Estado atual - isSignedIn:', this.isSignedIn, 'isInitialized:', this.isInitialized);
+        
         // Check if user is signed in
         if (!this.isSignedIn) {
+            console.log('🔘 [BACKUP DEBUG] Usuário não logado, solicitando login...');
             // Request login first
             const loginSuccess = await this.requestLogin();
+            console.log('🔘 [BACKUP DEBUG] Resultado do login:', loginSuccess);
             if (!loginSuccess) {
+                console.log('🔘 [BACKUP DEBUG] Login falhou, abortando backup');
                 return; // Login failed, abort backup
             }
         }
 
+        console.log('🔘 [BACKUP DEBUG] Mostrando modal de confirmação...');
         // Show confirmation modal
         this.showBackupModal();
     }
