@@ -291,6 +291,72 @@ class MentalIA {
             });
         });
 
+        // 🔥 CORREÇÃO: Premium Actions - Análise Avançada e Export PDF
+        const advancedAnalysisBtn = document.getElementById('advanced-analysis');
+        const exportPdfBtn = document.getElementById('export-pdf');
+        
+        console.log('🧠 Botão análise avançada encontrado:', !!advancedAnalysisBtn);
+        console.log('📄 Botão export PDF encontrado:', !!exportPdfBtn);
+        
+        advancedAnalysisBtn?.addEventListener('click', async () => {
+            console.log('🧠 Análise avançada clicada!');
+            
+            // Verificar se é premium/admin
+            if (!this.isPremium && !this.checkAdminStatus()) {
+                this.showToast('Análise avançada disponível apenas no Premium!', 'warning');
+                setTimeout(() => {
+                    if (window.premiumManager) {
+                        window.premiumManager.showPremiumScreen();
+                    }
+                }, 1500);
+                return;
+            }
+            
+            try {
+                this.showToast('🤖 Gerando análise avançada...', 'info');
+                
+                // Usar o sistema de análise IA
+                if (window.aiAnalysis) {
+                    const analysis = await window.aiAnalysis.generateFullAnalysis(this.data);
+                    this.displayAdvancedAnalysis(analysis);
+                } else {
+                    throw new Error('Sistema de IA não disponível');
+                }
+            } catch (error) {
+                console.error('Erro na análise avançada:', error);
+                this.showToast('Erro ao gerar análise. Tente novamente.', 'error');
+            }
+        });
+        
+        exportPdfBtn?.addEventListener('click', async () => {
+            console.log('📄 Export PDF clicado!');
+            
+            // Verificar se é premium/admin
+            if (!this.isPremium && !this.checkAdminStatus()) {
+                this.showToast('Export PDF disponível apenas no Premium!', 'warning');
+                setTimeout(() => {
+                    if (window.premiumManager) {
+                        window.premiumManager.showPremiumScreen();
+                    }
+                }, 1500);
+                return;
+            }
+            
+            try {
+                this.showToast('📄 Gerando PDF...', 'info');
+                
+                // Usar o sistema de análise IA para PDF
+                if (window.aiAnalysis) {
+                    await window.aiAnalysis.downloadReportPDF();
+                } else {
+                    throw new Error('Sistema de PDF não disponível');
+                }
+            } catch (error) {
+                console.error('Erro no export PDF:', error);
+                this.showToast('Erro ao gerar PDF. Tente novamente.', 'error');
+            }
+        });
+
         console.log('✅ Event listeners configurados');
         } catch (error) {
             console.error('❌ Erro ao configurar event listeners:', error);
@@ -1222,6 +1288,54 @@ class MentalIA {
 
         // Return toast element for manual control if needed
         return toast;
+    }
+
+    // 🔥 CORREÇÃO: Função para exibir análise avançada
+    displayAdvancedAnalysis(analysis) {
+        console.log('🧠 Exibindo análise avançada:', analysis);
+        
+        const reportContent = document.getElementById('report-content');
+        if (!reportContent) {
+            console.error('❌ Container de relatório não encontrado');
+            return;
+        }
+        
+        // Limpar conteúdo anterior
+        reportContent.innerHTML = '';
+        
+        // Criar header da análise
+        const header = document.createElement('div');
+        header.className = 'analysis-header';
+        header.innerHTML = `
+            <h3>🧠 Análise Avançada por IA</h3>
+            <p class="analysis-subtitle">${analysis.subtitle || 'Relatório Personalizado'}</p>
+            <span class="analysis-date">${new Date().toLocaleDateString('pt-BR')}</span>
+        `;
+        
+        // Criar conteúdo da análise
+        const content = document.createElement('div');
+        content.className = 'analysis-content';
+        content.innerHTML = analysis.content || analysis.analysis || 'Análise em processamento...';
+        
+        // Adicionar disclaimer
+        const disclaimer = document.createElement('div');
+        disclaimer.className = 'analysis-disclaimer';
+        disclaimer.innerHTML = `
+            <p><strong>⚠️ Importante:</strong> ${analysis.disclaimer || 'Esta análise foi gerada por IA e não substitui acompanhamento profissional de saúde mental.'}</p>
+        `;
+        
+        // Montar tudo
+        reportContent.appendChild(header);
+        reportContent.appendChild(content);
+        reportContent.appendChild(disclaimer);
+        
+        // Mostrar o container
+        reportContent.classList.remove('hidden');
+        
+        // Scroll para o relatório
+        reportContent.scrollIntoView({ behavior: 'smooth' });
+        
+        this.showToast('✅ Análise avançada gerada com sucesso!', 'success');
     }
 }
 

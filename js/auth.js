@@ -933,6 +933,11 @@ class AuthSystem {
     }
     
     isPremiumUser() {
+        // 🔥 CORREÇÃO: Administrador sempre é premium
+        const currentUser = this.getCurrentUser();
+        if (currentUser && currentUser.isAdmin) {
+            return true;
+        }
         return this.isPremium;
     }
     

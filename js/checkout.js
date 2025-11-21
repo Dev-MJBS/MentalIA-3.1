@@ -1,12 +1,22 @@
 // js/checkout.js
 async function criarAssinatura(plano) {
   try {
-    const response = await fetch('/api/create-checkout', {
+    // 🔥 CORREÇÃO: Detectar se é local ou remoto para o endpoint correto
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const apiUrl = isLocal ? 
+      'https://us-central1-mentalia-478819.cloudfunctions.net/api/create-checkout' : 
+      '/api/create-checkout';
+    
+    console.log('🛒 Criando checkout para:', plano, 'em:', apiUrl);
+    
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         priceId: plano, 
-        userId: window.userId || 'anonymous' 
+        userId: window.userId || 'anonymous',
+        userEmail: window.currentUser?.email || 'demo@mentalia.com',
+        userName: window.currentUser?.name || 'Usuário MentalIA'
       })
     });
     
