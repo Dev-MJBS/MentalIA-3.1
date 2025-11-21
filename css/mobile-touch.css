@@ -1,0 +1,244 @@
+/* Mobile Touch Improvements for MentalIA */
+/* Este arquivo contém melhorias específicas para dispositivos móveis */
+
+/* Melhorias gerais de touch */
+* {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+}
+
+/* Slider melhorado para mobile */
+@media (max-width: 768px) {
+    .mood-slider-section {
+        padding: 20px 0;
+    }
+    
+    .slider-container {
+        position: relative;
+        padding: 20px 0;
+    }
+    
+    /* Área de toque expandida para o slider */
+    .mood-slider {
+        position: relative;
+        z-index: 1;
+    }
+    
+    .mood-slider::before {
+        content: '';
+        position: absolute;
+        top: -20px;
+        left: -10px;
+        right: -10px;
+        bottom: -20px;
+        background: transparent;
+        z-index: -1;
+    }
+    
+    /* Melhor feedback visual no mobile */
+    .mood-slider::-webkit-slider-thumb:active {
+        transform: scale(1.2);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+    }
+    
+    .mood-slider::-moz-range-thumb:active {
+        transform: scale(1.2);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+    }
+    
+    /* Buttons melhorados para mobile */
+    .btn-primary,
+    .btn-secondary,
+    button {
+        min-height: 48px;
+        min-width: 48px;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        cursor: pointer;
+    }
+    
+    /* Área de toque expandida para botões pequenos */
+    .btn-primary::before,
+    .btn-secondary::before {
+        content: '';
+        position: absolute;
+        top: -10px;
+        left: -10px;
+        right: -10px;
+        bottom: -10px;
+        background: transparent;
+        border-radius: inherit;
+    }
+    
+    /* PDF button específico */
+    #export-pdf,
+    #download-pdf {
+        position: relative;
+        overflow: visible;
+    }
+    
+    /* Loading indicator para PDF */
+    .pdf-loading {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        font-size: 18px;
+        color: white;
+    }
+    
+    /* Improved text areas for mobile */
+    .diary-textarea {
+        -webkit-appearance: none;
+        border-radius: 8px;
+        font-size: 16px; /* Prevents zoom on iOS */
+        min-height: 120px;
+        touch-action: manipulation;
+    }
+    
+    /* Better select dropdowns on mobile */
+    select {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        font-size: 16px; /* Prevents zoom on iOS */
+        min-height: 48px;
+        touch-action: manipulation;
+    }
+    
+    /* Improved form inputs */
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"] {
+        -webkit-appearance: none;
+        border-radius: 8px;
+        font-size: 16px; /* Prevents zoom on iOS */
+        min-height: 48px;
+        touch-action: manipulation;
+    }
+    
+    /* Better modal experience on mobile */
+    .modal-content {
+        margin: 5% auto;
+        max-height: 90vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Improved scrollable areas */
+    .scrollable {
+        -webkit-overflow-scrolling: touch;
+        overflow-y: auto;
+    }
+    
+    /* Better feedback for interactive elements */
+    .interactive:active {
+        transform: scale(0.98);
+        opacity: 0.8;
+    }
+    
+    /* Gesture improvements */
+    .swipeable {
+        touch-action: pan-x pan-y;
+    }
+    
+    /* Prevent accidental pinch zoom on specific elements */
+    .no-zoom {
+        touch-action: manipulation;
+    }
+}
+
+/* Specific improvements for very small screens */
+@media (max-width: 320px) {
+    .mood-slider {
+        margin: 30px 0;
+    }
+    
+    .mood-slider::-webkit-slider-thumb {
+        width: 40px;
+        height: 40px;
+        margin-top: -13px;
+    }
+    
+    .mood-slider::-moz-range-thumb {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .btn-primary,
+    .btn-secondary {
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+}
+
+/* Landscape orientation improvements */
+@media (max-height: 500px) and (orientation: landscape) {
+    .mood-slider-section {
+        padding: 10px 0;
+    }
+    
+    .modal-content {
+        margin: 2% auto;
+        max-height: 96vh;
+    }
+}
+
+/* High DPI screens improvements */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .mood-slider::-webkit-slider-thumb {
+        border-width: 3px;
+    }
+    
+    .mood-slider::-moz-range-thumb {
+        border-width: 3px;
+    }
+}
+
+/* Dark mode improvements for mobile */
+@media (prefers-color-scheme: dark) and (max-width: 768px) {
+    .mood-slider::-webkit-slider-thumb {
+        background: #ffffff;
+        border-color: var(--accent-primary, #4CAF50);
+    }
+    
+    .mood-slider::-moz-range-thumb {
+        background: #ffffff;
+        border-color: var(--accent-primary, #4CAF50);
+    }
+}
+
+/* Accessibility improvements for mobile */
+@media (max-width: 768px) {
+    /* Larger touch targets for accessibility */
+    .accessibility-large {
+        min-height: 56px;
+        min-width: 56px;
+    }
+    
+    /* Better focus indicators on mobile */
+    *:focus {
+        outline: 3px solid var(--accent-primary, #4CAF50);
+        outline-offset: 2px;
+    }
+    
+    /* Screen reader improvements */
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+}

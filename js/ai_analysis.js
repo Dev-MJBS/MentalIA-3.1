@@ -617,7 +617,7 @@ Seja sempre empático, acolhedor e profissional. Lembre que esta análise não s
         return insights;
     }
 
-    // PDF Generation
+    // PDF Generation - Mobile Optimized
     async downloadReportPDF() {
         try {
             console.log('📄 [PDF] Iniciando geração de PDF...');
@@ -632,18 +632,56 @@ Seja sempre empático, acolhedor e profissional. Lembre que esta análise não s
                 throw new Error('Conteúdo do relatório não encontrado');
             }
 
+            // Mobile-specific improvements
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            
             this.showToast('Gerando PDF...', 'info');
+            
+            // Add loading indicator for mobile
+            if (isMobile) {
+                document.body.style.cursor = 'wait';
+                const loadingEl = document.createElement('div');
+                loadingEl.id = 'pdf-loading';
+                loadingEl.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: rgba(0,0,0,0.8);
+                    color: white;
+                    padding: 20px;
+                    border-radius: 10px;
+                    z-index: 10000;
+                    font-size: 16px;
+                `;
+                loadingEl.textContent = '📄 Gerando PDF...';
+                document.body.appendChild(loadingEl);
+            }
 
             // Prepare content for PDF
             reportContent.classList.add('pdf-generation');
 
-            const canvas = await html2canvas(reportContent, {
-                scale: 2,
+            // Mobile-optimized canvas settings
+            const canvasOptions = {
+                scale: isMobile ? 1.5 : 2, // Lower scale on mobile for performance
                 useCORS: true,
                 backgroundColor: '#ffffff',
                 width: reportContent.scrollWidth,
-                height: reportContent.scrollHeight
-            });
+                height: reportContent.scrollHeight,
+                allowTaint: true,
+                foreignObjectRendering: true,
+                logging: false, // Disable logging on mobile
+                onclone: (clonedDoc) => {
+                    // Ensure mobile-friendly rendering
+                    const clonedContent = clonedDoc.getElementById('report-content');
+                    if (clonedContent && isMobile) {
+                        clonedContent.style.maxWidth = '100%';
+                        clonedContent.style.overflow = 'visible';
+                    }
+                }
+            };
+
+            const canvas = await html2canvas(reportContent, canvasOptions);
 
             reportContent.classList.remove('pdf-generation');
 
@@ -686,15 +724,74 @@ Seja sempre empático, acolhedor e profissional. Lembre que esta análise não s
             const footerText = 'Gerado pelo MentalIA • 100% local e privado';
             pdf.text(footerText, margin, pdfHeight - 10);
 
-            // Download
+            // Download with mobile improvements
             const filename = `Relatorio_MentalIA_${dateStr.replace(/\//g, '-')}.pdf`;
-            pdf.save(filename);
+            
+            if (isMobile) {
+                // Mobile-specific download handling
+                try {
+                    // Try direct download first
+                    pdf.save(filename);
+                    
+                    // Alternative for iOS Safari and other browsers that might block download
+                    setTimeout(() => {
+                        const pdfOutput = pdf.output('blob');
+                        const pdfUrl = URL.createObjectURL(pdfOutput);
+                        
+                        // Create temporary link for mobile download
+                        const tempLink = document.createElement('a');
+                        tempLink.href = pdfUrl;
+                        tempLink.download = filename;
+                        tempLink.style.display = 'none';
+                        document.body.appendChild(tempLink);
+                        
+                        // Trigger download
+                        tempLink.click();
+                        
+                        // Clean up
+                        setTimeout(() => {
+                            document.body.removeChild(tempLink);
+                            URL.revokeObjectURL(pdfUrl);
+                        }, 100);
+                    }, 100);
+                    
+                } catch (downloadError) {
+                    console.warn('Fallback para download mobile:', downloadError);
+                    // Show PDF in new tab as fallback
+                    const pdfOutput = pdf.output('blob');
+                    const pdfUrl = URL.createObjectURL(pdfOutput);
+                    window.open(pdfUrl, '_blank');
+                }
+            } else {
+                // Desktop download
+                pdf.save(filename);
+            }
+
+            // Clean up mobile loading indicator
+            if (isMobile) {
+                document.body.style.cursor = '';
+                const loadingEl = document.getElementById('pdf-loading');
+                if (loadingEl) {
+                    document.body.removeChild(loadingEl);
+                }
+            }
 
             this.showToast('PDF gerado com sucesso!', 'success');
             console.log('✅ [PDF] PDF gerado e baixado');
 
         } catch (error) {
             console.error('❌ [PDF] Erro:', error);
+            
+            // Clean up mobile loading indicator on error
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            if (isMobile) {
+                document.body.style.cursor = '';
+                const loadingEl = document.getElementById('pdf-loading');
+                if (loadingEl) {
+                    document.body.removeChild(loadingEl);
+                }
+            }
+            
             this.showToast('Erro ao gerar PDF: ' + error.message, 'error');
         }
     }
@@ -710,5 +807,10 @@ Seja sempre empático, acolhedor e profissional. Lembre que esta análise não s
 
 // Initialize globally
 window.aiAnalysis = new AIAnalysis();
+
+// Global method for compatibility with existing buttons
+window.aiAnalysis.downloadReport = function() {
+    return this.downloadReportPDF();
+};
 
 console.log('🤖 Módulo de análise de IA carregado com sucesso');

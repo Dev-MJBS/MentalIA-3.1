@@ -1,0 +1,114 @@
+<!-- config-example.html - Exemplo de como configurar chaves Stripe no frontend -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MentalIA - Configuração Stripe</title>
+    
+    <!-- MÉTODO 1: Meta tag (recomendado para SPAs) -->
+    <meta name="stripe-key" content="SUA_CHAVE_PUBLICA_STRIPE_AQUI">
+    
+    <!-- MÉTODO 2: Script de configuração (execute antes de usar Stripe) -->
+    <script>
+        // Configure sua chave pública do Stripe aqui
+        // ⚠️ IMPORTANTE: Apenas chaves PÚBLICAS são seguras no frontend
+        window.STRIPE_PUBLIC_KEY = 'SUA_CHAVE_PUBLICA_STRIPE_AQUI';
+        
+        // Configuração do ambiente
+        window.MENTALIA_CONFIG = {
+            stripePublicKey: 'SUA_CHAVE_PUBLICA_STRIPE_AQUI',
+            apiUrl: 'https://us-central1-mentalia-478819.cloudfunctions.net/api',
+            environment: 'development' // ou 'production'
+        };
+    </script>
+</head>
+<body>
+    <h1>🔧 Configuração de Desenvolvimento</h1>
+    
+    <div class="config-info">
+        <h2>📋 Como usar:</h2>
+        
+        <h3>1. Configurar no HTML:</h3>
+        <pre><code>&lt;meta name="stripe-key" content="SUA_CHAVE_PUBLICA_STRIPE"&gt;</code></pre>
+        
+        <h3>2. Ou via JavaScript:</h3>
+        <pre><code>window.STRIPE_PUBLIC_KEY = 'SUA_CHAVE_PUBLICA_STRIPE';</code></pre>
+        
+        <h3>3. Usar no código:</h3>
+        <pre><code>
+// O checkout.js já busca automaticamente por:
+const stripeKey = window.STRIPE_PUBLIC_KEY || 
+                  document.querySelector('meta[name="stripe-key"]')?.content;
+        </code></pre>
+    </div>
+
+    <div class="security-info">
+        <h2>🔒 Segurança:</h2>
+        <ul>
+            <li>✅ Chaves públicas (pk_) são SEGURAS no frontend</li>
+            <li>❌ NUNCA coloque chaves secretas (sk_) no frontend</li>
+            <li>✅ Use .env para chaves de desenvolvimento</li>
+            <li>✅ Configure env vars no servidor para produção</li>
+        </ul>
+    </div>
+
+    <!-- Teste de configuração -->
+    <script>
+        // Verificar se a configuração está correta
+        document.addEventListener('DOMContentLoaded', function() {
+            const stripeKey = window.STRIPE_PUBLIC_KEY || 
+                             document.querySelector('meta[name="stripe-key"]')?.content;
+            
+            if (!stripeKey || stripeKey.includes('YOUR_') || stripeKey.includes('HERE')) {
+                console.warn('⚠️ Chave Stripe não configurada corretamente!');
+                document.body.style.backgroundColor = '#ffe6e6';
+                document.body.insertAdjacentHTML('afterbegin', 
+                    '<div style="background: red; color: white; padding: 1rem; text-align: center;">' +
+                    '⚠️ Configure sua chave Stripe pública antes de usar!</div>'
+                );
+            } else {
+                console.log('✅ Chave Stripe configurada:', stripeKey.substring(0, 20) + '...');
+                document.body.style.backgroundColor = '#e6ffe6';
+                document.body.insertAdjacentHTML('afterbegin',
+                    '<div style="background: green; color: white; padding: 1rem; text-align: center;">' +
+                    '✅ Configuração Stripe OK!</div>'
+                );
+            }
+        });
+    </script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            line-height: 1.6;
+        }
+        
+        .config-info, .security-info {
+            background: #f5f5f5;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        
+        pre {
+            background: #222;
+            color: #00ff00;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        
+        ul {
+            margin: 1rem 0;
+        }
+        
+        li {
+            margin: 0.5rem 0;
+        }
+    </style>
+</body>
+</html>

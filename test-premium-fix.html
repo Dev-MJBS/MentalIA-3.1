@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Premium Fix</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-btn { 
+            padding: 10px 20px; 
+            margin: 10px; 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+        }
+        .test-btn:hover { background: #0056b3; }
+        .result { 
+            margin: 10px 0; 
+            padding: 10px; 
+            border-radius: 5px; 
+            background: #f8f9fa; 
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Teste das Correções Premium</h1>
+    
+    <div>
+        <button class="test-btn" onclick="testPremiumManager()">Testar PremiumManager</button>
+        <button class="test-btn" onclick="testGoogleUser()">Testar GetGoogleUser</button>
+        <button class="test-btn" onclick="testStripeInit()">Testar Stripe Init</button>
+    </div>
+    
+    <div id="results"></div>
+
+    <!-- Scripts necessários -->
+    <script src="js/storage.js?v=1141"></script>
+    <script src="js/auth.js?v=1141"></script>
+    <script src="js/mock-api.js?v=1150"></script>
+    <script src="js/premium.js?v=1150"></script>
+    <script src="js/app.js?v=1149"></script>
+
+    <script>
+        let results = document.getElementById('results');
+        
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `${new Date().toLocaleTimeString()}: ${message}`;
+            results.appendChild(div);
+        }
+
+        // Aguarda app carregar
+        document.addEventListener('DOMContentLoaded', async () => {
+            addResult('📋 DOM carregado, aguardando dependências...');
+            
+            // Aguarda dependências básicas
+            const wait = () => new Promise(r => {
+                const check = () => {
+                    if (window.mentalStorage) r();
+                    else setTimeout(check, 100);
+                };
+                check();
+            });
+            
+            try {
+                await wait();
+                addResult('✅ Dependências básicas carregadas');
+                
+                // Tenta inicializar MentalIA
+                if (typeof MentalIA !== 'undefined') {
+                    window.mentalIA = new MentalIA();
+                    await window.mentalIA.init();
+                    addResult('✅ MentalIA inicializado', 'success');
+                } else {
+                    addResult('⚠️ MentalIA não encontrado, testando apenas Premium', 'info');
+                }
+                
+                // Testa PremiumManager independentemente
+                if (window.premiumManager) {
+                    addResult('✅ PremiumManager já disponível', 'success');
+                } else {
+                    addResult('ℹ️ PremiumManager será criado automaticamente', 'info');
+                }
+                
+            } catch (error) {
+                addResult(`❌ Erro na inicialização: ${error.message}`, 'error');
+            }
+        });
+
+        async function testPremiumManager() {
+            try {
+                addResult('🧪 Testando PremiumManager...');
+                
+                if (!window.premiumManager) {
+                    addResult('❌ PremiumManager não encontrado', 'error');
+                    return;
+                }
+                
+                addResult('✅ PremiumManager disponível', 'success');
+                
+                // Testa se o método getGoogleUser existe
+                if (typeof window.premiumManager.getGoogleUser === 'function') {
+                    addResult('✅ Método getGoogleUser disponível', 'success');
+                } else {
+                    addResult('❌ Método getGoogleUser não encontrado', 'error');
+                }
+                
+            } catch (error) {
+                addResult(`❌ Erro no teste: ${error.message}`, 'error');
+            }
+        }
+
+        async function testGoogleUser() {
+            try {
+                addResult('🧪 Testando getGoogleUser...');
+                
+                if (!window.premiumManager) {
+                    addResult('❌ PremiumManager não disponível', 'error');
+                    return;
+                }
+                
+                const user = await window.premiumManager.getGoogleUser();
+                if (user) {
+                    addResult(`✅ Usuário obtido: ${user.email}`, 'success');
+                } else {
+                    addResult('ℹ️ Usuário não logado (normal)', 'info');
+                }
+                
+            } catch (error) {
+                addResult(`❌ Erro ao obter usuário: ${error.message}`, 'error');
+            }
+        }
+
+        async function testStripeInit() {
+            try {
+                addResult('🧪 Testando inicialização Stripe...');
+                
+                if (!window.premiumManager) {
+                    addResult('❌ PremiumManager não disponível', 'error');
+                    return;
+                }
+                
+                if (window.premiumManager.stripe) {
+                    addResult('✅ Stripe inicializado', 'success');
+                } else {
+                    addResult('❌ Stripe não inicializado', 'error');
+                }
+                
+            } catch (error) {
+                addResult(`❌ Erro no teste Stripe: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

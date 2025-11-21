@@ -534,6 +534,12 @@ body {
     cursor: pointer;
     margin: 30px 0;
     box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
+    /* Mobile touch improvements */
+    touch-action: pan-x;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
 }
 
 /* Trilho (track) */
@@ -562,6 +568,9 @@ body {
     margin-top: -11px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.4);
     transition: all 0.2s ease;
+    /* Mobile touch improvements */
+    touch-action: pan-x;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .mood-slider::-moz-range-thumb {
@@ -573,6 +582,8 @@ body {
     cursor: grab;
     box-shadow: 0 4px 16px rgba(0,0,0,0.4);
     border: none;
+    /* Mobile touch improvements */
+    touch-action: pan-x;
 }
 
 /* Hover e active */
@@ -1751,6 +1762,48 @@ body {
 }
 
 @media (max-width: 480px) {
+  .container {
+    padding: 0 10px;
+  }
+  
+  /* Mobile slider improvements */
+  .mood-slider {
+    height: 18px;
+    margin: 40px 0;
+    /* Increase touch target area */
+    padding: 15px 0;
+    box-sizing: content-box;
+  }
+  
+  .mood-slider::-webkit-slider-thumb {
+    width: 44px;
+    height: 44px;
+    margin-top: -15px;
+    /* Ensure minimum touch target */
+    min-width: 44px;
+    min-height: 44px;
+  }
+  
+  .mood-slider::-moz-range-thumb {
+    width: 44px;
+    height: 44px;
+    /* Ensure minimum touch target */
+    min-width: 44px;
+    min-height: 44px;
+  }
+  
+  /* PDF and export button improvements for mobile */
+  #export-pdf,
+  #download-pdf,
+  .btn-secondary {
+    min-height: 48px;
+    font-size: 16px;
+    padding: 12px 20px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    border-radius: 8px;
+  }
+  
   .header-content {
     padding: 0 0.5rem;
   }

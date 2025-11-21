@@ -372,26 +372,64 @@ class MentalIA {
                 this.updateMoodValue(newValue);
             };
 
-            // Touch events for mobile
+            // Touch events for mobile - Improved
             this.handleTouchStart = (e) => {
                 console.log('🎚️ Touch start on slider');
-                e.preventDefault(); // Prevent default touch behavior
+                slider.focus(); // Ensure slider gets focus
+                // Don't prevent default to allow native slider behavior
             };
 
             this.handleTouchMove = (e) => {
                 console.log('🎚️ Touch move on slider');
-                e.preventDefault(); // Prevent scrolling while dragging
+                // Allow native touch behavior for better responsiveness
+                // Only prevent if we need to stop page scrolling
+                if (Math.abs(e.touches[0].clientY - e.target.getBoundingClientRect().top) < 50) {
+                    e.preventDefault();
+                }
             };
 
             this.handleTouchEnd = (e) => {
                 console.log('🎚️ Touch end on slider');
+                // Force update after touch
+                const currentValue = parseFloat(slider.value);
+                this.updateMoodValue(currentValue);
+            };
+
+            // Add pointer events for better touch support
+            this.handlePointerDown = (e) => {
+                console.log('🎚️ Pointer down on slider');
+                slider.setPointerCapture(e.pointerId);
+            };
+
+            this.handlePointerMove = (e) => {
+                console.log('🎚️ Pointer move on slider');
+                if (slider.hasPointerCapture(e.pointerId)) {
+                    const currentValue = parseFloat(slider.value);
+                    this.updateMoodValue(currentValue);
+                }
+            };
+
+            this.handlePointerUp = (e) => {
+                console.log('🎚️ Pointer up on slider');
+                slider.releasePointerCapture(e.pointerId);
+                const currentValue = parseFloat(slider.value);
+                this.updateMoodValue(currentValue);
             };
 
             slider.addEventListener('input', this.handleSliderInput);
             slider.addEventListener('change', this.handleSliderChange);
-            slider.addEventListener('touchstart', this.handleTouchStart, { passive: false });
+            
+            // Touch events with improved handling
+            slider.addEventListener('touchstart', this.handleTouchStart, { passive: true });
             slider.addEventListener('touchmove', this.handleTouchMove, { passive: false });
             slider.addEventListener('touchend', this.handleTouchEnd, { passive: true });
+            
+            // Pointer events for modern touch devices
+            if (window.PointerEvent) {
+                slider.addEventListener('pointerdown', this.handlePointerDown);
+                slider.addEventListener('pointermove', this.handlePointerMove);
+                slider.addEventListener('pointerup', this.handlePointerUp);
+            }
 
             console.log('🎚️ Event listeners adicionados ao slider');
 
