@@ -369,20 +369,33 @@ class GoogleDriveBackup {
         try {
             console.log('🔍 [BACKUP] Procurando arquivo de credenciais...');
             
-            // Tentar carregar arquivo de credenciais automaticamente
-            const response = await fetch('./client_secret_670002862076-ivoemo399amv728d61llbdqn3fbcr8tk.apps.googleusercontent.com.json');
+            // Lista de possíveis arquivos de credenciais
+            const possibleFiles = [
+                'client_secret_670002862076-ivoemo399amv728d61llbdqn3fbcr8tk.apps.googleusercontent.com.json',
+                'credentials.json',
+                'client_secret.json'
+            ];
             
-            if (response.ok) {
-                const credentials = await response.json();
-                const clientId = credentials.web?.client_id;
-                
-                if (clientId) {
-                    console.log('✅ [BACKUP] Credenciais encontradas automaticamente!');
-                    localStorage.setItem('google-client-id', clientId);
-                    this.clientId = clientId;
-                    this.isOfflineMode = false;
-                    this.showToast('Credenciais Google configuradas automaticamente! 🎉', 'success');
-                    return clientId;
+            // Tentar carregar cada arquivo possível
+            for (const filename of possibleFiles) {
+                try {
+                    const response = await fetch('./' + filename);
+                    
+                    if (response.ok) {
+                        const credentials = await response.json();
+                        const clientId = credentials.web?.client_id;
+                        
+                        if (clientId) {
+                            console.log(`✅ [BACKUP] Credenciais encontradas em: ${filename}`);
+                            localStorage.setItem('google-client-id', clientId);
+                            this.clientId = clientId;
+                            this.isOfflineMode = false;
+                            this.showToast('Credenciais Google configuradas automaticamente! 🎉', 'success');
+                            return clientId;
+                        }
+                    }
+                } catch (fileError) {
+                    console.log(`📄 [BACKUP] ${filename} não encontrado`);
                 }
             }
             
