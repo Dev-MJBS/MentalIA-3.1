@@ -39,11 +39,25 @@ class GoogleDriveBackup {
     }
     
     setupOfflineMode() {
-        // Configurar UI para modo offline
+        console.log('📴 [BACKUP] Ativando modo offline devido a erro de OAuth');
+        this.isOfflineMode = true;
+
+        // Update UI to show offline mode
         this.updateDriveStatus(false, 'Modo Offline - Backup Local');
-        
-        // Mostrar instruções de configuração
+
+        // Show detailed offline instructions
         this.showOfflineInstructions();
+
+        // Log helpful information
+        console.warn('⚠️ [BACKUP] Modo Offline Ativado');
+        console.warn('ℹ️ [BACKUP] Possíveis causas:');
+        console.warn('   - Origem não autorizada no Google Cloud Console');
+        console.warn('   - Client ID incorreto ou expirado');
+        console.warn('   - Problemas de rede ou CORS');
+        console.warn('ℹ️ [BACKUP] Soluções:');
+        console.warn('   1. Verifique as origens autorizadas no Google Cloud Console');
+        console.warn('   2. Adicione https://dev-mjbs.github.io às origens JavaScript');
+        console.warn('   3. Use backup local como alternativa');
     }
     
     showOfflineInstructions() {
@@ -416,25 +430,54 @@ class GoogleDriveBackup {
     async initializeGoogleAPIs() {
         try {
             console.log('☁️ [BACKUP] Inicializando Google APIs...');
-            
+
+            // Check if we're on a supported origin
+            const currentOrigin = window.location.origin;
+            const supportedOrigins = [
+                'http://localhost',
+                'http://localhost:3000',
+                'http://localhost:8000',
+                'http://localhost:8080',
+                'https://dev-mjbs.github.io',
+                'https://mentalia.app'
+            ];
+
+            if (!supportedOrigins.includes(currentOrigin)) {
+                console.warn(`⚠️ [BACKUP] Origem não suportada: ${currentOrigin}`);
+                console.warn(`⚠️ [BACKUP] Origens suportadas: ${supportedOrigins.join(', ')}`);
+                this.setupOfflineMode();
+                return;
+            }
+
             // Wait for Google APIs to load
             await this.waitForGoogleAPIs();
-            
+
             // Initialize GAPI client
             await this.initializeGapiClient();
-            
+
             // Initialize Google One Tap
             await this.initializeOneTap();
-            
+
             // Setup event listeners
             this.setupEventListeners();
-            
+
             console.log('✅ [BACKUP] Google APIs inicializados com sucesso');
             this.updateDriveStatus(false, 'Pronto para login');
-            
+
         } catch (error) {
             console.error('❌ [BACKUP] Erro ao inicializar Google APIs:', error);
-            this.updateDriveStatus(false, 'Erro na inicialização');
+
+            // Check for specific OAuth errors
+            if (error.message && error.message.includes('OAuth')) {
+                console.warn('⚠️ [BACKUP] Erro de OAuth detectado, ativando modo offline');
+                this.setupOfflineMode();
+            } else if (error.message && error.message.includes('origin')) {
+                console.warn('⚠️ [BACKUP] Erro de origem detectado, ativando modo offline');
+                this.setupOfflineMode();
+            } else {
+                console.error('❌ [BACKUP] Erro genérico, ativando modo offline');
+                this.setupOfflineMode();
+            }
         }
     }
 
@@ -465,31 +508,57 @@ class GoogleDriveBackup {
     
     async initializeGapiClient() {
         console.log('🔧 [BACKUP] Inicializando GAPI client...');
-        
+
         return new Promise((resolve, reject) => {
             gapi.load('client:auth2', async () => {
                 try {
+                    // Check if client ID is available
+                    if (!this.clientId) {
+                        throw new Error('Client ID não configurado');
+                    }
+
+                    console.log('🔧 [BACKUP] Client ID:', this.clientId.substring(0, 20) + '...');
+
                     await gapi.client.init({
                         discoveryDocs: [this.discoveryDoc],
                         clientId: this.clientId,
-                        scope: this.scopes
+                        scope: this.scopes,
+                        ux_mode: 'popup',
+                        redirect_uri: undefined // Let Google handle redirect
                     });
-                    
+
                     // Check if user is already signed in
                     const authInstance = gapi.auth2.getAuthInstance();
                     this.isSignedIn = authInstance.isSignedIn.get();
-                    
+
                     if (this.isSignedIn) {
                         this.currentUser = authInstance.currentUser.get();
-                        console.log('✅ [BACKUP] Usuário já conectado:', this.currentUser.getBasicProfile().getEmail());
-                        this.updateDriveStatus(true, `Conectado: ${this.currentUser.getBasicProfile().getEmail()}`);
+                        const email = this.currentUser.getBasicProfile().getEmail();
+                        console.log('✅ [BACKUP] Usuário já conectado:', email);
+                        this.updateDriveStatus(true, `Conectado: ${email}`);
+                    } else {
+                        console.log('ℹ️ [BACKUP] Usuário não conectado');
                     }
-                    
+
                     console.log('✅ [BACKUP] GAPI client inicializado');
                     resolve();
+
                 } catch (error) {
                     console.error('❌ [BACKUP] Erro ao inicializar GAPI:', error);
-                    reject(error);
+
+                    // Check for specific OAuth errors
+                    if (error.error && error.error === 'idpiframe_initialization_failed') {
+                        console.error('❌ [BACKUP] Falha na inicialização do iframe OAuth');
+                        reject(new Error('OAuth iframe initialization failed'));
+                    } else if (error.error && error.error === 'popup_closed_by_user') {
+                        console.warn('⚠️ [BACKUP] Popup fechado pelo usuário');
+                        reject(new Error('Login cancelado pelo usuário'));
+                    } else if (error.details && error.details.includes('origin')) {
+                        console.error('❌ [BACKUP] Erro de origem não autorizada');
+                        reject(new Error('Origin not authorized'));
+                    } else {
+                        reject(error);
+                    }
                 }
             });
         });
@@ -497,23 +566,32 @@ class GoogleDriveBackup {
     
     async initializeOneTap() {
         if (this.oneTapInitialized) return;
-        
+
         try {
             console.log('🚪 [BACKUP] Inicializando One Tap...');
-            
+
+            // Check if google.accounts is available
+            if (!google || !google.accounts || !google.accounts.id) {
+                throw new Error('Google One Tap API não disponível');
+            }
+
             // Configure Google One Tap
             google.accounts.id.initialize({
                 client_id: this.clientId,
                 callback: this.handleOneTapResponse.bind(this),
                 auto_select: false,
-                cancel_on_tap_outside: false
+                cancel_on_tap_outside: true,
+                context: 'signin',
+                ux_mode: 'popup'
             });
-            
+
             this.oneTapInitialized = true;
             console.log('✅ [BACKUP] Google One Tap inicializado');
-            
+
         } catch (error) {
             console.error('❌ [BACKUP] Erro ao inicializar One Tap:', error);
+            // Don't throw - One Tap is optional, we can still use popup login
+            console.warn('⚠️ [BACKUP] One Tap falhou, usando apenas popup login');
         }
     }
 
