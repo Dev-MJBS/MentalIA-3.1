@@ -281,14 +281,38 @@ class MentalIA {
         const selected = document.querySelectorAll('.sub-feeling-item input:checked');
         this.selectedFeelings.clear();
 
-        selected.forEach(cb => {
-            this.selectedFeelings.add({
-                value: cb.value,
-                category: cb.dataset.category,
-                emoji: cb.parentElement.querySelector('.sub-emoji')?.textContent || '',
-                label: cb.parentElement.querySelector('.sub-label')?.textContent || ''
+        // Check if more than 5 feelings selected
+        if (selected.length > 5) {
+            alert('Você pode selecionar no máximo 5 sentimentos. Os extras foram removidos automaticamente.');
+            
+            // Keep only the first 5 checked items and uncheck the rest
+            selected.forEach((cb, index) => {
+                if (index >= 5) {
+                    cb.checked = false;
+                }
             });
-        });
+            
+            // Update selected to only include the first 5
+            const limitedSelected = Array.from(selected).slice(0, 5);
+            
+            limitedSelected.forEach(cb => {
+                this.selectedFeelings.add({
+                    value: cb.value,
+                    category: cb.dataset.category,
+                    emoji: cb.parentElement.querySelector('.sub-emoji')?.textContent || '',
+                    label: cb.parentElement.querySelector('.sub-label')?.textContent || ''
+                });
+            });
+        } else {
+            selected.forEach(cb => {
+                this.selectedFeelings.add({
+                    value: cb.value,
+                    category: cb.dataset.category,
+                    emoji: cb.parentElement.querySelector('.sub-emoji')?.textContent || '',
+                    label: cb.parentElement.querySelector('.sub-label')?.textContent || ''
+                });
+            });
+        }
 
         this.updateFeelingsDisplay();
     }
@@ -556,7 +580,37 @@ class MentalIA {
                             }
                         }
                     }
-                }
+                },
+                plugins: [{
+                    id: 'emptyChart',
+                    afterDraw: function(chart) {
+                        if (chart.data.datasets[0].data.length === 0) {
+                            const { ctx, chartArea: { left, top, right, bottom, width, height } } = chart;
+
+                            // Draw placeholder line
+                            ctx.save();
+                            ctx.strokeStyle = 'rgba(99, 102, 241, 0.3)';
+                            ctx.lineWidth = 2;
+                            ctx.setLineDash([5, 5]);
+                            ctx.beginPath();
+                            ctx.moveTo(left + 50, top + height / 2);
+                            ctx.lineTo(right - 50, top + height / 2);
+                            ctx.stroke();
+                            ctx.restore();
+
+                            // Draw placeholder text
+                            ctx.save();
+                            ctx.fillStyle = 'rgba(156, 163, 175, 0.8)';
+                            ctx.font = '16px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText('Registre seu primeiro humor', width / 2, height / 2 - 30);
+                            ctx.font = '14px Arial';
+                            ctx.fillText('para ver seu gráfico de humor aqui', width / 2, height / 2);
+                            ctx.restore();
+                        }
+                    }
+                }]
             });
 
             console.log('✅ Gráfico inicializado com sucesso');
