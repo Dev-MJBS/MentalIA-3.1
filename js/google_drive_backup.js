@@ -6,7 +6,7 @@
 class GoogleDriveBackup {
     constructor() {
         // Fixed Client ID for MentalIA
-        this.clientId = 'ivoemo399amv728d61llbdqn3fbcr8tk.apps.googleusercontent.com';
+        this.clientId = '670002862076-ivoemo399amv728d61llbdqn3fbcr8tk.apps.googleusercontent.com';
         this.discoveryDoc = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
         this.scopes = 'https://www.googleapis.com/auth/drive.appdata';
         

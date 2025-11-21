@@ -50,26 +50,42 @@ class AIAnalysis {
         this.isModelLoading = true;
         console.log('Carregando MedGemma 2B local... (100% privado)');
 
-        try {
-            // Garante que Transformers.js está disponível
-            if (typeof Transformers === 'undefined') {
-                const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2');
-                window.Transformers = { pipeline };
+        const maxRetries = 3;
+        let attempt = 0;
+
+        while (attempt < maxRetries && !this.localModel) {
+            attempt++;
+            console.log(`🔄 Tentativa ${attempt}/${maxRetries} de carregar MedGemma...`);
+
+            try {
+                // Garante que Transformers.js está disponível
+                if (typeof Transformers === 'undefined') {
+                    const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2');
+                    window.Transformers = { pipeline };
+                }
+
+                // Modelo leve, rápido e que roda em qualquer celular
+                this.localModel = await window.Transformers.pipeline('text-generation', 'Xenova/medgemma-2b-it');
+
+                console.log('✅ MedGemma 2B carregado com sucesso! 100% local');
+                this.showToast('IA médica local carregada!', 'success');
+                break; // Sucesso, sair do loop
+
+            } catch (error) {
+                console.error(`❌ Tentativa ${attempt} falhou:`, error);
+                
+                if (attempt < maxRetries) {
+                    console.log(`⏳ Aguardando antes da próxima tentativa...`);
+                    await new Promise(resolve => setTimeout(resolve, 2000)); // Espera 2s entre tentativas
+                } else {
+                    console.error('💥 Todas as tentativas falharam. Modelo local indisponível.');
+                    this.localModel = null;
+                    this.showToast('Modo privado indisponível. Use o modo rápido.', 'error');
+                }
             }
-
-            // Modelo leve, rápido e que roda em qualquer celular
-            this.localModel = await window.Transformers.pipeline('text-generation', 'Xenova/medgemma-2b-it');
-
-            console.log('MedGemma 2B carregado com sucesso! 100% local');
-            this.showToast('IA médica local carregada!', 'success');
-
-        } catch (error) {
-            console.error('Falha ao carregar MedGemma:', error);
-            this.localModel = null;
-            this.showToast('Modo privado indisponível. Use o modo rápido.', 'error');
-        } finally {
-            this.isModelLoading = false;
         }
+
+        this.isModelLoading = false;
     }
 
     async checkExternalAPIs() {
@@ -90,28 +106,23 @@ class AIAnalysis {
     }
 
     async generateReport(entries) {
-        console.log('🤖 [AI] generateReport chamado');
+        console.log('Gerando relatório com', entries.length, 'entradas');
 
-        try {
-            if (!entries || entries.length === 0) {
-                return this.generateSimpleFallbackReport([]);
-            }
-
-            // Check selected AI mode
-            const aiMode = await this.getAIMode();
-
-            if (aiMode === 'private') {
-                console.log('🔒 [AI] Modo Privado selecionado - usando MedGemma local');
-                return await this.generateLocalMedGemmaReport(entries);
-            } else {
-                console.log('⚡ [AI] Modo Rápido selecionado - usando APIs externas');
-                return await this.generateFastReport(entries);
-            }
-
-        } catch (error) {
-            console.error('❌ [AI] Erro na geração:', error);
-            return this.generateIntelligentFallbackReport(entries);
+        if (!entries || entries.length === 0) {
+            return this.generateSimpleFallbackReport([]);
         }
+
+        // SE TIVER CHAVE DE API → usa Claude/Gemini
+        const hasAPIKey = this.externalAPIs.claude.available || this.externalAPIs.gemini.available;
+        const aiMode = await this.getAIMode();
+
+        if (hasAPIKey && aiMode === 'fast') {
+            return await this.generateFastReport(entries);
+        }
+
+        // SE NÃO TIVER CHAVE → usa o fallback inteligente (que já tá lindo!)
+        console.log('Usando análise local inteligente (100% privada)');
+        return this.generateIntelligentFallbackReport(entries);
     }
 
     async getAIMode() {
@@ -125,7 +136,7 @@ class AIAnalysis {
     }
 
     async generateLocalMedGemmaReport(entries) {
-        console.log('🧠 [AI] Gerando relatório com MedGemma-4B-IT local');
+        console.log('🧠 [AI] Gerando relatório com MedGemma-2B-IT local');
 
         try {
             if (!this.localModel) {
@@ -167,9 +178,9 @@ class AIAnalysis {
                 analysis: this.formatMedGemmaAnalysis(analysis, summary),
                 recommendations: this.generateRecommendations(summary),
                 insights: this.generateInsights(summary),
-                disclaimer: 'Esta análise foi gerada por MedGemma-4B localmente no seu dispositivo. Não substitui acompanhamento profissional.',
+                disclaimer: 'Esta análise foi gerada por MedGemma-2B localmente no seu dispositivo. Não substitui acompanhamento profissional.',
                 timestamp: new Date().toISOString(),
-                source: 'MedGemma-4B-IT Local'
+                source: 'MedGemma-2B-IT Local'
             };
 
         } catch (error) {

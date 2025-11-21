@@ -587,26 +587,58 @@ class MentalIA {
                         if (chart.data.datasets[0].data.length === 0) {
                             const { ctx, chartArea: { left, top, right, bottom, width, height } } = chart;
 
-                            // Draw placeholder line
+                            // Draw demo line with sample points
                             ctx.save();
-                            ctx.strokeStyle = 'rgba(99, 102, 241, 0.3)';
-                            ctx.lineWidth = 2;
-                            ctx.setLineDash([5, 5]);
+                            ctx.strokeStyle = 'rgba(99, 102, 241, 0.4)';
+                            ctx.lineWidth = 3;
+                            ctx.setLineDash([8, 4]);
+                            
+                            // Create a curved demo line
+                            const points = [
+                                { x: left + width * 0.1, y: top + height * 0.7 },
+                                { x: left + width * 0.3, y: top + height * 0.5 },
+                                { x: left + width * 0.5, y: top + height * 0.3 },
+                                { x: left + width * 0.7, y: top + height * 0.4 },
+                                { x: left + width * 0.9, y: top + height * 0.2 }
+                            ];
+                            
                             ctx.beginPath();
-                            ctx.moveTo(left + 50, top + height / 2);
-                            ctx.lineTo(right - 50, top + height / 2);
+                            ctx.moveTo(points[0].x, points[0].y);
+                            for (let i = 1; i < points.length; i++) {
+                                const cp1x = points[i-1].x + (points[i].x - points[i-1].x) * 0.3;
+                                const cp1y = points[i-1].y;
+                                const cp2x = points[i].x - (points[i].x - points[i-1].x) * 0.3;
+                                const cp2y = points[i].y;
+                                ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, points[i].x, points[i].y);
+                            }
                             ctx.stroke();
+                            
+                            // Draw sample points
+                            ctx.fillStyle = 'rgba(99, 102, 241, 0.6)';
+                            points.forEach(point => {
+                                ctx.beginPath();
+                                ctx.arc(point.x, point.y, 4, 0, 2 * Math.PI);
+                                ctx.fill();
+                            });
                             ctx.restore();
 
-                            // Draw placeholder text
+                            // Draw main placeholder text
                             ctx.save();
-                            ctx.fillStyle = 'rgba(156, 163, 175, 0.8)';
-                            ctx.font = '16px Arial';
+                            ctx.fillStyle = 'rgba(99, 102, 241, 0.8)';
+                            ctx.font = 'bold 18px Arial, sans-serif';
                             ctx.textAlign = 'center';
                             ctx.textBaseline = 'middle';
-                            ctx.fillText('Registre seu primeiro humor', width / 2, height / 2 - 30);
-                            ctx.font = '14px Arial';
-                            ctx.fillText('para ver seu gráfico de humor aqui', width / 2, height / 2);
+                            ctx.fillText('📊 Registre seu primeiro humor', left + width / 2, top + height / 2 - 40);
+                            
+                            // Draw subtitle
+                            ctx.fillStyle = 'rgba(107, 114, 128, 0.8)';
+                            ctx.font = '14px Arial, sans-serif';
+                            ctx.fillText('Seu gráfico de progresso emocional aparecerá aqui', left + width / 2, top + height / 2 - 15);
+                            
+                            // Draw call to action
+                            ctx.fillStyle = 'rgba(99, 102, 241, 0.6)';
+                            ctx.font = '12px Arial, sans-serif';
+                            ctx.fillText('👆 Clique em "Humor" para começar', left + width / 2, top + height / 2 + 10);
                             ctx.restore();
                         }
                     }
