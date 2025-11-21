@@ -928,7 +928,15 @@ class MentalIA {
         
         // Check backup
         const backupOk = !!window.googleDriveBackup;
-        console.log('🔍 [SYSTEM CHECK] Backup:', backupOk ? '✅ OK' : '❌ FALHA');
+        let backupStatus = '❌ FALHA';
+        
+        if (backupOk) {
+            // Verificar se tem credenciais configuradas
+            const hasCredentials = localStorage.getItem('google-client-id') || window.googleDriveBackup.isOfflineMode === false;
+            backupStatus = hasCredentials ? '✅ OK' : '⚠️ OFFLINE';
+        }
+        
+        console.log('🔍 [SYSTEM CHECK] Backup:', backupStatus);
         
         // Force fix AI if broken
         if (!aiExists || !aiMethodsOk) {

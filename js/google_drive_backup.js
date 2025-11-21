@@ -373,7 +373,9 @@ class GoogleDriveBackup {
             const possibleFiles = [
                 'client_secret_670002862076-ivoemo399amv728d61llbdqn3fbcr8tk.apps.googleusercontent.com.json',
                 'credentials.json',
-                'client_secret.json'
+                'client_secret.json',
+                'oauth_credentials.json',
+                'google_credentials.json'
             ];
             
             // Tentar carregar cada arquivo possível
@@ -399,8 +401,8 @@ class GoogleDriveBackup {
                 }
             }
             
-            console.log('📄 [BACKUP] Credenciais não encontradas - usando modo manual');
-            console.log('💡 [BACKUP] Use "Login com Google" para backup automático');
+            console.log('📄 [BACKUP] Credenciais não encontradas - modo offline ativo');
+            console.log('💡 [BACKUP] Use "Login com Google" para backup automático ou backup local');
             console.log('📁 [BACKUP] Ou configure manualmente:');
             console.log('   1. Renomeie credentials_EXEMPLO.json → credentials.json');
             console.log('   2. Adicione suas credenciais do Google Cloud Console');

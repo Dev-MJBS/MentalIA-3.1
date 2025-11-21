@@ -94,8 +94,14 @@ window.addEventListener('DOMContentLoaded', () => {
 // Error handler global
 window.addEventListener('error', (event) => {
     if (event.error && event.error.message) {
-        console.error('🔧 [DEBUG] Erro global capturado:', event.error.message);
-        captureLog('global-error', [event.error.message, event.error.stack || 'Stack não disponível']);
+        // Filtrar mensagens de erro null, undefined ou vazias
+        const errorMsg = event.error.message;
+        if (errorMsg === 'null' || errorMsg === 'undefined' || errorMsg === '' || errorMsg === 'Script error.') {
+            return; // Ignorar esses erros
+        }
+        
+        console.error('🔧 [DEBUG] Erro global capturado:', errorMsg);
+        captureLog('global-error', [errorMsg, event.error.stack || 'Stack não disponível']);
     } else if (event.filename && event.lineno) {
         console.error('🔧 [DEBUG] Erro em script:', `${event.filename}:${event.lineno}:${event.colno || 0}`);
         captureLog('global-error', [`Erro em ${event.filename}:${event.lineno}:${event.colno || 0}`]);
