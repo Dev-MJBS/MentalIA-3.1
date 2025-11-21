@@ -591,6 +591,13 @@ class MentalIA {
     }
 
     // ===== NAVIGATION & THEME =====
+    initNavigation() {
+        console.log('🧭 Inicializando navegação...');
+        // Navigation is already handled in setupEventListeners
+        // This method ensures navigation is ready when app initializes
+        console.log('✅ Navegação inicializada');
+    }
+
     showScreen(screenName) {
         // Hide all screens
         document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
@@ -668,6 +675,9 @@ class MentalIA {
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
     window.mentalIA = new MentalIA();
+
+    // Make showScreen globally available for HTML onclick handlers
+    window.showScreen = (screenName) => window.mentalIA.showScreen(screenName);
 
     // ===== API CONFIGURATION FUNCTIONS =====
     // Função global para configurar API keys facilmente
