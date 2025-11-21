@@ -6,19 +6,18 @@ class MentalIA {
         this.currentScreen = 'welcome';
         this.currentMood = 3.0;
         this.selectedFeelings = new Set();
-        this.init();
+        // setupEventListeners() will be called in init() after DOM is ready
     }
 
     async init() {
         console.log('🧠 MentalIA 3.1 inicializando...');
 
-        // Setup all event listeners
+        // Setup all event listeners AFTER DOM is ready
         this.setupEventListeners();
 
         // Initialize components
         this.initTheme();
         this.initNavigation();
-        this.initMoodForm();
         this.initChart();
         this.initPWA();
 
@@ -33,44 +32,94 @@ class MentalIA {
     }
 
     setupEventListeners() {
+        console.log('🔧 Configurando event listeners...');
+
         // Theme toggle
         const themeToggle = document.getElementById('theme-toggle');
+        console.log('🎨 Theme toggle encontrado:', !!themeToggle);
         themeToggle?.addEventListener('click', () => this.toggleTheme());
 
         // Navigation
-        document.querySelectorAll('.nav-btn').forEach(btn => {
+        const navBtns = document.querySelectorAll('.nav-btn');
+        console.log('🧭 Botões de navegação encontrados:', navBtns.length);
+        navBtns.forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const screen = e.currentTarget.dataset.screen;
+                console.log('🧭 Navegando para:', screen);
                 this.showScreen(screen);
             });
         });
 
         // Welcome screen buttons
         const startBtn = document.querySelector('.btn-primary');
-        startBtn?.addEventListener('click', () => this.showScreen('mood'));
+        console.log('🚀 Botão começar encontrado:', !!startBtn);
+        startBtn?.addEventListener('click', () => {
+            console.log('🚀 Botão começar clicado');
+            this.showScreen('mood');
+        });
 
         // Mood form submission
         const moodForm = document.getElementById('mood-form');
+        console.log('📝 Formulário de humor encontrado:', !!moodForm);
         moodForm?.addEventListener('submit', (e) => this.handleMoodSubmit(e));
 
         // Report generation
         const reportBtn = document.getElementById('generate-report');
-        reportBtn?.addEventListener('click', () => this.generateReport());
+        console.log('📊 Botão relatório encontrado:', !!reportBtn);
+        reportBtn?.addEventListener('click', () => {
+            console.log('📊 Gerando relatório...');
+            this.generateReport();
+        });
 
         // Backup
         const backupBtn = document.getElementById('backup-data');
-        backupBtn?.addEventListener('click', () => this.backupData());
+        console.log('💾 Botão backup encontrado:', !!backupBtn);
+        backupBtn?.addEventListener('click', () => {
+            console.log('💾 Fazendo backup...');
+            this.backupData();
+        });
+
+        console.log('✅ Event listeners configurados');
     }
 
     // ===== MOOD SLIDER =====
     initMoodForm() {
+        console.log('🎚️ Inicializando slider de humor...');
+
         // Setup mood slider with input listener and color gradient
         const slider = document.getElementById('mood-slider');
+        console.log('🎚️ Slider encontrado:', !!slider, slider);
+
         if (slider) {
-            slider.addEventListener('input', (e) => {
+            // Force enable interaction
+            slider.style.pointerEvents = 'auto';
+            slider.style.cursor = 'pointer';
+            slider.disabled = false;
+
+            // Remove existing listeners to avoid duplicates
+            slider.removeEventListener('input', this.handleSliderInput);
+            slider.removeEventListener('change', this.handleSliderChange);
+
+            // Add new listeners
+            this.handleSliderInput = (e) => {
+                console.log('🎚️ Slider input:', e.target.value);
                 this.updateMoodValue(parseFloat(e.target.value));
-            });
-            this.updateMoodValue(3.0); // Initial value
+            };
+
+            this.handleSliderChange = (e) => {
+                console.log('🎚️ Slider change:', e.target.value);
+                this.updateMoodValue(parseFloat(e.target.value));
+            };
+
+            slider.addEventListener('input', this.handleSliderInput);
+            slider.addEventListener('change', this.handleSliderChange);
+
+            console.log('🎚️ Event listeners adicionados ao slider');
+
+            // Set initial value
+            this.updateMoodValue(3.0);
+        } else {
+            console.error('❌ Slider não encontrado!');
         }
 
         // Setup feelings wheel
@@ -81,11 +130,15 @@ class MentalIA {
     }
 
     updateMoodValue(value) {
+        console.log('🎨 Atualizando valor do humor:', value);
         this.currentMood = Math.max(1, Math.min(5, value));
 
         // Update slider
         const slider = document.getElementById('mood-slider');
-        if (slider) slider.value = this.currentMood;
+        if (slider) {
+            slider.value = this.currentMood;
+            console.log('🎚️ Slider value set to:', this.currentMood);
+        }
 
         // Update color gradient (red to blue)
         const percentage = (this.currentMood - 1) / 4; // 0 to 1
@@ -106,6 +159,8 @@ class MentalIA {
         if (emojiEl) emojiEl.textContent = moodData.emoji;
         if (textEl) textEl.textContent = moodData.text;
         if (valueEl) valueEl.textContent = this.currentMood.toFixed(1);
+
+        console.log('✅ Display atualizado:', moodData.emoji, moodData.text, this.currentMood.toFixed(1));
     }
 
     getMoodData(value) {
@@ -418,7 +473,7 @@ class MentalIA {
                 throw new Error('Nenhum dado para analisar');
             }
 
-            const report = await window.aiAnalysis.generateAIAnalysis(entries);
+            const report = await window.aiAnalysis.generateLocalReport(entries);
             this.displayReport(report);
 
             this.showToast('Relatório gerado! 📋', 'success');
@@ -433,12 +488,28 @@ class MentalIA {
         const content = document.getElementById('report-content');
         if (content) {
             content.classList.remove('hidden');
-            content.innerHTML = `
-                <div class="report-section">
-                    <h3>Análise de Humor</h3>
-                    <div class="analysis-content">${report}</div>
-                </div>
-            `;
+
+            // Handle different report formats
+            let htmlContent = '';
+            if (typeof report === 'string') {
+                htmlContent = `<div class="report-section"><div class="analysis-content">${report}</div></div>`;
+            } else if (report.analysis) {
+                htmlContent = `
+                    <div class="report-section">
+                        <h3>${report.title || 'Análise de Humor'}</h3>
+                        <div class="analysis-content">${report.analysis}</div>
+                        ${report.recommendations ? `<div class="recommendations"><h4>Recomendações:</h4><ul>${report.recommendations.map(r => `<li>${r}</li>`).join('')}</ul></div>` : ''}
+                        ${report.disclaimer ? `<div class="disclaimer">${report.disclaimer}</div>` : ''}
+                    </div>
+                `;
+            } else {
+                htmlContent = `<div class="report-section"><div class="analysis-content">${JSON.stringify(report, null, 2)}</div></div>`;
+            }
+
+            content.innerHTML = htmlContent;
+            console.log('📊 Relatório exibido:', report);
+        } else {
+            console.error('❌ Elemento report-content não encontrado');
         }
     }
 
@@ -461,6 +532,15 @@ class MentalIA {
         if (target) {
             target.classList.add('active');
             this.currentScreen = screenName;
+
+            // Initialize mood form when mood screen is shown
+            if (screenName === 'mood') {
+                console.log('🎭 Tela de humor mostrada, inicializando formulário...');
+                // Use requestAnimationFrame to ensure DOM is fully rendered
+                requestAnimationFrame(() => {
+                    this.initMoodForm();
+                });
+            }
         }
 
         // Update navigation
@@ -520,4 +600,37 @@ class MentalIA {
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
     window.mentalIA = new MentalIA();
+
+    // Debug function for testing slider
+    window.testSlider = () => {
+        console.log('🧪 Testando slider...');
+        const slider = document.getElementById('mood-slider');
+        if (slider) {
+            console.log('🎚️ Slider encontrado:', slider);
+            console.log('🎚️ Valor atual:', slider.value);
+            console.log('🎚️ Disabled:', slider.disabled);
+            console.log('🎚️ Pointer events:', slider.style.pointerEvents);
+            console.log('🎚️ Cursor:', slider.style.cursor);
+
+            // Test setting value programmatically
+            slider.value = 4.0;
+            window.mentalIA.updateMoodValue(4.0);
+            console.log('✅ Teste concluído - valor definido para 4.0');
+        } else {
+            console.error('❌ Slider não encontrado');
+        }
+    };
+
+    // Add test button to mood screen
+    const moodScreen = document.getElementById('mood-screen');
+    if (moodScreen) {
+        const testBtn = document.createElement('button');
+        testBtn.textContent = '🧪 Testar Botões';
+        testBtn.style.cssText = 'position: fixed; top: 10px; right: 10px; z-index: 9999; padding: 10px; background: red; color: white; border: none; border-radius: 5px; cursor: pointer;';
+        testBtn.onclick = () => {
+            console.log('🧪 Teste: Botão funcionando!');
+            alert('Botões estão funcionando! ✅');
+        };
+        moodScreen.appendChild(testBtn);
+    }
 });
