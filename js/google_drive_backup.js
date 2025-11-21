@@ -568,12 +568,20 @@ class GoogleDriveBackup {
         if (this.oneTapInitialized) return;
 
         try {
-            console.log('🚪 [BACKUP] Inicializando One Tap...');
+            console.log('🚪 [ONE TAP] Inicializando Google One Tap...');
 
             // Check if google.accounts is available
             if (!google || !google.accounts || !google.accounts.id) {
-                throw new Error('Google One Tap API não disponível');
+                throw new Error('Google Identity Services não disponível');
             }
+
+            // Check if we have a valid client ID
+            if (!this.clientId) {
+                console.warn('⚠️ [ONE TAP] Client ID não configurado, pulando One Tap');
+                return;
+            }
+
+            console.log('🚪 [ONE TAP] Client ID:', this.clientId.substring(0, 20) + '...');
 
             // Configure Google One Tap
             google.accounts.id.initialize({
@@ -582,16 +590,17 @@ class GoogleDriveBackup {
                 auto_select: false,
                 cancel_on_tap_outside: true,
                 context: 'signin',
-                ux_mode: 'popup'
+                ux_mode: 'popup',
+                prompt_parent_id: 'google-signin-btn' // Use the button as parent
             });
 
             this.oneTapInitialized = true;
-            console.log('✅ [BACKUP] Google One Tap inicializado');
+            console.log('✅ [ONE TAP] Google One Tap inicializado com sucesso');
 
         } catch (error) {
-            console.error('❌ [BACKUP] Erro ao inicializar One Tap:', error);
+            console.error('❌ [ONE TAP] Erro ao inicializar One Tap:', error);
             // Don't throw - One Tap is optional, we can still use popup login
-            console.warn('⚠️ [BACKUP] One Tap falhou, usando apenas popup login');
+            console.warn('⚠️ [ONE TAP] One Tap falhou, usando apenas popup login');
         }
     }
 
@@ -651,23 +660,52 @@ class GoogleDriveBackup {
 
     async signInWithPopup() {
         try {
-            console.log('🪟 [BACKUP] Abrindo popup de login...');
+            console.log('🪟 [LOGIN] Abrindo popup de login...');
+
+            if (!gapi || !gapi.auth2) {
+                throw new Error('Google APIs não inicializadas');
+            }
+
             const authInstance = gapi.auth2.getAuthInstance();
-            const user = await authInstance.signIn();
-            
+            if (!authInstance) {
+                throw new Error('Instância de autenticação não disponível');
+            }
+
+            this.updateDriveStatus(false, 'Fazendo login...');
+
+            const user = await authInstance.signIn({
+                scope: this.scopes,
+                ux_mode: 'popup',
+                prompt: 'select_account'
+            });
+
             this.currentUser = user;
             this.isSignedIn = true;
-            
+
             const email = user.getBasicProfile().getEmail();
-            console.log('✅ [BACKUP] Login realizado:', email);
-            
+            console.log('✅ [LOGIN] Login realizado:', email);
+
             this.updateDriveStatus(true, `Conectado: ${email}`);
             this.showToast(`Conectado ao Google Drive! ${email}`, 'success');
-            
+
+            return true;
+
         } catch (error) {
-            console.error('❌ [BACKUP] Erro no popup de login:', error);
+            console.error('❌ [LOGIN] Erro no popup de login:', error);
             this.updateDriveStatus(false, 'Erro no login');
-            throw error;
+
+            // Handle specific errors
+            if (error.error === 'popup_closed_by_user') {
+                console.log('⚠️ [LOGIN] Popup fechado pelo usuário');
+                this.showToast('Login cancelado', 'info');
+            } else if (error.error === 'access_denied') {
+                console.log('⚠️ [LOGIN] Acesso negado pelo usuário');
+                this.showToast('Acesso negado. Permissões necessárias para backup.', 'warning');
+            } else {
+                this.showToast('Erro ao fazer login. Tente novamente.', 'error');
+            }
+
+            return false;
         }
     }
 
@@ -935,18 +973,38 @@ class GoogleDriveBackup {
     }
     
     handleOneTapResponse(response) {
-        console.log('🔐 One Tap response received');
-        
-        // Decode the JWT token to get user info
+        console.log('🔐 [ONE TAP] Resposta recebida do One Tap');
+
         try {
+            // Decode the JWT token to get user info
             const payload = this.parseJWT(response.credential);
-            console.log('✅ Login realizado via One Tap:', payload.email);
-            
-            // Now authenticate with GAPI
-            this.completeAuthentication(response.credential);
-            
+            console.log('✅ [ONE TAP] Login realizado via One Tap:', payload.email);
+
+            // Set signed in status
+            this.isSignedIn = true;
+
+            // Create a mock user object for compatibility
+            this.currentUser = {
+                getBasicProfile: () => ({
+                    getId: () => payload.sub,
+                    getName: () => payload.name,
+                    getEmail: () => payload.email,
+                    getImageUrl: () => payload.picture
+                }),
+                getAuthResponse: () => ({
+                    access_token: response.credential,
+                    id_token: response.credential
+                })
+            };
+
+            // Update UI
+            this.updateDriveStatus(true, payload.email);
+            this.showToast(`Conectado ao Google Drive! ${payload.email}`, 'success');
+
+            console.log('✅ [ONE TAP] Autenticação completa realizada');
+
         } catch (error) {
-            console.error('❌ Erro ao processar One Tap:', error);
+            console.error('❌ [ONE TAP] Erro ao processar One Tap:', error);
             this.showToast('Erro no login. Tente novamente.', 'error');
         }
     }
@@ -1007,29 +1065,36 @@ class GoogleDriveBackup {
     // Public method to trigger login (called by backup button)
     async requestLogin() {
         if (this.isSignedIn) {
+            console.log('🔐 [LOGIN] Usuário já está logado');
             return true; // Already logged in
         }
 
         try {
-            console.log('🔐 Solicitando login do usuário...');
-            
-            // Try One Tap first
-            if (this.oneTapInitialized) {
-                google.accounts.id.prompt((notification) => {
-                    if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                        // One Tap failed, use traditional popup
-                        this.fallbackAuthentication();
-                    }
+            console.log('🔐 [LOGIN] Solicitando login do usuário...');
+
+            // Try One Tap first if available
+            if (this.oneTapInitialized && google && google.accounts && google.accounts.id) {
+                console.log('🔐 [LOGIN] Tentando One Tap...');
+                return new Promise((resolve) => {
+                    google.accounts.id.prompt((notification) => {
+                        console.log('🔐 [LOGIN] One Tap notification:', notification);
+                        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                            console.log('🔐 [LOGIN] One Tap não exibido, usando popup tradicional');
+                            this.signInWithPopup().then(resolve).catch(() => resolve(false));
+                        } else {
+                            // One Tap was shown, wait for callback
+                            setTimeout(() => resolve(this.isSignedIn), 1000);
+                        }
+                    });
                 });
             } else {
+                console.log('🔐 [LOGIN] One Tap não disponível, usando popup direto');
                 // Direct fallback to popup
-                await this.fallbackAuthentication();
+                return await this.signInWithPopup();
             }
-            
-            return this.isSignedIn;
-            
+
         } catch (error) {
-            console.error('❌ Erro ao solicitar login:', error);
+            console.error('❌ [LOGIN] Erro ao solicitar login:', error);
             this.showToast('Erro ao fazer login. Tente novamente.', 'error');
             return false;
         }

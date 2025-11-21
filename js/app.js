@@ -128,15 +128,12 @@ class MentalIA {
                 console.log('🎚️ Slider input:', e.target.value);
                 const newValue = parseFloat(e.target.value);
                 this.updateMoodValue(newValue);
-                // Force thumb update during drag
-                requestAnimationFrame(() => this.updateCustomThumbPosition());
             };
 
             this.handleSliderChange = (e) => {
                 console.log('🎚️ Slider change:', e.target.value);
                 const newValue = parseFloat(e.target.value);
                 this.updateMoodValue(newValue);
-                this.updateCustomThumbPosition();
             };
 
             // Touch events for mobile
@@ -152,8 +149,6 @@ class MentalIA {
 
             this.handleTouchEnd = (e) => {
                 console.log('🎚️ Touch end on slider');
-                // Update position after touch ends
-                this.updateCustomThumbPosition();
             };
 
             slider.addEventListener('input', this.handleSliderInput);
@@ -164,14 +159,8 @@ class MentalIA {
 
             console.log('🎚️ Event listeners adicionados ao slider');
 
-            // Força repaint do slider (resolve bug em alguns Androids)
-            slider.style.display = 'none';
-            slider.offsetHeight; // trigger reflow
-            slider.style.display = 'block';
-
             // Set initial value
             this.updateMoodValue(3.0);
-            this.updateCustomThumbPosition();
         } else {
             console.error('❌ Slider não encontrado!');
         }
@@ -192,14 +181,6 @@ class MentalIA {
         if (slider) {
             slider.value = this.currentMood;
             console.log('🎚️ Slider value set to:', this.currentMood);
-
-            // Update custom thumb position
-            this.updateCustomThumbPosition();
-
-            // Força repaint do slider (resolve bug em alguns Androids)
-            slider.style.display = 'none';
-            slider.offsetHeight; // trigger reflow
-            slider.style.display = 'block';
         }
 
         // Update color gradient (red to blue)
@@ -209,7 +190,7 @@ class MentalIA {
         const blue = Math.round(47 + (212 - 47) * percentage);
         const color = `rgb(${red}, ${green}, ${blue})`;
 
-        // Apply color to slider and indicators
+        // Apply color to slider thumb
         document.documentElement.style.setProperty('--current-mood-color', color);
 
         // Update display
@@ -223,24 +204,6 @@ class MentalIA {
         if (valueEl) valueEl.textContent = this.currentMood.toFixed(1);
 
         console.log('✅ Display atualizado:', moodData.emoji, moodData.text, this.currentMood.toFixed(1));
-    }
-
-    updateCustomThumbPosition() {
-        const slider = document.getElementById('mood-slider');
-        const thumb = document.getElementById('slider-thumb');
-
-        if (!slider || !thumb) {
-            console.error('❌ Slider ou thumb não encontrados:', { slider: !!slider, thumb: !!thumb });
-            return;
-        }
-
-        // Calculate position percentage (0-100%)
-        const percentage = ((this.currentMood - 1) / 4) * 100;
-
-        // Position the custom thumb
-        thumb.style.left = `${percentage}%`;
-
-        console.log('🎯 Thumb position updated:', percentage + '%', 'currentMood:', this.currentMood);
     }
 
     getMoodData(value) {
@@ -629,14 +592,19 @@ class MentalIA {
     }
 
     showScreen(screenName) {
+        console.log('🧭 Navegando para tela:', screenName);
+
         // Hide all screens
         document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
 
         // Show target screen
         const target = document.getElementById(`${screenName}-screen`);
+        console.log('🧭 Tela alvo encontrada:', !!target, `${screenName}-screen`);
+
         if (target) {
             target.classList.add('active');
             this.currentScreen = screenName;
+            console.log('✅ Tela ativada:', screenName);
 
             // Initialize mood form when mood screen is shown
             if (screenName === 'mood') {
@@ -646,6 +614,8 @@ class MentalIA {
                     this.initMoodForm();
                 });
             }
+        } else {
+            console.error('❌ Tela não encontrada:', `${screenName}-screen`);
         }
 
         // Update navigation
@@ -655,8 +625,15 @@ class MentalIA {
 
         // Load screen data
         if (screenName === 'history') {
+            // Ensure chart is initialized before loading data
+            if (!this.chart) {
+                console.log('📊 Inicializando gráfico na navegação...');
+                this.initChart();
+            }
             this.loadData();
         }
+
+        console.log('🧭 Navegação concluída para:', screenName);
     }
 
     initTheme() {
@@ -784,65 +761,4 @@ document.addEventListener('DOMContentLoaded', () => {
             return null;
         }
     };
-
-    // Debug function for testing slider
-    window.testSlider = () => {
-        console.log('🧪 Testando slider...');
-        const slider = document.getElementById('mood-slider');
-        if (slider) {
-            console.log('🎚️ Slider encontrado:', slider);
-            console.log('🎚️ Valor atual:', slider.value);
-            console.log('🎚️ Disabled:', slider.disabled);
-            console.log('🎚️ Pointer events:', slider.style.pointerEvents);
-            console.log('🎚️ Cursor:', slider.style.cursor);
-
-            // Test setting value programmatically
-            slider.value = 4.0;
-            window.mentalIA.updateMoodValue(4.0);
-            console.log('✅ Teste concluído - valor definido para 4.0');
-        } else {
-            console.error('❌ Slider não encontrado');
-        }
-    };
-
-    // Add test button to mood screen
-    const moodScreen = document.getElementById('mood-screen');
-    if (moodScreen) {
-        const testBtn = document.createElement('button');
-        testBtn.textContent = '🧪 Testar Funcionalidades';
-        testBtn.style.cssText = 'position: fixed; top: 10px; right: 10px; z-index: 9999; padding: 10px; background: red; color: white; border: none; border-radius: 5px; cursor: pointer;';
-        testBtn.onclick = () => {
-            console.log('🧪 Teste: Iniciando testes...');
-            
-            // Test slider
-            const slider = document.getElementById('mood-slider');
-            if (slider) {
-                console.log('🎚️ Slider test:', {
-                    value: slider.value,
-                    visible: slider.offsetWidth > 0,
-                    events: slider.style.pointerEvents
-                });
-                // Test setting value
-                slider.value = 4.0;
-                window.mentalIA.updateMoodValue(4.0);
-            }
-            
-            // Test chart
-            if (window.mentalIA.chart) {
-                console.log('📊 Chart test: OK');
-            } else {
-                console.log('📊 Chart test: FAIL - chart not initialized');
-            }
-            
-            // Test feelings text
-            const feelings = document.querySelectorAll('.sub-label');
-            console.log('😊 Feelings test:', feelings.length, 'items found');
-            if (feelings.length > 0) {
-                console.log('😊 First feeling font-size:', getComputedStyle(feelings[0]).fontSize);
-            }
-            
-            alert('Testes concluídos! Verifique o console (F12) para detalhes.');
-        };
-        moodScreen.appendChild(testBtn);
-    }
 });

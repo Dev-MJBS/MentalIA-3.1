@@ -274,7 +274,27 @@ class AuthSystem {
     handleGoogleSignIn() {
         try {
             console.log('🔐 [GOOGLE] Iniciando processo de login...');
-            this.showGoogleSetupDialog();
+
+            // Check if Google Drive backup is available
+            if (window.googleDriveBackup && !window.googleDriveBackup.isOfflineMode) {
+                console.log('🔐 [GOOGLE] Usando sistema de backup do Google Drive');
+                // Use Google Drive backup system for authentication
+                window.googleDriveBackup.requestLogin().then(success => {
+                    if (success) {
+                        console.log('🔐 [GOOGLE] Login realizado via Google Drive');
+                        this.handleGoogleLoginSuccess();
+                    } else {
+                        console.log('🔐 [GOOGLE] Login falhou via Google Drive');
+                        this.showToast('Login cancelado ou falhou', 'error');
+                    }
+                }).catch(error => {
+                    console.error('🔐 [GOOGLE] Erro no login via Google Drive:', error);
+                    this.showToast('Erro no login com Google', 'error');
+                });
+            } else {
+                console.log('🔐 [GOOGLE] Sistema de backup não disponível, usando método alternativo');
+                this.showGoogleSetupDialog();
+            }
         } catch (error) {
             console.error('🔐 [GOOGLE] Erro no login:', error);
             this.showToast('Erro no login com Google. Tente novamente.', 'error');
