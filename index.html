@@ -21,8 +21,35 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
     
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" onload="console.log('✅ html2canvas carregado')" onerror="console.error('❌ Erro ao carregar html2canvas')"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" onload="console.log('✅ jsPDF carregado')" onerror="console.error('❌ Erro ao carregar jsPDF')"></script>
+    
+    <!-- PDF Libraries Fallback -->
+    <script>
+        // Verificar se as bibliotecas carregaram após 3 segundos
+        setTimeout(() => {
+            if (typeof html2canvas === 'undefined') {
+                console.warn('⚠️ html2canvas não carregou, tentando fallback...');
+                const script = document.createElement('script');
+                script.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
+                script.onload = () => console.log('✅ html2canvas fallback carregado');
+                document.head.appendChild(script);
+            }
+            
+            if (typeof window.jsPDF === 'undefined') {
+                console.warn('⚠️ jsPDF não carregou, tentando fallback...');
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js';
+                script.onload = () => console.log('✅ jsPDF fallback carregado');
+                document.head.appendChild(script);
+            }
+        }, 3000);
+    </script>
+    
     <!-- CSS -->
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/pdf-addon.css">
 </head>
 <body>
     <!-- Loading Overlay -->
@@ -660,6 +687,13 @@
                     <h4>⚠️ Importante</h4>
                     <p>Este relatório é baseado em análise de IA e não substitui o acompanhamento profissional. Se você está passando por dificuldades, procure ajuda de um psicólogo ou psiquiatra qualificado.</p>
                 </div>
+                
+                <!-- Report Actions -->
+                <div class="report-actions">
+                    <button id="download-pdf" class="btn-secondary btn-full" onclick="window.aiAnalysis.downloadReportPDF()">
+                        📄 Baixar Relatório em PDF
+                    </button>
+                </div>
             </div>
 
             <!-- Backup Section -->
@@ -716,11 +750,11 @@
     <div id="toast-container" class="toast-container"></div>
 
     <!-- Scripts -->
-    <script src="js/debug.js?v=1124"></script>
-    <script src="js/storage.js?v=1124"></script>
-    <script src="js/ai_analysis.js?v=1124"></script>
-    <script src="js/google_drive_backup.js?v=1124"></script>
-    <script src="js/app.js?v=1124"></script>
+    <script src="js/debug.js?v=1126"></script>
+    <script src="js/storage.js?v=1126"></script>
+    <script src="js/ai_analysis.js?v=1126"></script>
+    <script src="js/google_drive_backup.js?v=1126"></script>
+    <script src="js/app.js?v=1126"></script>
 
     <!-- Service Worker Registration -->
     <script>

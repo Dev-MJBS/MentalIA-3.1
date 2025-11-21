@@ -1,0 +1,112 @@
+/* === PDF Generation Styles === */
+
+/* Estilos para otimizacao de PDF */
+.pdf-generation {
+    background: white !important;
+    color: #333 !important;
+    font-family: Arial, sans-serif !important;
+    padding: 20px !important;
+    line-height: 1.6 !important;
+}
+
+.pdf-generation * {
+    background: transparent !important;
+    color: #333 !important;
+}
+
+.pdf-generation h3,
+.pdf-generation h4 {
+    color: #6666FF !important;
+    margin-bottom: 10px !important;
+}
+
+.pdf-generation .report-header {
+    text-align: center !important;
+    margin-bottom: 30px !important;
+    border-bottom: 2px solid #6666FF !important;
+    padding-bottom: 15px !important;
+}
+
+.pdf-generation .report-section {
+    margin-bottom: 25px !important;
+    page-break-inside: avoid !important;
+}
+
+.pdf-generation .analysis-content {
+    padding: 15px !important;
+    border-left: 4px solid #6666FF !important;
+    margin-left: 10px !important;
+}
+
+.pdf-generation canvas {
+    max-width: 100% !important;
+    height: auto !important;
+    display: block !important;
+    margin: 15px auto !important;
+}
+
+.pdf-generation .chart-container {
+    text-align: center !important;
+    margin: 20px 0 !important;
+}
+
+.pdf-generation .report-disclaimer {
+    border: 2px solid #f39c12 !important;
+    background: #fff3cd !important;
+    color: #856404 !important;
+    padding: 15px !important;
+    border-radius: 8px !important;
+    margin-top: 30px !important;
+}
+
+.pdf-generation .report-actions {
+    display: none !important;
+}
+
+/* Estilos para botoes de acao do relatorio */
+.report-actions {
+    margin-top: 20px;
+    padding: 15px 0;
+    border-top: 1px solid var(--border);
+    text-align: center;
+}
+
+.report-actions .btn-full {
+    max-width: 300px;
+    margin: 0 auto;
+    display: block;
+}
+
+/* Toast notifications */
+.toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: bold;
+    z-index: 9999;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.toast-success { background: #27ae60; }
+.toast-error { background: #e74c3c; }
+.toast-warning { background: #f39c12; }
+.toast-info { background: #3498db; }
+
+/* Responsividade para mobile */
+@media (max-width: 768px) {
+    .pdf-generation {
+        padding: 15px !important;
+        font-size: 14px !important;
+    }
+    
+    .toast {
+        right: 10px;
+        left: 10px;
+        transform: translateY(-100%);
+    }
+}

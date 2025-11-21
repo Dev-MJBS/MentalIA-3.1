@@ -5,7 +5,8 @@
 
 class GoogleDriveBackup {
     constructor() {
-        this.clientId = 'ivoemo399amv728d61llbdqn3fbcr8tk.apps.googleusercontent.com';
+        // Client ID configurado dinamicamente ou modo offline
+        this.clientId = this.getConfiguredClientId();
         this.discoveryDoc = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
         this.scopes = 'https://www.googleapis.com/auth/drive.appdata';
         
@@ -13,12 +14,401 @@ class GoogleDriveBackup {
         this.gapi = null;
         this.currentUser = null;
         this.oneTapInitialized = false;
+        this.isOfflineMode = !this.clientId;
         
-        this.initializeGoogleAPIs();
+        if (!this.isOfflineMode) {
+            this.initializeGoogleAPIs();
+        } else {
+            console.log('📴 [BACKUP] Modo offline ativado - backup local disponível');
+            this.setupOfflineMode();
+        }
+    }
+    
+    getConfiguredClientId() {
+        // Permitir configuração via localStorage ou usar null para modo offline
+        const storedClientId = localStorage.getItem('google-client-id');
+        
+        // Client IDs válidos conhecidos para diferentes domínios
+        const validClientIds = {
+            'localhost': null, // Usar modo offline para localhost
+            'mentalyia.app': null, // Configurar quando domínio estiver disponível
+            'custom': storedClientId
+        };
+        
+        const hostname = window.location.hostname;
+        return validClientIds[hostname] || validClientIds['localhost'];
+    }
+    
+    setupOfflineMode() {
+        // Configurar UI para modo offline
+        this.updateDriveStatus(false, 'Modo Offline - Backup Local');
+        
+        // Mostrar instruções de configuração
+        this.showOfflineInstructions();
+    }
+    
+    showOfflineInstructions() {
+        const loginPrompt = document.getElementById('login-prompt');
+        if (loginPrompt) {
+            loginPrompt.innerHTML = `
+                <div class="offline-instructions">
+                    <h4>📴 Backup no Google Drive</h4>
+                    <p><strong>Credenciais da API do Google Drive detectadas automaticamente!</strong></p>
+                    <div class="auto-config-info">
+                        <p>✅ <strong>Arquivo de credenciais encontrado</strong></p>
+                        <p>Clique no botão abaixo para configurar automaticamente.</p>
+                    </div>
+                    <div class="config-buttons">
+                        <button id="auto-config" class="btn-primary">🚀 Configurar Google Drive Automaticamente</button>
+                        <button id="open-instructions" class="btn-secondary">📚 Instruções Completas (Opcional)</button>
+                    </div>
+                    <hr style="margin: 1rem 0; border-color: var(--border);">
+                    <p><strong>💾 Alternativa Rápida:</strong> Backup local (sem Google Drive)</p>
+                    <button id="local-backup" class="btn-secondary">💾 Fazer Backup Local</button>
+                </div>
+            `;
+            
+            // Event listeners para botões com bind correto
+            const autoConfigBtn = document.getElementById('auto-config');
+            const instructionsBtn = document.getElementById('open-instructions');
+            const localBtn = document.getElementById('local-backup');
+            
+            if (autoConfigBtn) {
+                autoConfigBtn.addEventListener('click', () => {
+                    console.log('🔍 [BACKUP] Tentando configuração automática');
+                    this.tryAutoConfig();
+                });
+            }
+            
+            if (instructionsBtn) {
+                instructionsBtn.addEventListener('click', () => {
+                    console.log('📚 [BACKUP] Abrindo instruções');
+                    this.openInstructions();
+                });
+            }
+            
+            // Botão de configuração manual removido - usando apenas detecção automática
+            
+            if (localBtn) {
+                localBtn.addEventListener('click', () => {
+                    console.log('💾 [BACKUP] Botão backup local clicado');
+                    this.performLocalBackup();
+                });
+            }
+        }
+    }
+
+    async tryAutoConfig() {
+        try {
+            console.log('🔍 [BACKUP] Tentando configuração automática...');
+            this.showToast('Procurando credenciais...', 'info');
+            
+            const clientId = await this.loadCredentialsFromFile();
+            
+            if (clientId) {
+                // Reinicializar sistema com as novas credenciais
+                await this.initializeGoogleAPIs();
+                this.showToast('Configuração automática concluída! 🎉', 'success');
+                
+                // Atualizar interface
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                this.showToast('Arquivo de credenciais não encontrado. Use configuração manual.', 'warning');
+            }
+            
+        } catch (error) {
+            console.error('🔍 [BACKUP] Erro na configuração automática:', error);
+            this.showToast('Erro na configuração automática. Tente manualmente.', 'error');
+        }
+    }
+
+    openInstructions() {
+        try {
+            console.log('📚 [BACKUP] Abrindo instruções de configuração');
+            
+            // Tentar abrir em nova aba
+            const instructionsUrl = './COMO_CONFIGURAR_GOOGLE_DRIVE.md';
+            const newWindow = window.open('about:blank', '_blank');
+            
+            if (newWindow) {
+                // Criar página HTML com as instruções
+                newWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html lang="pt-BR">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Configurar Google Drive API - MentalIA</title>
+                        <style>
+                            body { 
+                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                                max-width: 800px; margin: 2rem auto; padding: 2rem; 
+                                background: #1a1a2e; color: #eee; line-height: 1.6;
+                            }
+                            h1, h2, h3 { color: #6366f1; }
+                            code { background: #16213e; padding: 0.2rem 0.4rem; border-radius: 4px; }
+                            ol, ul { padding-left: 2rem; }
+                            li { margin: 0.5rem 0; }
+                            a { color: #6366f1; text-decoration: none; }
+                            a:hover { text-decoration: underline; }
+                            .warning { background: #f39c12; color: white; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+                            .success { background: #27ae60; color: white; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+                            .step { background: #16213e; padding: 1rem; margin: 1rem 0; border-radius: 8px; border-left: 4px solid #6366f1; }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>🔧 Como Configurar Google Drive API</h1>
+                        
+                        <div class="success">
+                            <strong>✅ Configuração Automática Disponível!</strong> O MentalIA detectou suas credenciais automaticamente.
+                            <br><br>
+                            <strong>Use o botão "🚀 Configurar Automaticamente"</strong> na tela principal!
+                            <br><br>
+                            As instruções abaixo são apenas para referência ou configuração manual.
+                        </div>
+                        
+                        <div class="step">
+                            <h3>Passo 1: Google Cloud Console</h3>
+                            <ol>
+                                <li>Acesse: <a href="https://console.cloud.google.com/" target="_blank">console.cloud.google.com</a></li>
+                                <li>Clique "Novo Projeto" ou selecione existente</li>
+                                <li>Nome: "MentalIA Backup" (ou qualquer nome)</li>
+                                <li>Clique "Criar"</li>
+                            </ol>
+                        </div>
+                        
+                        <div class="step">
+                            <h3>Passo 2: Ativar Google Drive API</h3>
+                            <ol>
+                                <li>No painel, vá "APIs e Serviços" → "Biblioteca"</li>
+                                <li>Procure "Google Drive API"</li>
+                                <li>Clique na API e depois "Ativar"</li>
+                            </ol>
+                        </div>
+                        
+                        <div class="step">
+                            <h3>Passo 3: Criar Credenciais OAuth</h3>
+                            <ol>
+                                <li>Vá "APIs e Serviços" → "Credenciais"</li>
+                                <li>Clique "Criar Credenciais" → "ID do cliente OAuth 2.0"</li>
+                                <li>Se aparecer tela de consentimento:
+                                    <ul>
+                                        <li>Tipo: <strong>Externo</strong></li>
+                                        <li>Nome: MentalIA</li>
+                                        <li>Email: seu email</li>
+                                        <li>Domínios: deixe vazio</li>
+                                    </ul>
+                                </li>
+                            </ol>
+                        </div>
+                        
+                        <div class="step">
+                            <h3>Passo 4: Configurar Cliente Web</h3>
+                            <ol>
+                                <li>Tipo: <strong>Aplicativo da Web</strong></li>
+                                <li>Nome: MentalIA Web Client</li>
+                                <li>Origens JavaScript autorizadas:
+                                    <ul>
+                                        <li><code>${window.location.origin}</code></li>
+                                        <li><code>http://localhost:3000</code></li>
+                                        <li><code>http://localhost:3001</code></li>
+                                        <li><code>http://localhost:3001</code></li>
+                                    </ul>
+                                </li>
+                                <li>URIs de redirecionamento: <em>deixe vazio</em></li>
+                                <li>Clique "Criar"</li>
+                            </ol>
+                        </div>
+                        
+                        <div class="success">
+                            <h3>✅ Copiar Client ID</h3>
+                            <p>Após criar, aparecerá uma janela com:</p>
+                            <ul>
+                                <li><strong>Client ID:</strong> <code>123456789-abcdef.apps.googleusercontent.com</code></li>
+                                <li><strong>Client Secret:</strong> (não precisamos)</li>
+                            </ul>
+                            <p><strong>COPIE o Client ID</strong> (formato longo com números e letras)</p>
+                        </div>
+                        
+                        <div class="step">
+                            <h3>Passo 5: Configurar no MentalIA</h3>
+                            <ol>
+                                <li>Volte para o MentalIA</li>
+                                <li>Clique "🔧 Já Tenho Client ID"</li>
+                                <li>Cole o Client ID que você copiou</li>
+                                <li>Recarregue a página</li>
+                                <li>Teste o backup!</li>
+                            </ol>
+                        </div>
+                        
+                        <div class="warning">
+                            <h3>🚨 Problemas Comuns</h3>
+                            <ul>
+                                <li><strong>"OAuth client not found":</strong> Verifique se copiou o Client ID correto</li>
+                                <li><strong>"This app isn't verified":</strong> Normal para apps em desenvolvimento, clique "Advanced" → "Go to MentalIA"</li>
+                                <li><strong>"Access blocked":</strong> Confirme que adicionou as URLs nas origens autorizadas</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="success">
+                            <h3>🎉 Após Configurar</h3>
+                            <p>Você terá:</p>
+                            <ul>
+                                <li>✅ Backup automático no Google Drive</li>
+                                <li>✅ Login com sua conta Google</li>
+                                <li>✅ Dados sincronizados na nuvem</li>
+                                <li>✅ Acesso de qualquer dispositivo</li>
+                            </ul>
+                        </div>
+                        
+                        <p><strong>💡 Alternativa:</strong> Se não quiser configurar agora, use o Backup Local!</p>
+                        
+                        <script>
+                            console.log('📚 Instruções de configuração carregadas');
+                        </script>
+                    </body>
+                    </html>
+                `);
+                newWindow.document.close();
+                this.showToast('Instruções abertas em nova aba! 📚', 'info');
+            } else {
+                // Se não conseguir abrir nova aba, mostrar alerta
+                alert(`📚 INSTRUÇÕES DE CONFIGURAÇÃO\\n\\n1. Acesse: console.cloud.google.com\\n2. Crie projeto "MentalIA Backup"\\n3. Ative "Google Drive API"\\n4. Crie "ID cliente OAuth 2.0"\\n5. Tipo: Aplicativo da Web\\n6. Origens: ${window.location.origin}\\n7. Copie o Client ID\\n8. Configure no MentalIA\\n\\nConsulte COMO_CONFIGURAR_GOOGLE_DRIVE.md para detalhes`);
+            }
+            
+        } catch (error) {
+            console.error('📚 [BACKUP] Erro ao abrir instruções:', error);
+            this.showToast('Erro ao abrir instruções. Consulte COMO_CONFIGURAR_GOOGLE_DRIVE.md', 'error');
+        }
+    }
+
+    promptClientIdSetup() {
+        try {
+            console.log('🔧 [BACKUP] Iniciando configuração de Client ID...');
+            
+            const clientId = prompt(`🔑 GOOGLE DRIVE CLIENT ID\n\nCole o Client ID da API do Google Drive:\n\nFormato: 123456789-abc123def.apps.googleusercontent.com\n\n📄 Consulte as instruções completas se necessário.`);
+            
+            if (clientId && clientId.includes('.apps.googleusercontent.com')) {
+                console.log('🔧 [BACKUP] Client ID válido fornecido');
+                localStorage.setItem('google-client-id', clientId);
+                this.showToast('Client ID configurado! Recarregue a página.', 'success');
+                
+                // Botão para recarregar
+                const reloadBtn = document.createElement('button');
+                reloadBtn.textContent = '🔄 Recarregar Página';
+                reloadBtn.className = 'btn-secondary';
+                reloadBtn.onclick = () => window.location.reload();
+                
+                const loginPrompt = document.getElementById('login-prompt');
+                if (loginPrompt) {
+                    loginPrompt.appendChild(reloadBtn);
+                }
+            } else if (clientId) {
+                console.log('🔧 [BACKUP] Client ID inválido fornecido');
+                this.showToast('Client ID inválido. Use o formato correto.', 'error');
+            } else {
+                console.log('🔧 [BACKUP] Configuração cancelada pelo usuário');
+            }
+        } catch (error) {
+            console.error('🔧 [BACKUP] Erro na configuração:', error);
+            this.showToast('Erro na configuração: ' + error.message, 'error');
+        }
+    }
+
+    async performLocalBackup() {
+        try {
+            console.log('💾 [LOCAL BACKUP] Iniciando backup local...');
+            
+            // Verificar se storage está disponível
+            if (!window.mentalStorage) {
+                throw new Error('Sistema de armazenamento não disponível');
+            }
+            
+            // Obter dados
+            console.log('💾 [LOCAL BACKUP] Obtendo dados do storage...');
+            const entries = await window.mentalStorage.getAllMoodEntries();
+            console.log('💾 [LOCAL BACKUP] Dados obtidos:', entries ? entries.length : 0, 'entradas');
+            
+            if (!entries || entries.length === 0) {
+                this.showToast('Nenhum dado para fazer backup.', 'warning');
+                return;
+            }
+            
+            // Criar arquivo de backup
+            const backupData = {
+                version: '3.1',
+                timestamp: new Date().toISOString(),
+                type: 'local-backup',
+                entries: entries,
+                totalEntries: entries.length
+            };
+            
+            // Download do arquivo
+            const dataStr = JSON.stringify(backupData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `MentalIA-Backup-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            this.showToast('Backup local criado! Arquivo baixado. 💾', 'success');
+            
+        } catch (error) {
+            console.error('💾 [LOCAL BACKUP] Erro:', error);
+            this.showToast('Erro no backup local: ' + error.message, 'error');
+        }
+    }
+
+    async loadCredentialsFromFile() {
+        try {
+            console.log('🔍 [BACKUP] Procurando arquivo de credenciais...');
+            
+            // Tentar carregar arquivo de credenciais automaticamente
+            const response = await fetch('./client_secret_670002862076-ivoemo399amv728d61llbdqn3fbcr8tk.apps.googleusercontent.com.json');
+            
+            if (response.ok) {
+                const credentials = await response.json();
+                const clientId = credentials.web?.client_id;
+                
+                if (clientId) {
+                    console.log('✅ [BACKUP] Credenciais encontradas automaticamente!');
+                    localStorage.setItem('google-client-id', clientId);
+                    this.clientId = clientId;
+                    this.isOfflineMode = false;
+                    this.showToast('Credenciais Google configuradas automaticamente! 🎉', 'success');
+                    return clientId;
+                }
+            }
+            
+            console.log('📄 [BACKUP] Arquivo de credenciais não encontrado');
+            return null;
+            
+        } catch (error) {
+            console.log('📄 [BACKUP] Não foi possível carregar credenciais automaticamente:', error.message);
+            return null;
+        }
     }
 
     async initializeGoogleAPIs() {
         try {
+            // Primeiro tentar carregar credenciais do arquivo se não estiver configurado
+            if (!this.clientId) {
+                await this.loadCredentialsFromFile();
+            }
+            
+            // Se ainda não tem clientId, permanecer em modo offline
+            if (!this.clientId) {
+                console.log('📴 [BACKUP] Permanecendo em modo offline');
+                this.setupOfflineMode();
+                return;
+            }
+            
             // Wait for both Google APIs and One Tap to be available
             await this.waitForGoogleAPIs();
             
@@ -509,7 +899,15 @@ class GoogleDriveBackup {
         if (confirmBackupBtn) {
             confirmBackupBtn.addEventListener('click', async () => {
                 modal.classList.remove('show');
-                await this.performBackup();
+                
+                // Verificar se está em modo offline
+                if (this.isOfflineMode) {
+                    console.log('📴 [BACKUP] Modal em modo offline, fazendo backup local');
+                    await this.performLocalBackup();
+                } else {
+                    console.log('☁️ [BACKUP] Modal em modo online, fazendo backup no Drive');
+                    await this.performBackup();
+                }
             });
         }
 
@@ -522,6 +920,27 @@ class GoogleDriveBackup {
 
     async handleBackupClick() {
         console.log('🔘 [BACKUP DEBUG] handleBackupClick chamado');
+        console.log('🔘 [BACKUP DEBUG] Modo offline:', this.isOfflineMode);
+        
+        if (this.isOfflineMode) {
+            // Modo offline - oferecer opções
+            try {
+                const choice = confirm('📴 Modo Offline Ativo\n\nEscolha uma opção:\nOK = Backup Local (baixar arquivo)\nCancelar = Configurar Google Drive');
+                
+                if (choice) {
+                    console.log('💾 [BACKUP] Usuário escolheu backup local');
+                    await this.performLocalBackup();
+                } else {
+                    console.log('🔧 [BACKUP] Usuário escolheu configurar Google Drive');
+                    this.promptClientIdSetup();
+                }
+            } catch (error) {
+                console.error('📴 [BACKUP] Erro no modo offline:', error);
+                this.showToast('Erro no modo offline: ' + error.message, 'error');
+            }
+            return;
+        }
+        
         console.log('🔘 [BACKUP DEBUG] Estado atual - isSignedIn:', this.isSignedIn, 'isInitialized:', this.isInitialized);
         
         // Check if user is signed in

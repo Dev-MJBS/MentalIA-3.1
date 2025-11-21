@@ -697,6 +697,471 @@ Para usar o modo rápido, você precisa configurar pelo menos uma API:
         console.log(instructions);
         return instructions;
     }
+
+    // Sistema completo de download de PDF
+    async downloadReportPDF() {
+        try {
+            console.log('📄 [PDF] Iniciando geração de PDF...');
+            
+            // Mostrar loading
+            this.showToast('Gerando seu PDF...', 'info');
+            
+            // Verificar se as bibliotecas estão carregadas
+            if (typeof html2canvas === 'undefined' || typeof jsPDF === 'undefined') {
+                throw new Error('Bibliotecas PDF não carregadas');
+            }
+            
+            // Preparar elemento para captura
+            const reportElement = document.getElementById('report-content');
+            if (!reportElement) {
+                throw new Error('Conteúdo do relatório não encontrado');
+            }
+            
+            // Adicionar classe temporária para otimizar PDF
+            reportElement.classList.add('pdf-export');
+            
+            // Configurações do html2canvas
+            const canvasOptions = {
+                scale: 2, // Alta resolução
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#ffffff',
+                width: reportElement.scrollWidth,
+                height: reportElement.scrollHeight,
+                scrollX: 0,
+                scrollY: 0
+            };
+            
+            console.log('📸 [PDF] Capturando conteúdo...');
+            const canvas = await html2canvas(reportElement, canvasOptions);
+            
+            // Remover classe temporária
+            reportElement.classList.remove('pdf-export');
+            
+            // Configurações do PDF
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+            
+            // Dimensões A4 em mm
+            const pdfWidth = 210;
+            const pdfHeight = 297;
+            const margin = 10;
+            const contentWidth = pdfWidth - (margin * 2);
+            
+            // Calcular dimensões da imagem
+            const imgWidth = contentWidth;
+            const imgHeight = (canvas.height * contentWidth) / canvas.width;
+            
+            // Adicionar cabeçalho
+            pdf.setFontSize(20);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text('Relatório MentalIA', margin, 20);
+            
+            // Data atual
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+            
+            pdf.setFontSize(12);
+            pdf.setFont('helvetica', 'normal');
+            pdf.text(`Gerado em: ${dateStr}`, margin, 30);
+            
+            // Calcular se precisa dividir em páginas
+            let yPosition = 40;
+            const availableHeight = pdfHeight - yPosition - 20; // 20mm para rodapé
+            
+            if (imgHeight <= availableHeight) {
+                // Cabe em uma página
+                const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                pdf.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, imgHeight);
+            } else {
+                // Dividir em múltiplas páginas
+                const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                const totalPages = Math.ceil(imgHeight / availableHeight);
+                
+                for (let page = 0; page < totalPages; page++) {
+                    if (page > 0) {
+                        pdf.addPage();
+                        yPosition = 10;
+                    }
+                    
+                    const sourceY = page * (canvas.height / totalPages);
+                    const sourceHeight = canvas.height / totalPages;
+                    const pageHeight = Math.min(availableHeight, imgHeight - (page * availableHeight));
+                    
+                    // Criar canvas temporário para esta página
+                    const pageCanvas = document.createElement('canvas');
+                    pageCanvas.width = canvas.width;
+                    pageCanvas.height = sourceHeight;
+                    const pageCtx = pageCanvas.getContext('2d');
+                    
+                    pageCtx.drawImage(canvas, 0, sourceY, canvas.width, sourceHeight, 0, 0, canvas.width, sourceHeight);
+                    const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.95);
+                    
+                    pdf.addImage(pageImgData, 'JPEG', margin, yPosition, imgWidth, pageHeight);
+                }
+            }
+            
+            // Adicionar rodapé na última página
+            const pageCount = pdf.internal.getNumberOfPages();
+            pdf.setPage(pageCount);
+            
+            pdf.setFontSize(10);
+            pdf.setFont('helvetica', 'normal');
+            pdf.setTextColor(128, 128, 128);
+            
+            const footerText = 'Gerado pelo MentalIA • 100% local e privado • CVV 188';
+            const textWidth = pdf.getTextWidth(footerText);
+            const footerX = (pdfWidth - textWidth) / 2;
+            
+            pdf.text(footerText, footerX, pdfHeight - 10);
+            
+            // Nome do arquivo
+            const filename = `Relatorio_MentalIA_${dateStr.replace(/\//g, '-')}.pdf`;
+            
+            console.log('💾 [PDF] Salvando arquivo:', filename);
+            
+            // Download do PDF
+            pdf.save(filename);
+            
+            this.showToast('PDF gerado com sucesso! 📄', 'success');
+            
+            console.log('✅ [PDF] Relatório PDF gerado com sucesso');
+            
+        } catch (error) {
+            console.error('❌ [PDF] Erro ao gerar PDF:', error);
+            this.showToast('Erro ao gerar PDF: ' + error.message, 'error');
+            
+            // Fallback: tentar download HTML
+            try {
+                this.downloadReportHTML();
+            } catch (fallbackError) {
+                console.error('❌ [PDF] Erro no fallback HTML:', fallbackError);
+            }
+        }
+    }
+    
+    // Fallback: Download como HTML
+    downloadReportHTML() {
+        try {
+            const reportElement = document.getElementById('report-content');
+            if (!reportElement) return;
+            
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html lang="pt-BR">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Relatório MentalIA</title>
+                    <style>
+                        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 2rem; }
+                        .header { text-align: center; margin-bottom: 2rem; }
+                        .content { max-width: 800px; margin: 0 auto; }
+                        .footer { text-align: center; margin-top: 2rem; color: #666; font-size: 0.9rem; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>Relatório MentalIA</h1>
+                        <p>Gerado em: ${new Date().toLocaleDateString('pt-BR')}</p>
+                    </div>
+                    <div class="content">
+                        ${reportElement.innerHTML}
+                    </div>
+                    <div class="footer">
+                        <p>Gerado pelo MentalIA • 100% local e privado • CVV 188</p>
+                    </div>
+                </body>
+                </html>
+            `;
+            
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Relatorio_MentalIA_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            this.showToast('Relatório HTML baixado como alternativa', 'info');
+            
+        } catch (error) {
+            console.error('❌ [PDF] Erro no download HTML:', error);
+        }
+    }
+
+    // Mostrar toast (método auxiliar)
+    showToast(message, type = 'info') {
+        // Verificar se existe função de toast no app principal
+        if (window.mentalIA && typeof window.mentalIA.showToast === 'function') {
+            window.mentalIA.showToast(message, type);
+        } else {
+            // Fallback simples
+            console.log(`[${type.toUpperCase()}] ${message}`);
+            if (type === 'error') {
+                alert(`Erro: ${message}`);
+            }
+        }
+    }
+
+    // === PDF Generation Functions ===
+    
+    async ensurePDFLibrariesLoaded() {
+        console.log('📄 [PDF] Verificando bibliotecas...');
+        
+        // Debug: mostrar o que está disponível globalmente
+        console.log('📄 [PDF] html2canvas:', typeof html2canvas);
+        console.log('📄 [PDF] window.jsPDF:', typeof window.jsPDF);
+        console.log('📄 [PDF] window.jspdf:', typeof window.jspdf);
+        
+        // Aguardar html2canvas
+        let attempts = 0;
+        while (typeof html2canvas === 'undefined' && attempts < 30) {
+            if (attempts % 10 === 0) {
+                console.log('📄 [PDF] Aguardando html2canvas... tentativa', attempts);
+            }
+            await new Promise(resolve => setTimeout(resolve, 200));
+            attempts++;
+        }
+        
+        if (typeof html2canvas === 'undefined') {
+            console.error('📄 [PDF] html2canvas não disponível. Recarregue a página.');
+            throw new Error('html2canvas não disponível. Recarregue a página.');
+        }
+        
+        // Aguardar jsPDF (pode estar em window.jsPDF ou window.jspdf)
+        attempts = 0;
+        while (!window.jsPDF && !window.jspdf && attempts < 30) {
+            if (attempts % 10 === 0) {
+                console.log('📄 [PDF] Aguardando jsPDF... tentativa', attempts);
+            }
+            await new Promise(resolve => setTimeout(resolve, 200));
+            attempts++;
+        }
+        
+        // Normalizar acesso ao jsPDF
+        if (!window.jsPDF && window.jspdf) {
+            window.jsPDF = window.jspdf.jsPDF;
+        }
+        
+        if (!window.jsPDF) {
+            console.error('📄 [PDF] jsPDF não disponível. Recarregue a página.');
+            throw new Error('jsPDF não disponível. Recarregue a página.');
+        }
+        
+        console.log('📄 [PDF] ✅ Todas as bibliotecas carregadas com sucesso!');
+        return true;
+    }
+    
+    safeShowToast(message, type = 'info') {
+        try {
+            if (window.mentalIA && typeof window.mentalIA.showToast === 'function') {
+                window.mentalIA.showToast(message, type);
+            } else {
+                console.log(`[📄 PDF ${type.toUpperCase()}] ${message}`);
+                if (type === 'error') {
+                    // Criar toast visual simples para erros
+                    const toast = document.createElement('div');
+                    toast.textContent = message;
+                    toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#e74c3c;color:white;padding:10px;border-radius:5px;z-index:9999;max-width:300px;';
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 5000);
+                }
+            }
+        } catch (e) {
+            console.log(`[📄 PDF ${type.toUpperCase()}] ${message}`);
+        }
+    }
+    
+    async downloadReportPDF() {
+        try {
+            console.log('📄 [PDF] Iniciando geração do PDF...');
+            
+            // Mostrar loading de forma segura
+            this.safeShowToast('Gerando seu PDF...', 'info');
+            
+            // Aguardar carregamento das bibliotecas
+            await this.ensurePDFLibrariesLoaded();
+            
+            console.log('📄 [PDF] Bibliotecas carregadas com sucesso');
+            
+            // Preparar conteúdo para PDF
+            await this.preparePDFContent();
+            
+            // Gerar PDF
+            await this.generatePDF();
+            
+            this.safeShowToast('PDF gerado com sucesso! 🎉', 'success');
+            console.log('📄 [PDF] PDF gerado e baixado com sucesso');
+            
+        } catch (error) {
+            console.error('📄 [PDF] Erro ao gerar PDF:', error);
+            this.safeShowToast('Erro ao gerar PDF: ' + (error?.message || 'Erro desconhecido'), 'error');
+        }
+    }
+    
+    async preparePDFContent() {
+        const reportContent = document.getElementById('report-content');
+        if (!reportContent) {
+            throw new Error('Conteúdo do relatório não encontrado');
+        }
+        
+        // Adicionar classe para otimização de PDF
+        reportContent.classList.add('pdf-generation');
+        
+        // Aguardar renderização dos gráficos
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Otimizar gráficos para PDF
+        const charts = reportContent.querySelectorAll('canvas');
+        charts.forEach(canvas => {
+            canvas.style.maxWidth = '100%';
+            canvas.style.height = 'auto';
+        });
+    }
+    
+    async generatePDF() {
+        const reportContent = document.getElementById('report-content');
+        const { jsPDF } = window.jsPDF;
+        
+        // Configurações do PDF
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
+        });
+        
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 15;
+        const contentWidth = pageWidth - (margin * 2);
+        
+        // Adicionar cabeçalho
+        this.addPDFHeader(pdf, margin);
+        
+        // Capturar conteúdo como imagem
+        const canvas = await html2canvas(reportContent, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            width: reportContent.scrollWidth,
+            height: reportContent.scrollHeight,
+            scrollX: 0,
+            scrollY: 0
+        });
+        
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = contentWidth;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        
+        // Posição inicial após o cabeçalho
+        let yPosition = 40;
+        
+        // Adicionar imagem do conteúdo
+        if (imgHeight <= pageHeight - yPosition - 20) {
+            // Cabe em uma página
+            pdf.addImage(imgData, 'PNG', margin, yPosition, imgWidth, imgHeight);
+        } else {
+            // Dividir em páginas
+            let remainingHeight = imgHeight;
+            let currentY = 0;
+            
+            while (remainingHeight > 0) {
+                const pageContentHeight = pageHeight - yPosition - 20;
+                const sliceHeight = Math.min(remainingHeight, pageContentHeight);
+                
+                const canvasSlice = document.createElement('canvas');
+                const ctx = canvasSlice.getContext('2d');
+                canvasSlice.width = canvas.width;
+                canvasSlice.height = (sliceHeight * canvas.width) / imgWidth;
+                
+                ctx.drawImage(
+                    canvas,
+                    0, (currentY * canvas.width) / imgWidth,
+                    canvas.width, canvasSlice.height,
+                    0, 0,
+                    canvas.width, canvasSlice.height
+                );
+                
+                const sliceData = canvasSlice.toDataURL('image/png');
+                pdf.addImage(sliceData, 'PNG', margin, yPosition, imgWidth, sliceHeight);
+                
+                remainingHeight -= sliceHeight;
+                currentY += sliceHeight;
+                
+                if (remainingHeight > 0) {
+                    pdf.addPage();
+                    this.addPDFHeader(pdf, margin);
+                    yPosition = 40;
+                }
+            }
+        }
+        
+        // Adicionar rodapé na última página
+        this.addPDFFooter(pdf, margin, pageHeight);
+        
+        // Gerar nome do arquivo
+        const today = new Date();
+        const dateStr = today.toLocaleDateString('pt-BR').replace(/\//g, '-');
+        const filename = `Relatorio_MentalIA_${dateStr}.pdf`;
+        
+        // Baixar PDF
+        pdf.save(filename);
+        
+        // Remover classe de otimização
+        reportContent.classList.remove('pdf-generation');
+    }
+    
+    addPDFHeader(pdf, margin) {
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        
+        // Título principal
+        pdf.setFontSize(24);
+        pdf.setTextColor(102, 102, 255); // #6666FF
+        pdf.text('Relatório MentalIA', margin, 20);
+        
+        // Data atual
+        pdf.setFontSize(12);
+        pdf.setTextColor(100, 100, 100);
+        const today = new Date().toLocaleDateString('pt-BR', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        pdf.text(today, pageWidth - margin - pdf.getTextWidth(today), 20);
+        
+        // Linha separadora
+        pdf.setDrawColor(200, 200, 200);
+        pdf.line(margin, 25, pageWidth - margin, 25);
+    }
+    
+    addPDFFooter(pdf, margin, pageHeight) {
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const footerY = pageHeight - 15;
+        
+        // Linha separadora
+        pdf.setDrawColor(200, 200, 200);
+        pdf.line(margin, footerY - 5, pageWidth - margin, footerY - 5);
+        
+        // Texto do rodapé
+        pdf.setFontSize(10);
+        pdf.setTextColor(100, 100, 100);
+        const footerText = 'Gerado pelo MentalIA • 100% local e privado • CVV 188';
+        const textWidth = pdf.getTextWidth(footerText);
+        const textX = (pageWidth - textWidth) / 2;
+        pdf.text(footerText, textX, footerY);
+    }
 }
 
 // Initialize and expose globally with error handling

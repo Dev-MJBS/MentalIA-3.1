@@ -1,0 +1,80 @@
+/* PDF Export Optimization */
+.pdf-export {
+    width: 210mm !important;
+    max-width: 210mm !important;
+    background: white !important;
+    color: black !important;
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+    padding: 20px !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
+.pdf-export .chart-container {
+    page-break-inside: avoid;
+    margin: 20px 0;
+}
+
+.pdf-export .analysis-section {
+    page-break-inside: avoid;
+    margin: 15px 0;
+}
+
+.pdf-export h1, .pdf-export h2, .pdf-export h3 {
+    color: #2c3e50 !important;
+    page-break-after: avoid;
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.pdf-export .mood-stats {
+    display: flex !important;
+    justify-content: space-around;
+    margin: 20px 0;
+    page-break-inside: avoid;
+}
+
+.pdf-export .mood-stats .stat-item {
+    text-align: center;
+    flex: 1;
+}
+
+.pdf-export .ai-analysis {
+    background: #f8f9fa !important;
+    padding: 15px !important;
+    border-left: 4px solid #3498db !important;
+    margin: 15px 0;
+    border-radius: 0 !important;
+}
+
+.pdf-export .recommendations {
+    background: #e8f5e8 !important;
+    padding: 15px !important;
+    border-left: 4px solid #27ae60 !important;
+    margin: 15px 0;
+    border-radius: 0 !important;
+}
+
+.pdf-export .mood-entry {
+    background: #ffffff !important;
+    border: 1px solid #ddd !important;
+    padding: 10px !important;
+    margin: 10px 0;
+    border-radius: 0 !important;
+}
+
+.pdf-export .mood-chart {
+    background: white !important;
+    border: 1px solid #ddd !important;
+}
+
+/* Print optimizations */
+@media print {
+    .pdf-export {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 15mm !important;
+    }
+}
