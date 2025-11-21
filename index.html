@@ -22,11 +22,11 @@
     <script src="https://apis.google.com/js/api.js" async defer></script>
     
     <!-- CSS -->
-    <link rel="stylesheet" href="css/styles.css?v=1136">
+    <link rel="stylesheet" href="css/styles.css?v=1137">
     <link rel="stylesheet" href="css/pdf-addon.css">
     <link rel="stylesheet" href="css/auth-styles.css">
     <link rel="stylesheet" href="css/status-indicator.css">
-    <link rel="stylesheet" href="css/interactive-styles.css?v=1136">
+    <link rel="stylesheet" href="css/interactive-styles.css?v=1137">
 
     <!-- FIX TOQUE NO CELULAR + TOAST BONITO -->
     <style>
@@ -227,10 +227,10 @@
                 </div>
 
                 <div class="cta-buttons">
-                    <button class="btn-primary" onclick="showScreen('mood')">
+                    <button class="btn-primary" data-screen="mood">
                         Registrar Humor Agora
                     </button>
-                    <button class="btn-secondary" onclick="showScreen('history')">
+                    <button class="btn-secondary" data-screen="history">
                         Ver Histórico
                     </button>
                 </div>
@@ -868,12 +868,12 @@
     <div id="toast-container" class="toast-container"></div>
 
     <!-- SCRIPTS NA ORDEM CERTA (ESSA É A CHAVE) -->
-    <script src="js/debug.js?v=1136"></script>
-    <script src="js/storage.js?v=1136"></script>                 <!-- 1º -->
-    <script src="js/auth.js?v=1136"></script>
-    <script src="js/ai_analysis.js?v=1136"></script>             <!-- 2º -->
-    <script src="js/google_drive_backup.js?v=1136"></script>     <!-- 3º -->
-    <script src="js/app.js?v=1136"></script>                     <!-- 4º e último -->
+    <script src="js/debug.js?v=1137"></script>
+    <script src="js/storage.js?v=1137"></script>                 <!-- 1º -->
+    <script src="js/auth.js?v=1137"></script>
+    <script src="js/ai_analysis.js?v=1137"></script>             <!-- 2º -->
+    <script src="js/google_drive_backup.js?v=1137"></script>     <!-- 3º -->
+    <script src="js/app.js?v=1137"></script>                     <!-- 4º e último -->
 
     <!-- Service Worker + Inicialização Segura -->
     <script>
@@ -896,6 +896,7 @@
             });
             await wait();
             window.mentalIA = new MentalIA();
+            await window.mentalIA.init();
             
             // Make showScreen globally available for HTML onclick handlers
             window.showScreen = (screenName) => window.mentalIA.showScreen(screenName);

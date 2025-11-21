@@ -41,10 +41,10 @@ class MentalIA {
         console.log('🎨 Theme toggle encontrado:', !!themeToggle);
         themeToggle?.addEventListener('click', () => this.toggleTheme());
 
-        // Navigation
-        const navBtns = document.querySelectorAll('.nav-btn');
-        console.log('🧭 Botões de navegação encontrados:', navBtns.length, navBtns);
-        navBtns.forEach(btn => {
+        // All screen navigation buttons
+        const screenBtns = document.querySelectorAll('[data-screen]');
+        console.log('🧭 Botões de navegação encontrados:', screenBtns.length, screenBtns);
+        screenBtns.forEach(btn => {
             console.log('🧭 Configurando event listener para botão:', btn.dataset.screen, btn);
             btn.addEventListener('click', (e) => {
                 console.log('🧭 Botão clicado! Event:', e);
@@ -54,14 +54,6 @@ class MentalIA {
                 console.log('🧭 Navegando para:', screen);
                 this.showScreen(screen);
             });
-        });
-
-        // Welcome screen buttons
-        const startBtn = document.querySelector('.btn-primary');
-        console.log('🚀 Botão começar encontrado:', !!startBtn);
-        startBtn?.addEventListener('click', () => {
-            console.log('🚀 Botão começar clicado');
-            this.showScreen('mood');
         });
 
         // Mood form submission
