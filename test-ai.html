@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Sistema IA - MentalIA</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #1a1a2e; color: white; }
+        .test-item { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #27ae60; }
+        .error { background: #e74c3c; }
+        .warning { background: #f39c12; }
+        .info { background: #3498db; }
+        button { padding: 10px 20px; margin: 5px; border: none; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Teste do Sistema de IA</h1>
+    <div id="results"></div>
+    <button onclick="testAISystem()">🧠 Testar Sistema de IA</button>
+    <button onclick="testReportGeneration()">📊 Testar Geração de Relatório</button>
+    <button onclick="clearResults()">🗑️ Limpar</button>
+
+    <script src="js/debug.js?v=1124"></script>
+    <script src="js/storage.js?v=1124"></script>
+    <script src="js/ai_analysis.js?v=1124"></script>
+    <script src="js/app.js?v=1124"></script>
+
+    <script>
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-item ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong> - ${message}`;
+            results.appendChild(div);
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function testAISystem() {
+            log('🔍 Iniciando teste do sistema de IA...', 'info');
+            
+            // Test 1: Check if aiAnalysis exists
+            log(`window.aiAnalysis existe: ${!!window.aiAnalysis}`, window.aiAnalysis ? 'success' : 'error');
+            
+            if (window.aiAnalysis) {
+                // Test 2: Check methods
+                const methods = ['generateLocalReport', 'generateFastReport', 'generateSimpleFallbackReport'];
+                methods.forEach(method => {
+                    const exists = typeof window.aiAnalysis[method] === 'function';
+                    log(`${method}: ${exists ? 'Disponível' : 'Não encontrado'}`, exists ? 'success' : 'error');
+                });
+                
+                // Test 3: Check AIAnalysis class
+                log(`Classe AIAnalysis: ${typeof AIAnalysis !== 'undefined' ? 'Disponível' : 'Não encontrada'}`, 
+                    typeof AIAnalysis !== 'undefined' ? 'success' : 'warning');
+            }
+            
+            // Test 4: Check other systems
+            log(`window.mentalStorage: ${!!window.mentalStorage}`, window.mentalStorage ? 'success' : 'error');
+            log(`window.googleDriveBackup: ${!!window.googleDriveBackup}`, window.googleDriveBackup ? 'success' : 'warning');
+        }
+
+        async function testReportGeneration() {
+            log('📊 Testando geração de relatório...', 'info');
+            
+            const testEntries = [
+                { mood: 4, feelings: ['feliz', 'motivado'], diary: 'Dia bom!', timestamp: new Date().toISOString() },
+                { mood: 3, feelings: ['neutro'], diary: 'Dia normal', timestamp: new Date().toISOString() },
+                { mood: 5, feelings: ['alegre'], diary: 'Excelente!', timestamp: new Date().toISOString() }
+            ];
+            
+            if (!window.aiAnalysis) {
+                log('❌ Sistema de IA não disponível', 'error');
+                return;
+            }
+            
+            // Test generateSimpleFallbackReport
+            try {
+                log('🧮 Testando generateSimpleFallbackReport...', 'info');
+                const fallbackReport = window.aiAnalysis.generateSimpleFallbackReport(testEntries);
+                log(`✅ Fallback Report gerado: ${fallbackReport.length} caracteres`, 'success');
+                log(`Prévia: ${fallbackReport.substring(0, 100)}...`, 'info');
+            } catch (error) {
+                log(`❌ Erro no fallback: ${error.message}`, 'error');
+            }
+            
+            // Test generateLocalReport
+            try {
+                log('🤖 Testando generateLocalReport...', 'info');
+                const localReport = await window.aiAnalysis.generateLocalReport(testEntries);
+                log(`✅ Local Report gerado: ${localReport.length} caracteres`, 'success');
+            } catch (error) {
+                log(`❌ Erro no local: ${error.message}`, 'error');
+            }
+            
+            // Test generateFastReport
+            try {
+                log('🚀 Testando generateFastReport...', 'info');
+                const fastReport = await window.aiAnalysis.generateFastReport(testEntries);
+                log(`✅ Fast Report gerado: ${fastReport.length} caracteres`, 'success');
+            } catch (error) {
+                log(`❌ Erro no fast: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-run tests when page loads
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                log('🚀 Página carregada, iniciando testes automáticos...', 'info');
+                testAISystem();
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

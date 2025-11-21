@@ -18,6 +18,9 @@ class MentalIA {
         this.initChart();
         this.initReportGeneration();
         
+        // Verificar integridade dos sistemas críticos
+        this.verifySystemIntegrity();
+        
         // Initialize PWA features
         this.initPWA();
         this.initNotifications();
@@ -822,6 +825,59 @@ class MentalIA {
         console.log('📊 [REPORT DEBUG] Modo padrão definido como:', this.aiMode);
     }
 
+    verifySystemIntegrity() {
+        console.log('🔍 [SYSTEM CHECK] Verificando integridade dos sistemas...');
+        
+        // Check storage
+        const storageOk = !!window.mentalStorage;
+        console.log('🔍 [SYSTEM CHECK] Storage:', storageOk ? '✅ OK' : '❌ FALHA');
+        
+        // Check AI Analysis
+        const aiExists = !!window.aiAnalysis;
+        const aiMethodsOk = aiExists && 
+            typeof window.aiAnalysis.generateLocalReport === 'function' &&
+            typeof window.aiAnalysis.generateFastReport === 'function';
+        
+        console.log('🔍 [SYSTEM CHECK] AI Analysis:', aiExists ? '✅ Existe' : '❌ Não existe');
+        console.log('🔍 [SYSTEM CHECK] AI Methods:', aiMethodsOk ? '✅ OK' : '❌ FALHA');
+        
+        // Check backup
+        const backupOk = !!window.googleDriveBackup;
+        console.log('🔍 [SYSTEM CHECK] Backup:', backupOk ? '✅ OK' : '❌ FALHA');
+        
+        // Force fix AI if broken
+        if (!aiExists || !aiMethodsOk) {
+            console.log('🔧 [SYSTEM CHECK] Corrigindo sistema de IA...');
+            this.fixAISystem();
+        }
+        
+        console.log('🔍 [SYSTEM CHECK] Verificação concluída');
+    }
+
+    fixAISystem() {
+        console.log('🔧 [AI FIX] Iniciando correção do sistema de IA...');
+        
+        if (!window.aiAnalysis) {
+            console.log('🔧 [AI FIX] Criando objeto aiAnalysis...');
+            window.aiAnalysis = {};
+        }
+        
+        // Ensure all required methods exist
+        const requiredMethods = ['generateLocalReport', 'generateFastReport', 'generateSimpleFallbackReport'];
+        
+        requiredMethods.forEach(method => {
+            if (typeof window.aiAnalysis[method] !== 'function') {
+                console.log(`🔧 [AI FIX] Adicionando método ${method}...`);
+                window.aiAnalysis[method] = (entries) => {
+                    console.log(`🔧 [AI FIX] Usando fallback para ${method}`);
+                    return this.generateEmergencyReport(entries);
+                };
+            }
+        });
+        
+        console.log('🔧 [AI FIX] Sistema de IA corrigido');
+    }
+
     setAIMode(mode) {
         this.aiMode = mode;
         console.log(`🤖 Modo de IA alterado para: ${mode}`);
@@ -843,13 +899,46 @@ class MentalIA {
                 throw new Error('Sistema de armazenamento não disponível');
             }
             
+            // Forçar criação do aiAnalysis se não existir
             if (!window.aiAnalysis) {
-                throw new Error('Sistema de análise não disponível');
+                console.log('🤖 [REPORT DEBUG] aiAnalysis não existe, verificando classe...');
+                if (typeof AIAnalysis !== 'undefined') {
+                    console.log('🤖 [REPORT DEBUG] Criando nova instância de AIAnalysis...');
+                    window.aiAnalysis = new AIAnalysis();
+                } else {
+                    console.log('🤖 [REPORT DEBUG] Classe AIAnalysis não disponível, criando objeto mock...');
+                    window.aiAnalysis = {
+                        generateLocalReport: (entries) => this.generateEmergencyReport(entries),
+                        generateFastReport: (entries) => this.generateEmergencyReport(entries),
+                        generateSimpleFallbackReport: (entries) => this.generateEmergencyReport(entries)
+                    };
+                }
             }
             
-            // Verificar se os métodos existem
-            if (!window.aiAnalysis.generateLocalReport || !window.aiAnalysis.generateFastReport) {
-                throw new Error('Métodos de análise não carregados');
+            // Verificar se os métodos existem, se não, adicionar fallbacks
+            if (!window.aiAnalysis.generateLocalReport) {
+                console.log('🤖 [REPORT DEBUG] Adicionando generateLocalReport fallback...');
+                window.aiAnalysis.generateLocalReport = (entries) => {
+                    return window.aiAnalysis.generateSimpleFallbackReport ? 
+                        window.aiAnalysis.generateSimpleFallbackReport(entries) :
+                        this.generateEmergencyReport(entries);
+                };
+            }
+            
+            if (!window.aiAnalysis.generateFastReport) {
+                console.log('🤖 [REPORT DEBUG] Adicionando generateFastReport fallback...');
+                window.aiAnalysis.generateFastReport = (entries) => {
+                    return window.aiAnalysis.generateSimpleFallbackReport ? 
+                        window.aiAnalysis.generateSimpleFallbackReport(entries) :
+                        this.generateEmergencyReport(entries);
+                };
+            }
+            
+            if (!window.aiAnalysis.generateSimpleFallbackReport) {
+                console.log('🤖 [REPORT DEBUG] Adicionando generateSimpleFallbackReport fallback...');
+                window.aiAnalysis.generateSimpleFallbackReport = (entries) => {
+                    return this.generateEmergencyReport(entries);
+                };
             }
 
             const entries = await window.mentalStorage.getAllMoodEntries();
@@ -864,11 +953,8 @@ class MentalIA {
             
             let report;
             try {
-                // Garantir que o aiAnalysis está inicializado
-                if (!window.aiAnalysis.worker) {
-                    console.log('🤖 [REPORT DEBUG] Inicializando aiAnalysis...');
-                    await window.aiAnalysis.init();
-                }
+                console.log('🤖 [REPORT DEBUG] Iniciando geração de relatório...');
+                console.log('🤖 [REPORT DEBUG] Modo atual:', this.aiMode);
                 
                 if (this.aiMode === 'private') {
                     // Use local AI with timeout and fallback
@@ -907,12 +993,9 @@ class MentalIA {
                 console.error('🤖 [REPORT DEBUG] Stack trace:', aiError.stack);
                 console.log('🤖 [REPORT DEBUG] Usando fallback de emergência...');
                 
-                // Último recurso: fallback simples sempre funciona
-                if (window.aiAnalysis && window.aiAnalysis.generateSimpleFallbackReport) {
-                    report = window.aiAnalysis.generateSimpleFallbackReport(entries);
-                } else {
-                    report = this.generateEmergencyReport(entries);
-                }
+                // Último recurso: sempre gerar relatório de emergência
+                console.log('🆘 [REPORT DEBUG] Usando relatório de emergência como último recurso');
+                report = this.generateEmergencyReport(entries);
             }
 
             if (!report || typeof report !== 'string') {

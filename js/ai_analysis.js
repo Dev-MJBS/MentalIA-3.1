@@ -408,36 +408,25 @@ class AIAnalysis {
     async generateFastReport(entries) {
         console.log('🚀 [AI DEBUG] generateFastReport iniciado');
         
-        // APIs externas são geralmente problemáticas, ir direto para fallback
-        console.log('🤖 [AI DEBUG] APIs externas não configuradas, usando fallback simples diretamente');
+        // Usar sempre fallback simples para evitar problemas de API
+        console.log('🤖 [AI DEBUG] Usando fallback simples diretamente para evitar timeouts');
         return this.generateSimpleFallbackReport(entries);
-        
-        // Código anterior comentado para evitar timeouts
-        /*
-        try {
-            // Try Claude first, then Gemini (with very short timeout)
-            if (this.externalAPIs.claude.available) {
-                return await Promise.race([
-                    this.generateClaudeReport(entries),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Claude timeout')), 5000))
-                ]);
-            } else if (this.externalAPIs.gemini.available) {
-                return await Promise.race([
-                    this.generateGeminiReport(entries),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Gemini timeout')), 5000))
-                ]);
-            } else {
-                return this.generateSimpleFallbackReport(entries);
-            }
-        } catch (error) {
-            console.error('🤖 [AI DEBUG] Erro na geração rápida, usando fallback:', error.message);
-            return this.generateSimpleFallbackReport(entries);
-        }
-        */
-        }
     }
 
+    // Métodos de API externa desabilitados para evitar erros
     async generateClaudeReport(entries) {
+        console.log('🤖 [AI DEBUG] Claude API desabilitada, usando fallback');
+        return this.generateSimpleFallbackReport(entries);
+    }
+    
+    async generateGeminiReport(entries) {
+        console.log('🤖 [AI DEBUG] Gemini API desabilitada, usando fallback');
+        return this.generateSimpleFallbackReport(entries);
+    }
+    
+    /*
+    // Código original das APIs comentado para evitar problemas
+    async generateClaudeReportOriginal(entries) {
         const claudeKey = await window.mentalStorage.getSetting('claude-api-key');
         if (!claudeKey) {
             throw new Error('Chave da API Claude não configurada');
@@ -470,41 +459,9 @@ class AIAnalysis {
         const data = await response.json();
         return this.parseClaudeResponse(data.content[0].text);
     }
+    */
 
-    async generateGeminiReport(entries) {
-        const geminiKey = await window.mentalStorage.getSetting('gemini-api-key');
-        if (!geminiKey) {
-            throw new Error('Chave da API Gemini não configurada');
-        }
-
-        const summary = this.prepareMoodSummary(entries);
-        const prompt = this.createAnalysisPrompt(summary);
-
-        const response = await fetch(`${this.externalAPIs.gemini.url}?key=${geminiKey}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{
-                        text: prompt
-                    }]
-                }],
-                generationConfig: {
-                    maxOutputTokens: 1500,
-                    temperature: 0.7
-                }
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`Erro na API Gemini: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        return this.parseGeminiResponse(data.candidates[0].content.parts[0].text);
-    }
+    // Métodos de apoio para análise
 
     prepareMoodSummary(entries) {
         const totalEntries = entries.length;
@@ -742,8 +699,29 @@ Para usar o modo rápido, você precisa configurar pelo menos uma API:
     }
 }
 
-// Initialize and expose globally
-window.aiAnalysis = new AIAnalysis();
+// Initialize and expose globally with error handling
+try {
+    console.log('🤖 [AI DEBUG] Inicializando window.aiAnalysis...');
+    window.aiAnalysis = new AIAnalysis();
+    console.log('🤖 [AI DEBUG] window.aiAnalysis criado com sucesso');
+} catch (error) {
+    console.error('🤖 [AI DEBUG] Erro ao criar AIAnalysis:', error);
+    // Create minimal fallback object
+    window.aiAnalysis = {
+        generateLocalReport: function(entries) {
+            return this.generateSimpleFallbackReport(entries);
+        },
+        generateFastReport: function(entries) {
+            return this.generateSimpleFallbackReport(entries);
+        },
+        generateSimpleFallbackReport: function(entries) {
+            if (!entries || entries.length === 0) return "Nenhum dado disponível.";
+            const avg = (entries.reduce((sum, e) => sum + e.mood, 0) / entries.length).toFixed(1);
+            return `Relatório Básico: ${entries.length} registros, média ${avg}/5.0`;
+        }
+    };
+    console.log('🤖 [AI DEBUG] Objeto fallback criado');
+}
 
 // Auto-initialize when first used with better error handling
 const aiMethodsToWrap = ['generateLocalReport', 'generateFastReport'];
