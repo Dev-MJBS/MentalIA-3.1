@@ -126,31 +126,40 @@ class MentalIA {
             // Add new listeners
             this.handleSliderInput = (e) => {
                 console.log('🎚️ Slider input:', e.target.value);
-                this.updateMoodValue(parseFloat(e.target.value));
+                const newValue = parseFloat(e.target.value);
+                this.updateMoodValue(newValue);
+                // Force thumb update during drag
+                requestAnimationFrame(() => this.updateCustomThumbPosition());
             };
 
             this.handleSliderChange = (e) => {
                 console.log('🎚️ Slider change:', e.target.value);
-                this.updateMoodValue(parseFloat(e.target.value));
+                const newValue = parseFloat(e.target.value);
+                this.updateMoodValue(newValue);
+                this.updateCustomThumbPosition();
             };
 
             // Touch events for mobile
             this.handleTouchStart = (e) => {
-                console.log('🎚️ Touch start');
+                console.log('🎚️ Touch start on slider');
+                e.preventDefault(); // Prevent default touch behavior
             };
 
             this.handleTouchMove = (e) => {
-                console.log('🎚️ Touch move');
+                console.log('🎚️ Touch move on slider');
+                e.preventDefault(); // Prevent scrolling while dragging
             };
 
             this.handleTouchEnd = (e) => {
-                console.log('🎚️ Touch end');
+                console.log('🎚️ Touch end on slider');
+                // Update position after touch ends
+                this.updateCustomThumbPosition();
             };
 
             slider.addEventListener('input', this.handleSliderInput);
             slider.addEventListener('change', this.handleSliderChange);
-            slider.addEventListener('touchstart', this.handleTouchStart, { passive: true });
-            slider.addEventListener('touchmove', this.handleTouchMove, { passive: true });
+            slider.addEventListener('touchstart', this.handleTouchStart, { passive: false });
+            slider.addEventListener('touchmove', this.handleTouchMove, { passive: false });
             slider.addEventListener('touchend', this.handleTouchEnd, { passive: true });
 
             console.log('🎚️ Event listeners adicionados ao slider');
@@ -162,6 +171,7 @@ class MentalIA {
 
             // Set initial value
             this.updateMoodValue(3.0);
+            this.updateCustomThumbPosition();
         } else {
             console.error('❌ Slider não encontrado!');
         }
@@ -182,6 +192,9 @@ class MentalIA {
         if (slider) {
             slider.value = this.currentMood;
             console.log('🎚️ Slider value set to:', this.currentMood);
+
+            // Update custom thumb position
+            this.updateCustomThumbPosition();
 
             // Força repaint do slider (resolve bug em alguns Androids)
             slider.style.display = 'none';
@@ -210,6 +223,24 @@ class MentalIA {
         if (valueEl) valueEl.textContent = this.currentMood.toFixed(1);
 
         console.log('✅ Display atualizado:', moodData.emoji, moodData.text, this.currentMood.toFixed(1));
+    }
+
+    updateCustomThumbPosition() {
+        const slider = document.getElementById('mood-slider');
+        const thumb = document.getElementById('slider-thumb');
+
+        if (!slider || !thumb) {
+            console.error('❌ Slider ou thumb não encontrados:', { slider: !!slider, thumb: !!thumb });
+            return;
+        }
+
+        // Calculate position percentage (0-100%)
+        const percentage = ((this.currentMood - 1) / 4) * 100;
+
+        // Position the custom thumb
+        thumb.style.left = `${percentage}%`;
+
+        console.log('🎯 Thumb position updated:', percentage + '%', 'currentMood:', this.currentMood);
     }
 
     getMoodData(value) {
