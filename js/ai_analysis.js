@@ -48,22 +48,25 @@ class AIAnalysis {
         if (this.isModelLoading || this.localModel) return;
 
         this.isModelLoading = true;
-        console.log('🧠 [AI] Inicializando MedGemma-4B-IT Q4 localmente...');
+        console.log('Carregando MedGemma 2B local... (100% privado)');
 
         try {
-            // Import Transformers.js dynamically
+            // Garante que Transformers.js está disponível
             if (typeof Transformers === 'undefined') {
-                console.warn('🧠 [AI] Transformers.js não carregado, pulando modelo local');
-                return;
+                const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2');
+                window.Transformers = { pipeline };
             }
 
-            // Load the model asynchronously
-            this.localModel = await Transformers.pipeline('text-generation', 'google/medgemm-4b-it-q4');
-            console.log('🧠 [AI] MedGemma-4B-IT Q4 carregado com sucesso!');
+            // Modelo leve, rápido e que roda em qualquer celular
+            this.localModel = await window.Transformers.pipeline('text-generation', 'Xenova/medgemma-2b-it');
+
+            console.log('MedGemma 2B carregado com sucesso! 100% local');
+            this.showToast('IA médica local carregada!', 'success');
 
         } catch (error) {
-            console.error('🧠 [AI] Erro ao carregar modelo local:', error);
+            console.error('Falha ao carregar MedGemma:', error);
             this.localModel = null;
+            this.showToast('Modo privado indisponível. Use o modo rápido.', 'error');
         } finally {
             this.isModelLoading = false;
         }
