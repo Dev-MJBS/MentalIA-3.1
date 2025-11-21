@@ -627,7 +627,7 @@
     </style>
 </head>
 <body class="premium-page">
-    <button class="back-button" onclick="window.history.back()">
+    <button class="back-button" onclick="goBackToApp()">
         ← Voltar
     </button>
 
@@ -839,7 +839,7 @@
             <div class="footer-section">
                 <h3>🚀 Navegação</h3>
                 <div style="margin-bottom: 1rem;">
-                    <a href="../index.html" class="back-to-app">
+                    <a href="#" onclick="goBackToApp(); return false;" class="back-to-app">
                         ← Voltar ao MentalIA
                     </a>
                 </div>
@@ -1252,6 +1252,57 @@
             `;
             
             modal.style.display = 'block';
+        }
+
+        // 🔥 CORREÇÃO: Função para voltar ao app que funciona local e GitHub Pages
+        function goBackToApp() {
+            console.log('🔄 Voltando ao app principal...');
+            
+            try {
+                // Detectar se está no GitHub Pages
+                const isGitHubPages = window.location.hostname.includes('github.io');
+                
+                // Estratégia 1: Tentar usar history.back() se veio do app
+                if (document.referrer && (
+                    document.referrer.includes('index.html') || 
+                    document.referrer.includes('/MentalIA-3.1/') ||
+                    document.referrer.includes('localhost')
+                )) {
+                    console.log('📱 Voltando via history.back()');
+                    window.history.back();
+                    return;
+                }
+                
+                // Estratégia 2: Redirecionamento direto baseado no ambiente
+                let homeUrl;
+                if (isGitHubPages) {
+                    homeUrl = `${window.location.origin}/MentalIA-3.1/index.html`;
+                } else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                    homeUrl = './index.html';
+                } else {
+                    // Produção ou outro ambiente
+                    homeUrl = './index.html';
+                }
+                
+                console.log('🏠 Redirecionando para:', homeUrl);
+                window.location.href = homeUrl;
+                
+            } catch (error) {
+                console.error('❌ Erro ao voltar:', error);
+                
+                // Fallback final: tentar URLs mais básicas
+                const fallbackUrls = ['./index.html', '../index.html', '/index.html'];
+                
+                for (const url of fallbackUrls) {
+                    try {
+                        console.log('🔄 Tentando fallback:', url);
+                        window.location.href = url;
+                        break;
+                    } catch (fallbackError) {
+                        console.error('❌ Fallback falhou:', fallbackError);
+                    }
+                }
+            }
         }
     </script>
 </body>

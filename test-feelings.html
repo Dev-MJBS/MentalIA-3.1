@@ -31,6 +31,17 @@
     </script>
     
     <p>Abra o console do navegador para ver os resultados do teste.</p>
-    <p><a href="/index.html">Voltar ao app</a></p>
+    <p><a href="#" onclick="goBackToApp(); return false;">Voltar ao app</a></p>
+    
+    <script>
+        // Função para voltar ao app que funciona local e GitHub Pages
+        function goBackToApp() {
+            const isGitHubPages = window.location.hostname.includes('github.io');
+            const homeUrl = isGitHubPages ? 
+                `${window.location.origin}/MentalIA-3.1/index.html` : 
+                './index.html';
+            window.location.href = homeUrl;
+        }
+    </script>
 </body>
 </html>
