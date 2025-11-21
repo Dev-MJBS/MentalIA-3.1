@@ -227,24 +227,54 @@ class MentalIA {
 
     // ===== FEELINGS WHEEL =====
     initFeelingsWheel() {
-        document.querySelectorAll('.primary-feeling-card').forEach(card => {
+        console.log('🎭 Inicializando feelings wheel...');
+
+        // Primary feeling cards
+        const primaryCards = document.querySelectorAll('.primary-feeling-card');
+        console.log('🎭 Primary feeling cards encontrados:', primaryCards.length);
+
+        primaryCards.forEach((card, index) => {
             const header = card.querySelector('.primary-feeling-btn');
-            header?.addEventListener('click', () => this.toggleFeelingCategory(card));
+            console.log(`🎭 Card ${index}:`, !!header, header);
+            if (header) {
+                header.addEventListener('click', () => {
+                    console.log(`🎭 Primary card clicado:`, card);
+                    this.toggleFeelingCategory(card);
+                });
+            }
         });
 
-        document.querySelectorAll('.sub-feeling-item').forEach(item => {
+        // Sub feeling items
+        const subFeelings = document.querySelectorAll('.sub-feeling-item');
+        console.log('🎭 Sub feeling items encontrados:', subFeelings.length);
+
+        subFeelings.forEach((item, index) => {
+            console.log(`🎭 Sub feeling ${index}:`, item);
             item.addEventListener('click', (e) => {
+                console.log(`🎭 Sub feeling clicado:`, item);
                 const checkbox = item.querySelector('input[type="checkbox"]');
                 if (checkbox) {
+                    console.log('🎭 Checkbox encontrado, toggling:', checkbox.checked);
                     checkbox.checked = !checkbox.checked;
+                    console.log('🎭 Checkbox novo estado:', checkbox.checked);
                     this.updateSelectedFeelings();
+                } else {
+                    console.error('🎭 Checkbox não encontrado em:', item);
                 }
             });
         });
 
         // Clear button
         const clearBtn = document.getElementById('clear-feelings');
-        clearBtn?.addEventListener('click', () => this.clearAllFeelings());
+        console.log('🎭 Clear button encontrado:', !!clearBtn);
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                console.log('🎭 Clear button clicado');
+                this.clearAllFeelings();
+            });
+        }
+
+        console.log('✅ Feelings wheel inicializado');
     }
 
     toggleFeelingCategory(card) {
@@ -278,7 +308,9 @@ class MentalIA {
     }
 
     updateSelectedFeelings() {
+        console.log('🎭 Atualizando sentimentos selecionados...');
         const selected = document.querySelectorAll('.sub-feeling-item input:checked');
+        console.log('🎭 Sentimentos checados encontrados:', selected.length, selected);
         this.selectedFeelings.clear();
 
         // Check if more than 5 feelings selected
