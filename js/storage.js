@@ -1,35 +1,40 @@
-// MentalIA 3.0 - Encrypted Local Storage
-// IndexedDB with AES encryption for maximum privacy
+// MentalIA 3.1 - Encrypted IndexedDB Storage with AES-GCM
+// Complete rewrite for maximum reliability and privacy
 
 class MentalStorage {
     constructor() {
-        this.dbName = 'MentalIA-DB';
+        this.dbName = 'MentalIA-DB-v3.1';
         this.dbVersion = 1;
         this.db = null;
         this.encryptionKey = null;
+        this.initialized = false;
     }
 
     async init() {
+        if (this.initialized) return;
+
         try {
-            // Initialize encryption key
+            console.log('🔒 Inicializando storage criptografado...');
+
+            // Initialize encryption
             await this.initEncryption();
-            
-            // Initialize IndexedDB
+
+            // Initialize database
             await this.initDatabase();
-            
-            console.log('🔒 Storage criptografado inicializado');
-            return true;
+
+            this.initialized = true;
+            console.log('✅ Storage criptografado inicializado com sucesso');
         } catch (error) {
-            console.error('Erro ao inicializar storage:', error);
+            console.error('❌ Falha na inicialização do storage:', error);
             throw error;
         }
     }
 
     async initEncryption() {
         try {
-            // Check if we have a stored key
-            let keyData = localStorage.getItem('mental-ia-key');
-            
+            // Check for existing key
+            const keyData = localStorage.getItem('mental-ia-encryption-key');
+
             if (keyData) {
                 // Import existing key
                 const keyBuffer = this.base64ToArrayBuffer(keyData);
@@ -40,6 +45,7 @@ class MentalStorage {
                     false,
                     ['encrypt', 'decrypt']
                 );
+                console.log('🔑 Chave de criptografia existente carregada');
             } else {
                 // Generate new key
                 this.encryptionKey = await crypto.subtle.generateKey(
@@ -47,16 +53,15 @@ class MentalStorage {
                     true,
                     ['encrypt', 'decrypt']
                 );
-                
-                // Export and store key
+
+                // Export and store
                 const keyBuffer = await crypto.subtle.exportKey('raw', this.encryptionKey);
                 const keyB64 = this.arrayBufferToBase64(keyBuffer);
-                localStorage.setItem('mental-ia-key', keyB64);
+                localStorage.setItem('mental-ia-encryption-key', keyB64);
+                console.log('🆕 Nova chave de criptografia gerada e salva');
             }
-            
-            console.log('🔐 Chave de criptografia configurada');
         } catch (error) {
-            console.error('Erro na inicialização da criptografia:', error);
+            console.error('❌ Erro na configuração da criptografia:', error);
             throw error;
         }
     }
@@ -64,598 +69,274 @@ class MentalStorage {
     async initDatabase() {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(this.dbName, this.dbVersion);
-            
+
             request.onerror = () => {
-                console.error('Erro ao abrir IndexedDB:', request.error);
+                console.error('❌ Erro ao abrir IndexedDB:', request.error);
                 reject(request.error);
             };
-            
-            request.onsuccess = () => {
-                this.db = request.result;
+
+            request.onsuccess = (event) => {
+                this.db = event.target.result;
+                console.log('📊 IndexedDB conectado');
                 resolve();
             };
-            
+
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
-                
-                // Create mood entries store
+                console.log('🔄 Atualizando estrutura do banco...');
+
+                // Mood entries store
                 if (!db.objectStoreNames.contains('moodEntries')) {
                     const moodStore = db.createObjectStore('moodEntries', {
                         keyPath: 'id',
-                        autoIncrement: true
+                        autoIncrement: false
                     });
                     moodStore.createIndex('timestamp', 'timestamp', { unique: false });
                     moodStore.createIndex('date', 'date', { unique: false });
+                    moodStore.createIndex('mood', 'mood', { unique: false });
                 }
-                
-                // Create settings store
+
+                // Settings store
                 if (!db.objectStoreNames.contains('settings')) {
-                    db.createObjectStore('settings', {
-                        keyPath: 'key'
-                    });
+                    db.createObjectStore('settings', { keyPath: 'key' });
                 }
-                
-                // Create backup store
-                if (!db.objectStoreNames.contains('backups')) {
-                    const backupStore = db.createObjectStore('backups', {
-                        keyPath: 'id',
-                        autoIncrement: true
-                    });
-                    backupStore.createIndex('timestamp', 'timestamp', { unique: false });
-                }
-                
-                console.log('📄 Estrutura do banco criada');
+
+                console.log('✅ Estrutura do banco criada/atualizada');
             };
         });
     }
 
     async encrypt(data) {
-        try {
-            const jsonString = JSON.stringify(data);
-            const textEncoder = new TextEncoder();
-            const dataBuffer = textEncoder.encode(jsonString);
-            
-            // Generate random IV
-            const iv = crypto.getRandomValues(new Uint8Array(12));
-            
-            // Encrypt data
-            const encryptedBuffer = await crypto.subtle.encrypt(
-                { name: 'AES-GCM', iv: iv },
-                this.encryptionKey,
-                dataBuffer
-            );
-            
-            // Combine IV and encrypted data
-            const combined = new Uint8Array(iv.length + encryptedBuffer.byteLength);
-            combined.set(iv);
-            combined.set(new Uint8Array(encryptedBuffer), iv.length);
-            
-            return this.arrayBufferToBase64(combined);
-        } catch (error) {
-            console.error('Erro na criptografia:', error);
-            throw error;
-        }
+        const jsonString = JSON.stringify(data);
+        const encoder = new TextEncoder();
+        const dataBuffer = encoder.encode(jsonString);
+
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+
+        const encrypted = await crypto.subtle.encrypt(
+            { name: 'AES-GCM', iv: iv },
+            this.encryptionKey,
+            dataBuffer
+        );
+
+        // Combine IV + encrypted data
+        const combined = new Uint8Array(iv.length + encrypted.byteLength);
+        combined.set(iv);
+        combined.set(new Uint8Array(encrypted), iv.length);
+
+        return this.arrayBufferToBase64(combined);
     }
 
     async decrypt(encryptedData) {
-        try {
-            const combined = this.base64ToArrayBuffer(encryptedData);
-            
-            // Extract IV and encrypted data
-            const iv = combined.slice(0, 12);
-            const encryptedBuffer = combined.slice(12);
-            
-            // Decrypt data
-            const decryptedBuffer = await crypto.subtle.decrypt(
-                { name: 'AES-GCM', iv: iv },
-                this.encryptionKey,
-                encryptedBuffer
-            );
-            
-            // Convert back to string and parse JSON
-            const textDecoder = new TextDecoder();
-            const jsonString = textDecoder.decode(decryptedBuffer);
-            
-            return JSON.parse(jsonString);
-        } catch (error) {
-            console.error('Erro na descriptografia:', error);
-            throw error;
-        }
+        const combined = this.base64ToArrayBuffer(encryptedData);
+        const iv = combined.slice(0, 12);
+        const encrypted = combined.slice(12);
+
+        const decrypted = await crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv: iv },
+            this.encryptionKey,
+            encrypted
+        );
+
+        const decoder = new TextDecoder();
+        const jsonString = decoder.decode(decrypted);
+        return JSON.parse(jsonString);
     }
 
     async saveMoodEntry(moodData) {
-        try {
-            if (!this.db) {
-                await this.init();
-            }
-            
-            // Validate mood data
-            if (!moodData.mood || moodData.mood < 1 || moodData.mood > 5) {
-                throw new Error('Valor de humor inválido');
-            }
-            
-            // Add metadata with enhanced structure
-            const entryWithMeta = {
-                ...moodData,
-                id: Date.now() + Math.floor(Math.random() * 1000), // Unique ID
-                mood: parseFloat(moodData.mood),
-                feelings: Array.isArray(moodData.feelings) ? moodData.feelings : [],
-                diary: (moodData.diary || '').trim(),
-                createdAt: new Date().toISOString(),
-                timestamp: moodData.timestamp || new Date().toISOString(),
-                date: moodData.date || new Date().toDateString(),
-                version: '3.1',
-                deviceFingerprint: moodData.deviceFingerprint || 'unknown'
-            };
-            
-            console.log('💾 Preparando dados para salvar:', {
-                mood: entryWithMeta.mood,
-                feelingsCount: entryWithMeta.feelings.length,
-                diaryLength: entryWithMeta.diary.length,
-                id: entryWithMeta.id
-            });
-            
-            // Encrypt the data
-            const encryptedData = await this.encrypt(entryWithMeta);
-            
-            // Store encrypted data
-            const transaction = this.db.transaction(['moodEntries'], 'readwrite');
-            const store = transaction.objectStore('moodEntries');
-            
-            const dbEntry = {
-                id: entryWithMeta.id,
-                timestamp: entryWithMeta.timestamp,
-                date: entryWithMeta.date,
-                mood: entryWithMeta.mood, // Keep unencrypted for indexing
-                encryptedData: encryptedData
-            };
-            
-            const request = store.add(dbEntry);
-            
-            return new Promise((resolve, reject) => {
-                request.onsuccess = () => {
-                    console.log('✅ Registro de humor salvo e criptografado (ID:', entryWithMeta.id, ')');
-                    resolve(entryWithMeta);
-                };
-                request.onerror = () => {
-                    console.error('❌ Erro ao salvar registro:', request.error);
-                    reject(request.error);
-                };
-            });
-        } catch (error) {
-            console.error('❌ Erro ao salvar entrada de humor:', error);
-            throw error;
-        }
-    }
+        await this.ensureInitialized();
 
-    // New method for compatibility with the app.js API
-    async saveEntry(mood, feelings, diary) {
-        return await this.saveMoodEntry({
-            mood: mood,
-            feelings: feelings,
-            diary: diary,
-            timestamp: new Date().toISOString(),
-            date: new Date().toDateString()
+        // Validate input
+        if (typeof moodData.mood !== 'number' || moodData.mood < 1 || moodData.mood > 5) {
+            throw new Error('Valor de humor deve ser um número entre 1 e 5');
+        }
+
+        const entry = {
+            id: moodData.id || Date.now(),
+            mood: parseFloat(moodData.mood),
+            feelings: Array.isArray(moodData.feelings) ? moodData.feelings : [],
+            diary: (moodData.diary || '').trim(),
+            timestamp: moodData.timestamp || new Date().toISOString(),
+            date: moodData.date || new Date().toDateString(),
+            version: '3.1'
+        };
+
+        console.log('💾 Salvando entrada de humor:', { id: entry.id, mood: entry.mood });
+
+        const encryptedData = await this.encrypt(entry);
+
+        const dbEntry = {
+            id: entry.id,
+            timestamp: entry.timestamp,
+            date: entry.date,
+            mood: entry.mood, // Keep unencrypted for queries
+            encryptedData: encryptedData
+        };
+
+        const transaction = this.db.transaction(['moodEntries'], 'readwrite');
+        const store = transaction.objectStore('moodEntries');
+
+        return new Promise((resolve, reject) => {
+            const request = store.put(dbEntry);
+            request.onsuccess = () => {
+                console.log('✅ Entrada salva com ID:', entry.id);
+                resolve(entry);
+            };
+            request.onerror = () => {
+                console.error('❌ Erro ao salvar entrada:', request.error);
+                reject(request.error);
+            };
         });
     }
 
     async getAllMoodEntries() {
-        try {
-            if (!this.db) {
-                await this.init();
-            }
-            
-            const transaction = this.db.transaction(['moodEntries'], 'readonly');
-            const store = transaction.objectStore('moodEntries');
-            const request = store.getAll();
-            
-            return new Promise(async (resolve, reject) => {
-                request.onsuccess = async () => {
+        await this.ensureInitialized();
+
+        const transaction = this.db.transaction(['moodEntries'], 'readonly');
+        const store = transaction.objectStore('moodEntries');
+        const request = store.getAll();
+
+        return new Promise(async (resolve, reject) => {
+            request.onsuccess = async () => {
+                const entries = [];
+                for (const dbEntry of request.result) {
                     try {
-                        const encryptedEntries = request.result;
-                        const decryptedEntries = [];
-                        
-                        // Decrypt all entries
-                        for (const entry of encryptedEntries) {
-                            try {
-                                const decryptedData = await this.decrypt(entry.encryptedData);
-                                decryptedEntries.push(decryptedData);
-                            } catch (decryptError) {
-                                console.warn('⚠️ Erro ao descriptografar entrada, ignorando:', decryptError);
-                                // Skip corrupted entries
-                            }
-                        }
-                        
-                        // Sort by timestamp (newest first)
-                        decryptedEntries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                        
-                        console.log(`📊 ${decryptedEntries.length} registros carregados`);
-                        resolve(decryptedEntries);
+                        const decrypted = await this.decrypt(dbEntry.encryptedData);
+                        entries.push(decrypted);
                     } catch (error) {
-                        reject(error);
+                        console.warn('⚠️ Erro ao descriptografar entrada, pulando:', error);
                     }
-                };
-                request.onerror = () => {
-                    console.error('Erro ao carregar registros:', request.error);
-                    reject(request.error);
-                };
-            });
-        } catch (error) {
-            console.error('Erro ao buscar entradas de humor:', error);
-            throw error;
-        }
-    }
+                }
 
-    async getMoodEntriesByDateRange(startDate, endDate) {
-        try {
-            const allEntries = await this.getAllMoodEntries();
-            
-            return allEntries.filter(entry => {
-                const entryDate = new Date(entry.timestamp);
-                return entryDate >= startDate && entryDate <= endDate;
-            });
-        } catch (error) {
-            console.error('Erro ao buscar registros por data:', error);
-            throw error;
-        }
-    }
+                // Sort by timestamp (newest first)
+                entries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-    // New method: loadHistory (alias for getAllMoodEntries with limit)
-    async loadHistory(limit = null) {
-        try {
-            const entries = await this.getAllMoodEntries();
-            return limit ? entries.slice(0, limit) : entries;
-        } catch (error) {
-            console.error('❌ Erro ao carregar histórico:', error);
-            throw error;
-        }
-    }
-
-    // New method: getStats for comprehensive statistics
-    async getStats() {
-        try {
-            const entries = await this.getAllMoodEntries();
-            
-            if (entries.length === 0) {
-                return {
-                    totalEntries: 0,
-                    averageMood: 0,
-                    streak: 0,
-                    lastEntry: null,
-                    moodTrend: 'neutral',
-                    entriesThisWeek: 0,
-                    entriesThisMonth: 0
-                };
-            }
-
-            // Calculate statistics
-            const totalEntries = entries.length;
-            const averageMood = entries.reduce((sum, entry) => sum + entry.mood, 0) / totalEntries;
-            
-            // Calculate streak (consecutive days with entries)
-            const streak = this.calculateStreak(entries);
-            
-            // Get mood trend
-            const moodTrend = this.calculateMoodTrend(entries);
-            
-            const stats = {
-                totalEntries,
-                averageMood: Math.round(averageMood * 10) / 10,
-                streak,
-                lastEntry: entries[0] || null,
-                moodTrend,
-                entriesThisWeek: this.getEntriesThisWeek(entries),
-                entriesThisMonth: this.getEntriesThisMonth(entries)
+                console.log(`📊 ${entries.length} entradas carregadas`);
+                resolve(entries);
             };
+            request.onerror = () => reject(request.error);
+        });
+    }
 
-            console.log('📊 Estatísticas calculadas:', stats);
-            return stats;
+    async getStats() {
+        const entries = await this.getAllMoodEntries();
 
-        } catch (error) {
-            console.error('❌ Erro ao calcular estatísticas:', error);
-            throw error;
+        if (entries.length === 0) {
+            return {
+                totalEntries: 0,
+                averageMood: 0,
+                streak: 0,
+                lastEntry: null,
+                moodTrend: 'neutral'
+            };
         }
+
+        const totalEntries = entries.length;
+        const averageMood = entries.reduce((sum, entry) => sum + entry.mood, 0) / totalEntries;
+
+        // Calculate streak
+        const streak = this.calculateStreak(entries);
+
+        // Calculate trend
+        const moodTrend = this.calculateTrend(entries);
+
+        return {
+            totalEntries,
+            averageMood: Math.round(averageMood * 10) / 10,
+            streak,
+            lastEntry: entries[0],
+            moodTrend
+        };
     }
 
     calculateStreak(entries) {
         if (entries.length === 0) return 0;
-        
+
+        const dates = new Set(entries.map(e => new Date(e.timestamp).toDateString()));
         const today = new Date();
         let streak = 0;
-        let currentDate = new Date(today);
-        
-        // Sort entries by date and create date set
-        const entriesByDate = new Set();
-        entries.forEach(entry => {
-            const date = new Date(entry.timestamp).toDateString();
-            entriesByDate.add(date);
-        });
-        
-        // Count consecutive days
-        while (true) {
-            const dateString = currentDate.toDateString();
-            if (entriesByDate.has(dateString)) {
+
+        for (let i = 0; ; i++) {
+            const date = new Date(today);
+            date.setDate(today.getDate() - i);
+            if (dates.has(date.toDateString())) {
                 streak++;
-                currentDate.setDate(currentDate.getDate() - 1);
             } else {
                 break;
             }
         }
-        
+
         return streak;
     }
 
-    calculateMoodTrend(entries) {
+    calculateTrend(entries) {
         if (entries.length < 7) return 'neutral';
-        
-        const now = new Date();
-        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-        
-        const recentEntries = entries.filter(entry => 
-            new Date(entry.timestamp) >= oneWeekAgo
-        );
-        
-        const previousEntries = entries.filter(entry => {
-            const date = new Date(entry.timestamp);
-            return date >= twoWeeksAgo && date < oneWeekAgo;
-        });
-        
-        if (recentEntries.length === 0 || previousEntries.length === 0) {
-            return 'neutral';
-        }
-        
-        const recentAvg = recentEntries.reduce((sum, entry) => sum + entry.mood, 0) / recentEntries.length;
-        const previousAvg = previousEntries.reduce((sum, entry) => sum + entry.mood, 0) / previousEntries.length;
-        
-        const difference = recentAvg - previousAvg;
-        
-        if (difference > 0.3) return 'improving';
-        if (difference < -0.3) return 'declining';
+
+        const recent = entries.slice(0, 7);
+        const older = entries.slice(7, 14);
+
+        if (older.length === 0) return 'neutral';
+
+        const recentAvg = recent.reduce((sum, e) => sum + e.mood, 0) / recent.length;
+        const olderAvg = older.reduce((sum, e) => sum + e.mood, 0) / older.length;
+
+        const diff = recentAvg - olderAvg;
+
+        if (diff > 0.3) return 'improving';
+        if (diff < -0.3) return 'declining';
         return 'stable';
     }
 
-    getEntriesThisWeek(entries) {
-        const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-        return entries.filter(entry => new Date(entry.timestamp) >= oneWeekAgo).length;
-    }
-
-    getEntriesThisMonth(entries) {
-        const oneMonthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        return entries.filter(entry => new Date(entry.timestamp) >= oneMonthAgo).length;
-    }
-
-    async deleteMoodEntry(entryId) {
-        try {
-            if (!this.db) {
-                await this.init();
-            }
-            
-            const transaction = this.db.transaction(['moodEntries'], 'readwrite');
-            const store = transaction.objectStore('moodEntries');
-            const request = store.delete(entryId);
-            
-            return new Promise((resolve, reject) => {
-                request.onsuccess = () => {
-                    console.log('🗑️ Registro removido');
-                    resolve();
-                };
-                request.onerror = () => {
-                    console.error('Erro ao remover registro:', request.error);
-                    reject(request.error);
-                };
-            });
-        } catch (error) {
-            console.error('Erro ao deletar entrada:', error);
-            throw error;
-        }
-    }
-
     async saveSetting(key, value) {
-        try {
-            if (!this.db) {
-                await this.init();
-            }
-            
-            const encryptedValue = await this.encrypt(value);
-            
-            const transaction = this.db.transaction(['settings'], 'readwrite');
-            const store = transaction.objectStore('settings');
+        await this.ensureInitialized();
+
+        const encryptedValue = await this.encrypt(value);
+
+        const transaction = this.db.transaction(['settings'], 'readwrite');
+        const store = transaction.objectStore('settings');
+
+        return new Promise((resolve, reject) => {
             const request = store.put({
-                key: key,
-                encryptedValue: encryptedValue,
+                key,
+                encryptedValue,
                 updatedAt: new Date().toISOString()
             });
-            
-            return new Promise((resolve, reject) => {
-                request.onsuccess = () => {
-                    console.log(`⚙️ Configuração '${key}' salva`);
-                    resolve();
-                };
-                request.onerror = () => {
-                    console.error('Erro ao salvar configuração:', request.error);
-                    reject(request.error);
-                };
-            });
-        } catch (error) {
-            console.error('Erro ao salvar configuração:', error);
-            throw error;
-        }
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
     }
 
     async getSetting(key, defaultValue = null) {
-        try {
-            if (!this.db) {
-                await this.init();
-            }
-            
-            const transaction = this.db.transaction(['settings'], 'readonly');
-            const store = transaction.objectStore('settings');
-            const request = store.get(key);
-            
-            return new Promise(async (resolve, reject) => {
-                request.onsuccess = async () => {
+        await this.ensureInitialized();
+
+        const transaction = this.db.transaction(['settings'], 'readonly');
+        const store = transaction.objectStore('settings');
+        const request = store.get(key);
+
+        return new Promise(async (resolve, reject) => {
+            request.onsuccess = async () => {
+                if (request.result) {
                     try {
-                        if (request.result) {
-                            const decryptedValue = await this.decrypt(request.result.encryptedValue);
-                            resolve(decryptedValue);
-                        } else {
-                            resolve(defaultValue);
-                        }
+                        const decrypted = await this.decrypt(request.result.encryptedValue);
+                        resolve(decrypted);
                     } catch (error) {
-                        console.warn(`Erro ao descriptografar configuração '${key}':`, error);
+                        console.warn(`Erro ao descriptografar configuração ${key}:`, error);
                         resolve(defaultValue);
                     }
-                };
-                request.onerror = () => {
-                    console.error('Erro ao buscar configuração:', request.error);
+                } else {
                     resolve(defaultValue);
-                };
-            });
-        } catch (error) {
-            console.error('Erro ao obter configuração:', error);
-            return defaultValue;
-        }
-    }
-
-    async exportData() {
-        try {
-            const moodEntries = await this.getAllMoodEntries();
-            const settings = await this.getAllSettings();
-            
-            const exportData = {
-                version: '3.0',
-                exportDate: new Date().toISOString(),
-                moodEntries: moodEntries,
-                settings: settings,
-                checksum: this.generateChecksum(moodEntries, settings)
-            };
-            
-            // Double encrypt for export
-            const encryptedExport = await this.encrypt(exportData);
-            
-            console.log('📤 Dados exportados e criptografados');
-            return encryptedExport;
-        } catch (error) {
-            console.error('Erro ao exportar dados:', error);
-            throw error;
-        }
-    }
-
-    async importData(encryptedData) {
-        try {
-            // Decrypt import data
-            const importData = await this.decrypt(encryptedData);
-            
-            // Validate data structure
-            if (!importData.version || !importData.moodEntries) {
-                throw new Error('Formato de dados inválido');
-            }
-            
-            // Verify checksum
-            const calculatedChecksum = this.generateChecksum(importData.moodEntries, importData.settings || {});
-            if (importData.checksum !== calculatedChecksum) {
-                console.warn('Checksum não confere, dados podem estar corrompidos');
-            }
-            
-            // Clear existing data (with confirmation in real app)
-            await this.clearAllData();
-            
-            // Import mood entries
-            for (const entry of importData.moodEntries) {
-                await this.saveMoodEntry(entry);
-            }
-            
-            // Import settings
-            if (importData.settings) {
-                for (const [key, value] of Object.entries(importData.settings)) {
-                    await this.saveSetting(key, value);
                 }
-            }
-            
-            console.log('📥 Dados importados com sucesso');
-            return true;
-        } catch (error) {
-            console.error('Erro ao importar dados:', error);
-            throw error;
+            };
+            request.onerror = () => resolve(defaultValue);
+        });
+    }
+
+    async ensureInitialized() {
+        if (!this.initialized) {
+            await this.init();
         }
     }
 
-    async getAllSettings() {
-        try {
-            if (!this.db) {
-                await this.init();
-            }
-            
-            const transaction = this.db.transaction(['settings'], 'readonly');
-            const store = transaction.objectStore('settings');
-            const request = store.getAll();
-            
-            return new Promise(async (resolve, reject) => {
-                request.onsuccess = async () => {
-                    try {
-                        const encryptedSettings = request.result;
-                        const settings = {};
-                        
-                        for (const setting of encryptedSettings) {
-                            try {
-                                settings[setting.key] = await this.decrypt(setting.encryptedValue);
-                            } catch (decryptError) {
-                                console.warn(`Erro ao descriptografar configuração '${setting.key}':`, decryptError);
-                            }
-                        }
-                        
-                        resolve(settings);
-                    } catch (error) {
-                        reject(error);
-                    }
-                };
-                request.onerror = () => {
-                    reject(request.error);
-                };
-            });
-        } catch (error) {
-            console.error('Erro ao buscar configurações:', error);
-            throw error;
-        }
-    }
-
-    async clearAllData() {
-        try {
-            if (!this.db) {
-                await this.init();
-            }
-            
-            const transaction = this.db.transaction(['moodEntries', 'settings', 'backups'], 'readwrite');
-            
-            const promises = [
-                transaction.objectStore('moodEntries').clear(),
-                transaction.objectStore('settings').clear(),
-                transaction.objectStore('backups').clear()
-            ];
-            
-            await Promise.all(promises);
-            
-            console.log('🧹 Todos os dados foram limpos');
-            return true;
-        } catch (error) {
-            console.error('Erro ao limpar dados:', error);
-            throw error;
-        }
-    }
-
-    generateChecksum(moodEntries, settings) {
-        const data = JSON.stringify({ moodEntries, settings });
-        let hash = 0;
-        for (let i = 0; i < data.length; i++) {
-            const char = data.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; // Convert to 32-bit integer
-        }
-        return hash.toString();
-    }
-
-    // Utility functions for base64 conversion
     arrayBufferToBase64(buffer) {
         const bytes = new Uint8Array(buffer);
         let binary = '';
@@ -673,50 +354,22 @@ class MentalStorage {
         }
         return bytes.buffer;
     }
-
-    // Database statistics
-    async getStorageStats() {
-        try {
-            const moodEntries = await this.getAllMoodEntries();
-            const settings = await this.getAllSettings();
-            
-            // Estimate storage usage (rough calculation)
-            const moodDataSize = JSON.stringify(moodEntries).length;
-            const settingsDataSize = JSON.stringify(settings).length;
-            
-            return {
-                totalEntries: moodEntries.length,
-                totalSettings: Object.keys(settings).length,
-                estimatedSize: moodDataSize + settingsDataSize,
-                oldestEntry: moodEntries.length > 0 ? 
-                    moodEntries.reduce((oldest, entry) => 
-                        new Date(entry.timestamp) < new Date(oldest.timestamp) ? entry : oldest
-                    ).timestamp : null,
-                newestEntry: moodEntries.length > 0 ? 
-                    moodEntries.reduce((newest, entry) => 
-                        new Date(entry.timestamp) > new Date(newest.timestamp) ? entry : newest
-                    ).timestamp : null
-            };
-        } catch (error) {
-            console.error('Erro ao obter estatísticas:', error);
-            throw error;
-        }
-    }
 }
 
-// Initialize and expose globally
+// Initialize globally
 window.mentalStorage = new MentalStorage();
 
-// Auto-initialize when storage is first accessed
-const originalMethods = ['saveMoodEntry', 'getAllMoodEntries', 'getSetting', 'saveSetting'];
-originalMethods.forEach(method => {
+// Auto-initialize on first use
+const methodsToWrap = ['saveMoodEntry', 'getAllMoodEntries', 'getStats', 'saveSetting', 'getSetting'];
+
+methodsToWrap.forEach(method => {
     const original = window.mentalStorage[method];
-    window.mentalStorage[method] = async function(...args) {
-        if (!this.db) {
-            await this.init();
-        }
-        return original.apply(this, args);
-    };
+    if (original) {
+        window.mentalStorage[method] = async function(...args) {
+            await this.ensureInitialized();
+            return original.apply(this, args);
+        };
+    }
 });
 
-console.log('🔒 Sistema de storage criptografado carregado');
+console.log('🔒 MentalStorage 3.1 carregado e pronto');

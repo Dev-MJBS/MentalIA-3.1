@@ -77,6 +77,22 @@ class MentalIA {
             this.backupData();
         });
 
+        // AI mode toggle
+        const modeLabels = document.querySelectorAll('.mode-label');
+        console.log('🤖 Labels de modo AI encontrados:', modeLabels.length);
+        modeLabels.forEach(label => {
+            label.addEventListener('click', (e) => {
+                console.log('🤖 Label clicado:', label);
+                const forAttr = label.getAttribute('for');
+                console.log('🤖 For attribute:', forAttr);
+                const radio = document.getElementById(forAttr);
+                if (radio) {
+                    radio.checked = true;
+                    console.log('🤖 Modo AI alterado para:', radio.value);
+                }
+            });
+        });
+
         console.log('✅ Event listeners configurados');
         } catch (error) {
             console.error('❌ Erro ao configurar event listeners:', error);
@@ -410,16 +426,29 @@ class MentalIA {
     // ===== HISTORY =====
     async loadData() {
         try {
-            if (window.mentalStorage) {
-                const entries = await window.mentalStorage.getAllMoodEntries();
-                const stats = await window.mentalStorage.getStats();
+            console.log('📊 Carregando dados do storage...');
 
-                this.updateStats(stats);
-                this.updateChart(entries);
-                this.updateRecentEntries(entries);
+            if (!window.mentalStorage) {
+                console.error('❌ Storage não disponível');
+                return;
             }
+
+            const entries = await window.mentalStorage.getAllMoodEntries();
+            const stats = await window.mentalStorage.getStats();
+
+            console.log('📊 Dados carregados:', {
+                entriesCount: entries?.length || 0,
+                stats: stats
+            });
+
+            this.updateStats(stats);
+            this.updateChart(entries);
+            this.updateRecentEntries(entries);
+
+            console.log('✅ Dados carregados e exibidos');
         } catch (error) {
-            console.error('Erro ao carregar dados:', error);
+            console.error('❌ Erro ao carregar dados:', error);
+            this.showToast('Erro ao carregar dados: ' + error.message, 'error');
         }
     }
 
@@ -438,10 +467,15 @@ class MentalIA {
 
     initChart() {
         console.log('📊 Inicializando gráfico...');
-        console.log('📊 Chart.js disponível:', typeof Chart);
+
+        // Destroy existing chart if it exists
+        if (this.chart) {
+            this.chart.destroy();
+            this.chart = null;
+        }
 
         const ctx = document.getElementById('mood-chart');
-        console.log('📊 Canvas encontrado:', !!ctx, ctx);
+        console.log('📊 Canvas encontrado:', !!ctx);
 
         if (!ctx) {
             console.error('❌ Canvas do gráfico não encontrado!');
@@ -459,10 +493,16 @@ class MentalIA {
                 data: {
                     labels: [],
                     datasets: [{
-                        label: 'Humor',
+                        label: 'Humor Diário',
                         data: [],
                         borderColor: '#6366f1',
                         backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#6366f1',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
                         tension: 0.4,
                         fill: true
                     }]
@@ -470,28 +510,116 @@ class MentalIA {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            callbacks: {
+                                title: function(context) {
+                                    return 'Data: ' + context[0].label;
+                                },
+                                label: function(context) {
+                                    return 'Humor: ' + context.parsed.y + '/5';
+                                }
+                            }
+                        }
+                    },
                     scales: {
-                        y: { beginAtZero: true, max: 5 }
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Data'
+                            },
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 5,
+                            ticks: {
+                                stepSize: 1,
+                                callback: function(value) {
+                                    return value + '/5';
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Nível de Humor'
+                            }
+                        }
                     }
                 }
             });
+
             console.log('✅ Gráfico inicializado com sucesso');
+            return true;
         } catch (error) {
             console.error('❌ Erro ao inicializar gráfico:', error);
+            return false;
         }
     }
 
     updateChart(entries) {
-        if (!this.chart || !entries?.length) return;
+        console.log('📊 Atualizando gráfico com', entries?.length || 0, 'entradas');
 
-        const recent = entries.slice(-14);
-        const labels = recent.map(e => new Date(e.timestamp).toLocaleDateString('pt-BR', { month: 'short', day: 'numeric' }));
-        const data = recent.map(e => e.mood);
+        if (!this.chart) {
+            console.warn('⚠️ Gráfico não inicializado, inicializando...');
+            if (!this.initChart()) {
+                console.error('❌ Falha ao inicializar gráfico');
+                return;
+            }
+        }
 
-        this.chart.data.labels = labels;
-        this.chart.data.datasets[0].data = data;
-        this.chart.update();
+        if (!entries || !Array.isArray(entries) || entries.length === 0) {
+            console.log('📊 Nenhum dado para exibir no gráfico');
+            this.chart.data.labels = [];
+            this.chart.data.datasets[0].data = [];
+            this.chart.update('none');
+            return;
+        }
+
+        try {
+            // Sort entries by date (oldest first for chart)
+            const sortedEntries = entries.sort((a, b) =>
+                new Date(a.timestamp) - new Date(b.timestamp)
+            );
+
+            // Take last 30 days or all if less
+            const recentEntries = sortedEntries.slice(-30);
+
+            // Create labels and data
+            const labels = recentEntries.map(entry => {
+                const date = new Date(entry.timestamp);
+                return date.toLocaleDateString('pt-BR', {
+                    month: 'short',
+                    day: 'numeric'
+                });
+            });
+
+            const data = recentEntries.map(entry => parseFloat(entry.mood) || 0);
+
+            console.log('📊 Labels:', labels);
+            console.log('📊 Data:', data);
+
+            // Update chart data
+            this.chart.data.labels = labels;
+            this.chart.data.datasets[0].data = data;
+
+            // Update chart
+            this.chart.update();
+
+            console.log('✅ Gráfico atualizado com sucesso');
+        } catch (error) {
+            console.error('❌ Erro ao atualizar gráfico:', error);
+        }
     }
 
     updateRecentEntries(entries) {
@@ -620,12 +748,14 @@ class MentalIA {
 
         // Load screen data
         if (screenName === 'history') {
+            console.log('📊 Carregando dados do histórico...');
             // Ensure chart is initialized before loading data
             if (!this.chart) {
                 console.log('📊 Inicializando gráfico na navegação...');
                 this.initChart();
             }
-            this.loadData();
+            // Load data after a short delay to ensure chart is ready
+            setTimeout(() => this.loadData(), 100);
         }
 
         console.log('🧭 Navegação concluída para:', screenName);

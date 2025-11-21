@@ -1142,6 +1142,7 @@ body {
   border-radius: 8px;
   transition: transform 0.3s ease;
   z-index: 1;
+  pointer-events: none;
 }
 
 .mode-switch input[type="radio"]:nth-child(2):checked ~ .switch-slider {
