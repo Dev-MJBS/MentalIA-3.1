@@ -1,7 +1,7 @@
 // js/premium.js - Sistema de Premium do MentalIA 3.1
 class PremiumManager {
     constructor() {
-        this.stripePublicKey = 'pk_test_51SW0TqABSqS06Hy4NGhKbXDQPLAjX5nHqgQe3XJEkBV2O67BDroG8n7lVy0Rzg3O7YYJTcFUh98kFwgCJUx6UMVe00VC8DGRYz'; // Substituir pela chave real
+        this.stripePublicKey = 'pk_test_SUA_CHAVE_PUBLICA_AQUI'; // Substituir pela chave real
         this.stripe = null;
         this.plans = {
             monthly: 'price_monthly_590', // ID do preço mensal no Stripe
