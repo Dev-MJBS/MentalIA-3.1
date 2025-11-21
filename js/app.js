@@ -42,6 +42,10 @@ class MentalIA {
         
         // Log successful initialization
         console.log('🔘 Indicador de status inicializado');
+        
+        // Make showScreen available globally for onclick handlers
+        window.showScreen = (screenName) => this.showScreen(screenName);
+        window.mentalIA = this; // Make the whole instance available globally
     }
 
     updateStatusIndicator(status) {
@@ -108,7 +112,7 @@ class MentalIA {
         // Check initial status
         setTimeout(() => this.checkOnlineStatus(), 1000);
 
-        // Navigation buttons
+        // Navigation buttons (nav bar)
         const navButtons = document.querySelectorAll('.nav-btn');
         navButtons.forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -117,20 +121,21 @@ class MentalIA {
             });
         });
 
+        // Welcome screen buttons (CTA buttons)
+        this.setupWelcomeScreenButtons();
+
         // Mood form
         const moodForm = document.getElementById('mood-form');
         moodForm?.addEventListener('submit', (e) => this.handleMoodSubmit(e));
 
-        // Mood slider
-        const moodSlider = document.getElementById('mood-slider');
-        moodSlider?.addEventListener('input', (e) => this.updateMoodValue(e.target.value));
+        // Mood slider with enhanced interaction
+        this.setupMoodSlider();
 
         // Feelings wheel initialization
         this.initFeelingsWheel();
 
-        // Diary character count
-        const diaryEntry = document.getElementById('diary-entry');
-        diaryEntry?.addEventListener('input', (e) => this.updateCharCount(e.target.value.length));
+        // Diary character count with real-time updates
+        this.setupDiaryTextarea();
 
         // Report generation
         const generateReportBtn = document.getElementById('generate-report');
@@ -141,11 +146,100 @@ class MentalIA {
         const restoreBtn = document.getElementById('restore-data');
         restoreBtn?.addEventListener('click', () => this.restoreData());
 
-        // Mode switch
+        // AI Mode switch
         const modeInputs = document.querySelectorAll('input[name="ai-mode"]');
         modeInputs.forEach(input => {
             input.addEventListener('change', (e) => this.setAIMode(e.target.value));
         });
+
+        // Save button with enhanced functionality
+        this.setupSaveButton();
+    }
+
+    setupWelcomeScreenButtons() {
+        // "Registrar Humor Agora" button
+        const startMoodBtn = document.querySelector('button[onclick*="showScreen(\'mood\')"]');
+        if (startMoodBtn) {
+            // Remove inline onclick and add proper event listener
+            startMoodBtn.removeAttribute('onclick');
+            startMoodBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.showScreen('mood');
+                console.log('🎯 Botão "Registrar Humor" clicado');
+            });
+        }
+
+        // "Ver Histórico" button
+        const historyBtn = document.querySelector('button[onclick*="showScreen(\'history\')"]');
+        if (historyBtn) {
+            // Remove inline onclick and add proper event listener
+            historyBtn.removeAttribute('onclick');
+            historyBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.showScreen('history');
+                console.log('🎯 Botão "Ver Histórico" clicado');
+            });
+        }
+    }
+
+    setupMoodSlider() {
+        const moodSlider = document.getElementById('mood-slider');
+        if (!moodSlider) return;
+
+        // Multiple event listeners for better responsiveness
+        ['input', 'change', 'mousemove', 'touchmove'].forEach(eventType => {
+            moodSlider.addEventListener(eventType, (e) => {
+                const value = parseFloat(e.target.value);
+                this.updateMoodValue(value);
+            });
+        });
+
+        // Initial value setup
+        this.updateMoodValue(parseFloat(moodSlider.value));
+        console.log('🎚️ Mood slider configurado');
+    }
+
+    setupDiaryTextarea() {
+        const diaryEntry = document.getElementById('diary-entry');
+        if (!diaryEntry) return;
+
+        // Real-time character count
+        diaryEntry.addEventListener('input', (e) => {
+            const length = e.target.value.length;
+            this.updateCharCount(length);
+        });
+
+        // Also update on paste and cut
+        diaryEntry.addEventListener('paste', (e) => {
+            setTimeout(() => {
+                const length = e.target.value.length;
+                this.updateCharCount(length);
+            }, 10);
+        });
+
+        diaryEntry.addEventListener('cut', (e) => {
+            setTimeout(() => {
+                const length = e.target.value.length;
+                this.updateCharCount(length);
+            }, 10);
+        });
+
+        // Initial count
+        this.updateCharCount(diaryEntry.value.length);
+        console.log('📝 Textarea do diário configurado');
+    }
+
+    setupSaveButton() {
+        // Find save button in mood form
+        const saveBtn = document.querySelector('#mood-form button[type="submit"], .btn-save, button:contains("Salvar")');
+        
+        if (saveBtn) {
+            // Ensure it's properly configured for form submission
+            saveBtn.addEventListener('click', (e) => {
+                console.log('💾 Botão salvar clicado');
+                // The form submission will be handled by handleMoodSubmit
+            });
+        }
     }
 
     initTheme() {
@@ -430,41 +524,95 @@ class MentalIA {
     }
 
     initFeelingsWheel() {
-        // Primary feelings accordion
+        console.log('🎭 Inicializando roda dos sentimentos...');
+        
+        // Primary feelings accordion with arrow toggle
         const primaryCards = document.querySelectorAll('.primary-feeling-card');
         primaryCards.forEach(card => {
             const btn = card.querySelector('.primary-feeling-btn');
-            btn.addEventListener('click', () => this.togglePrimaryFeeling(card));
+            const expandIcon = card.querySelector('.expand-icon');
+            
+            if (btn) {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.togglePrimaryFeeling(card);
+                    console.log('🎭 Sentimento primário clicado:', card.dataset.category);
+                });
+                
+                // Make the entire button area clickable
+                btn.style.cursor = 'pointer';
+            }
         });
 
-        // Sub-feelings checkboxes
+        // Sub-feelings checkboxes with enhanced interaction
         const subFeelingItems = document.querySelectorAll('.sub-feeling-item');
         subFeelingItems.forEach(item => {
             item.addEventListener('click', (e) => {
                 e.preventDefault();
                 const checkbox = item.querySelector('input[type="checkbox"]');
-                checkbox.checked = !checkbox.checked;
-                this.updateSelectedFeelings();
+                if (checkbox) {
+                    checkbox.checked = !checkbox.checked;
+                    this.updateSelectedFeelings();
+                    
+                    // Visual feedback
+                    if (checkbox.checked) {
+                        item.classList.add('selected');
+                    } else {
+                        item.classList.remove('selected');
+                    }
+                    
+                    console.log('✅ Sub-sentimento selecionado:', checkbox.value, checkbox.checked);
+                }
             });
+            
+            // Make it clear it's clickable
+            item.style.cursor = 'pointer';
         });
 
         // Clear selection button
         const clearBtn = document.getElementById('clear-feelings');
-        clearBtn?.addEventListener('click', () => this.clearAllFeelings());
+        clearBtn?.addEventListener('click', () => {
+            this.clearAllFeelings();
+            console.log('🧹 Sentimentos limpos');
+        });
+        
+        console.log('✅ Roda dos sentimentos configurada');
     }
 
     togglePrimaryFeeling(card) {
         const isExpanded = card.classList.contains('expanded');
+        const expandIcon = card.querySelector('.expand-icon');
         
-        // Close all other cards
+        // Close all other cards and reset their arrows
         document.querySelectorAll('.primary-feeling-card').forEach(c => {
             if (c !== card) {
                 c.classList.remove('expanded');
+                const otherIcon = c.querySelector('.expand-icon');
+                if (otherIcon) {
+                    otherIcon.textContent = '▼';
+                    otherIcon.style.transform = 'rotate(0deg)';
+                }
             }
         });
         
         // Toggle current card
-        card.classList.toggle('expanded', !isExpanded);
+        if (isExpanded) {
+            card.classList.remove('expanded');
+            if (expandIcon) {
+                expandIcon.textContent = '▼';
+                expandIcon.style.transform = 'rotate(0deg)';
+                expandIcon.style.transition = 'transform 0.3s ease';
+            }
+        } else {
+            card.classList.add('expanded');
+            if (expandIcon) {
+                expandIcon.textContent = '▲';
+                expandIcon.style.transform = 'rotate(180deg)';
+                expandIcon.style.transition = 'transform 0.3s ease';
+            }
+        }
+        
+        console.log(`🎭 Sentimento ${isExpanded ? 'fechado' : 'aberto'}:`, card.dataset.category);
     }
 
     updateSelectedFeelings() {
@@ -521,14 +669,41 @@ class MentalIA {
     }
 
     updateCharCount(count) {
-        const charCountDisplay = document.getElementById('char-count');
+        // Try multiple selectors to find character count display
+        const selectors = [
+            '#char-count',
+            '.char-count',
+            '[id*="char"]',
+            '.character-count',
+            '.diary-counter'
+        ];
+        
+        let charCountDisplay = null;
+        for (const selector of selectors) {
+            charCountDisplay = document.querySelector(selector);
+            if (charCountDisplay) break;
+        }
+        
         if (charCountDisplay) {
             charCountDisplay.textContent = `${count} caracteres`;
+        } else {
+            // If no display element found, create one
+            const diaryEntry = document.getElementById('diary-entry');
+            if (diaryEntry && !document.querySelector('.char-count-created')) {
+                const countDiv = document.createElement('div');
+                countDiv.className = 'char-count char-count-created';
+                countDiv.style.cssText = 'text-align: right; font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;';
+                countDiv.textContent = `${count} caracteres`;
+                diaryEntry.parentNode.appendChild(countDiv);
+            }
         }
+        
+        console.log(`📝 Contador atualizado: ${count} caracteres`);
     }
 
     async handleMoodSubmit(e) {
         e.preventDefault();
+        console.log('💾 Iniciando salvamento do humor...');
         
         // Show loading for better UX
         this.showLoading('Salvando registro...', 'Criptografando dados localmente...');
@@ -541,10 +716,20 @@ class MentalIA {
                 throw new Error('Valor de humor inválido');
             }
             
+            // Get selected feelings
+            const selectedFeelings = Array.from(document.querySelectorAll('.sub-feeling-item input[type="checkbox"]:checked'))
+                .map(cb => ({
+                    value: cb.value,
+                    category: cb.getAttribute('data-category'),
+                    emoji: cb.parentElement.querySelector('.sub-emoji')?.textContent || '',
+                    label: cb.parentElement.querySelector('.sub-label')?.textContent || ''
+                }));
+            
             // Create mood entry with enhanced metadata
             const moodData = {
+                id: Date.now(), // Simple ID generation
                 mood: Math.round(this.currentMood * 10) / 10, // Round to 1 decimal
-                feelings: Array.from(this.selectedFeelings),
+                feelings: selectedFeelings,
                 diary: diaryEntry.trim(),
                 timestamp: new Date().toISOString(),
                 date: new Date().toDateString(),
@@ -552,6 +737,8 @@ class MentalIA {
                 version: '3.0',
                 moodColor: this.interpolateColor(this.currentMood)
             };
+
+            console.log('💾 Dados preparados para salvamento:', moodData);
 
             // Validate required data
             if (!moodData.mood) {
@@ -565,7 +752,21 @@ class MentalIA {
             }
 
             // Save to encrypted storage
-            await window.mentalStorage.saveMoodEntry(moodData);
+            if (window.mentalStorage) {
+                // Ensure storage is initialized
+                if (!window.mentalStorage.db) {
+                    await window.mentalStorage.init();
+                }
+                
+                await window.mentalStorage.saveMoodEntry(moodData);
+                console.log('✅ Dados salvos no storage criptografado IndexedDB');
+            } else {
+                // Fallback to localStorage if encrypted storage is not available
+                const existingData = JSON.parse(localStorage.getItem('mental-ia-mood-data') || '[]');
+                existingData.push(moodData);
+                localStorage.setItem('mental-ia-mood-data', JSON.stringify(existingData));
+                console.log('⚠️ Dados salvos no localStorage (fallback - storage não disponível)');
+            }
             
             // Hide loading
             this.hideLoading();
@@ -600,6 +801,46 @@ class MentalIA {
             
             this.showToast(errorMessage, 'error');
         }
+    }
+
+    resetMoodForm() {
+        console.log('🔄 Resetando formulário de humor...');
+        
+        // Reset mood slider to neutral
+        this.currentMood = 3.0;
+        const moodSlider = document.getElementById('mood-slider');
+        if (moodSlider) {
+            moodSlider.value = 3.0;
+        }
+        this.updateMoodValue(3.0);
+        
+        // Clear selected feelings
+        this.selectedFeelings = new Set();
+        document.querySelectorAll('.sub-feeling-item input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
+            cb.parentElement.classList.remove('selected');
+        });
+        
+        // Close all expanded primary feeling cards
+        document.querySelectorAll('.primary-feeling-card').forEach(card => {
+            card.classList.remove('expanded');
+            const icon = card.querySelector('.expand-icon');
+            if (icon) {
+                icon.textContent = '▼';
+                icon.style.transform = 'rotate(0deg)';
+            }
+        });
+        
+        // Clear diary entry
+        const diaryEntry = document.getElementById('diary-entry');
+        if (diaryEntry) {
+            diaryEntry.value = '';
+        }
+        
+        // Reset character count
+        this.updateCharCount(0);
+        
+        console.log('✅ Formulário resetado');
     }
 
     generateDeviceFingerprint() {
@@ -690,40 +931,77 @@ class MentalIA {
 
     async loadHistoryData() {
         try {
+            // Initialize storage if needed
+            if (window.mentalStorage && !window.mentalStorage.db) {
+                await window.mentalStorage.init();
+            }
+            
             const entries = await window.mentalStorage.getAllMoodEntries();
+            console.log(`📊 ${entries.length} registros carregados`);
             
-            // Update stats
-            this.updateStats(entries);
+            // Get comprehensive stats
+            const stats = await window.mentalStorage.getStats();
             
-            // Update chart
+            // Update UI with stats and entries
+            this.updateStats(stats);
             this.updateChart(entries);
-            
-            // Update recent entries
             this.updateRecentEntries(entries);
             
         } catch (error) {
-            console.error('Erro ao carregar histórico:', error);
+            console.error('❌ Erro ao carregar histórico:', error);
+            // Show fallback empty state
+            this.updateStats({
+                totalEntries: 0,
+                averageMood: 0,
+                streak: 0,
+                moodTrend: 'neutral'
+            });
         }
     }
 
-    updateStats(entries) {
+    updateStats(data) {
         const avgMoodEl = document.getElementById('avg-mood');
         const totalEntriesEl = document.getElementById('total-entries');
         const streakDaysEl = document.getElementById('streak-days');
+        const moodTrendEl = document.getElementById('mood-trend');
 
-        if (entries.length === 0) {
-            if (avgMoodEl) avgMoodEl.textContent = '0';
-            if (totalEntriesEl) totalEntriesEl.textContent = '0';
-            if (streakDaysEl) streakDaysEl.textContent = '0';
-            return;
+        // Handle both stats object and entries array for backward compatibility
+        let stats;
+        if (Array.isArray(data)) {
+            // Legacy: calculate stats from entries array
+            if (data.length === 0) {
+                stats = { totalEntries: 0, averageMood: 0, streak: 0, moodTrend: 'neutral' };
+            } else {
+                const avgMood = data.reduce((sum, entry) => sum + entry.mood, 0) / data.length;
+                stats = {
+                    totalEntries: data.length,
+                    averageMood: avgMood,
+                    streak: 0, // Would need calculation
+                    moodTrend: 'neutral'
+                };
+            }
+        } else {
+            // New: use stats object directly
+            stats = data;
         }
 
-        // Calculate average mood
-        const avgMood = entries.reduce((sum, entry) => sum + entry.mood, 0) / entries.length;
-        if (avgMoodEl) avgMoodEl.textContent = avgMood.toFixed(1);
-
-        // Total entries
-        if (totalEntriesEl) totalEntriesEl.textContent = entries.length.toString();
+        // Update UI elements
+        if (avgMoodEl) avgMoodEl.textContent = stats.averageMood.toFixed(1);
+        if (totalEntriesEl) totalEntriesEl.textContent = stats.totalEntries.toString();
+        if (streakDaysEl) streakDaysEl.textContent = stats.streak.toString();
+        
+        // Update mood trend if element exists
+        if (moodTrendEl) {
+            const trendText = {
+                'improving': '📈 Melhorando',
+                'declining': '📉 Declinando',
+                'stable': '➡️ Estável',
+                'neutral': '➡️ Neutro'
+            };
+            moodTrendEl.textContent = trendText[stats.moodTrend] || '➡️ Neutro';
+        }
+        
+        console.log('📊 Stats atualizadas na UI:', stats);
 
         // Calculate streak (simplified)
         const streak = this.calculateStreak(entries);
@@ -987,109 +1265,120 @@ class MentalIA {
 
     async generateReport() {
         try {
+            console.log('📊 Iniciando geração de relatório...');
+            
+            // Show loading
+            this.showLoading('Gerando relatório...', 'Analisando seus dados com IA médica local...');
+            
             // Verificar se os sistemas estão disponíveis
             if (!window.mentalStorage) {
                 throw new Error('Sistema de armazenamento não disponível');
             }
             
-            // Forçar criação do aiAnalysis se não existir
+            // Initialize AI Analysis if needed
             if (!window.aiAnalysis) {
-                console.log('🤖 [REPORT DEBUG] aiAnalysis não existe, verificando classe...');
+                console.log('🤖 Inicializando módulo de IA...');
                 if (typeof AIAnalysis !== 'undefined') {
-                    console.log('🤖 [REPORT DEBUG] Criando nova instância de AIAnalysis...');
                     window.aiAnalysis = new AIAnalysis();
+                    await window.aiAnalysis.init();
                 } else {
-                    console.log('🤖 [REPORT DEBUG] Classe AIAnalysis não disponível, criando objeto mock...');
-                    window.aiAnalysis = {
-                        generateLocalReport: (entries) => this.generateEmergencyReport(entries),
-                        generateFastReport: (entries) => this.generateEmergencyReport(entries),
-                        generateSimpleFallbackReport: (entries) => this.generateEmergencyReport(entries)
-                    };
+                    throw new Error('Módulo de IA não disponível');
                 }
             }
             
-            // Verificar se os métodos existem, se não, adicionar fallbacks
-            if (!window.aiAnalysis.generateLocalReport) {
-                console.log('🤖 [REPORT DEBUG] Adicionando generateLocalReport fallback...');
-                window.aiAnalysis.generateLocalReport = (entries) => {
-                    return window.aiAnalysis.generateSimpleFallbackReport ? 
-                        window.aiAnalysis.generateSimpleFallbackReport(entries) :
-                        this.generateEmergencyReport(entries);
-                };
-            }
-            
-            if (!window.aiAnalysis.generateFastReport) {
-                console.log('🤖 [REPORT DEBUG] Adicionando generateFastReport fallback...');
-                window.aiAnalysis.generateFastReport = (entries) => {
-                    return window.aiAnalysis.generateSimpleFallbackReport ? 
-                        window.aiAnalysis.generateSimpleFallbackReport(entries) :
-                        this.generateEmergencyReport(entries);
-                };
-            }
-            
-            if (!window.aiAnalysis.generateSimpleFallbackReport) {
-                console.log('🤖 [REPORT DEBUG] Adicionando generateSimpleFallbackReport fallback...');
-                window.aiAnalysis.generateSimpleFallbackReport = (entries) => {
-                    return this.generateEmergencyReport(entries);
-                };
-            }
-
+            // Get mood entries
             const entries = await window.mentalStorage.getAllMoodEntries();
             
             if (!entries || entries.length === 0) {
+                this.hideLoading();
                 this.showToast('Você precisa ter alguns registros para gerar um relatório. Registre alguns humores primeiro!', 'warning');
                 return;
             }
 
-            // Show loading
-            this.showLoading('Gerando relatório com IA...', 'Analisando seus dados de humor...');
+            console.log(`📊 Gerando relatório com ${entries.length} entradas`);
             
+            // Generate report based on selected mode
             let report;
-            try {
-                console.log('🤖 [REPORT DEBUG] Iniciando geração de relatório...');
-                console.log('🤖 [REPORT DEBUG] Modo atual:', this.aiMode);
-                
-                if (this.aiMode === 'private') {
-                    // Use local AI with timeout and fallback
-                    console.log('🤖 [REPORT DEBUG] Gerando relatório local...');
-                    try {
-                        const reportPromise = window.aiAnalysis.generateLocalReport(entries);
-                        const timeoutPromise = new Promise((_, reject) => 
-                            setTimeout(() => reject(new Error('Timeout na geração local')), 30000)
-                        );
-                        report = await Promise.race([reportPromise, timeoutPromise]);
-                    } catch (localError) {
-                        console.log('🤖 [REPORT DEBUG] Erro local, usando fallback simples:', localError.message);
-                        report = window.aiAnalysis.generateSimpleFallbackReport(entries);
-                    }
-                } else {
-                    // Use external API with timeout and fallback
-                    console.log('🤖 [REPORT DEBUG] Gerando relatório online...');
-                    try {
-                        const reportPromise = window.aiAnalysis.generateFastReport(entries);
-                        const timeoutPromise = new Promise((_, reject) => 
-                            setTimeout(() => reject(new Error('Timeout na API externa')), 20000)
-                        );
-                        report = await Promise.race([reportPromise, timeoutPromise]);
-                    } catch (externalError) {
-                        console.log('🤖 [REPORT DEBUG] Erro API externa, tentando local:', externalError.message);
-                        try {
-                            report = await window.aiAnalysis.generateLocalReport(entries);
-                        } catch (localError) {
-                            console.log('🤖 [REPORT DEBUG] Erro local também, usando fallback simples:', localError.message);
-                            report = window.aiAnalysis.generateSimpleFallbackReport(entries);
-                        }
-                    }
-                }
-            } catch (aiError) {
-                console.error('🤖 [REPORT DEBUG] Erro crítico na geração de IA:', aiError);
-                console.error('🤖 [REPORT DEBUG] Stack trace:', aiError.stack);
-                console.log('🤖 [REPORT DEBUG] Usando fallback de emergência...');
-                
-                // Último recurso: sempre gerar relatório de emergência
-                console.log('🆘 [REPORT DEBUG] Usando relatório de emergência como último recurso');
-                report = this.generateEmergencyReport(entries);
+            const aiMode = this.getSelectedAIMode();
+            
+            if (aiMode === 'private') {
+                console.log('🤖 Usando modo privado (IA local)');
+                report = await window.aiAnalysis.generateLocalReport(entries);
+            } else {
+                console.log('🚀 Usando modo rápido');
+                report = await window.aiAnalysis.generateFastReport(entries);
             }
+
+            // Hide loading and display report
+            this.hideLoading();
+            
+            if (report) {
+                this.displayReport(report);
+                this.showToast('Relatório gerado com sucesso! 🎉', 'success');
+            } else {
+                throw new Error('Não foi possível gerar o relatório');
+            }
+
+        } catch (error) {
+            console.error('❌ Erro ao gerar relatório:', error);
+            this.hideLoading();
+            this.showToast('Erro ao gerar relatório: ' + error.message, 'error');
+        }
+    }
+
+    getSelectedAIMode() {
+        const modeInputs = document.querySelectorAll('input[name="ai-mode"]');
+        for (const input of modeInputs) {
+            if (input.checked) {
+                return input.value;
+            }
+        }
+        return 'private'; // Default to private mode
+    }
+
+    displayReport(report) {
+        console.log('📊 Exibindo relatório:', report);
+        
+        // Show report content container
+        const reportContent = document.getElementById('report-content');
+        if (reportContent) {
+            reportContent.classList.remove('hidden');
+        }
+
+        // Update report date
+        const reportDate = document.getElementById('report-date');
+        if (reportDate) {
+            reportDate.textContent = new Date().toLocaleDateString('pt-BR');
+        }
+
+        // Update general analysis
+        const generalAnalysis = document.getElementById('general-analysis');
+        if (generalAnalysis && report.analysis) {
+            generalAnalysis.innerHTML = `<p>${report.analysis.replace(/\n/g, '</p><p>')}</p>`;
+        }
+
+        // Update patterns analysis
+        const patternsAnalysis = document.getElementById('patterns-analysis');
+        if (patternsAnalysis && report.insights) {
+            if (Array.isArray(report.insights)) {
+                patternsAnalysis.innerHTML = report.insights.map(insight => `<p>• ${insight}</p>`).join('');
+            } else {
+                patternsAnalysis.innerHTML = `<p>${report.insights}</p>`;
+            }
+        }
+
+        // Update recommendations
+        const recommendations = document.getElementById('recommendations');
+        if (recommendations && report.recommendations) {
+            if (Array.isArray(report.recommendations)) {
+                recommendations.innerHTML = report.recommendations.map(rec => `<p>• ${rec}</p>`).join('');
+            } else {
+                recommendations.innerHTML = `<p>${report.recommendations}</p>`;
+            }
+        }
+
+        console.log('✅ Relatório exibido na interface');
+    }
 
             if (!report || typeof report !== 'string') {
                 console.log('🤖 [REPORT DEBUG] Relatório inválido, gerando emergência...');

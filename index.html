@@ -47,11 +47,21 @@
         }, 3000);
     </script>
     
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@3.0.0/dist/transformers.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <!-- Google APIs -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
+    
     <!-- CSS -->
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/pdf-addon.css">
     <link rel="stylesheet" href="css/auth-styles.css">
     <link rel="stylesheet" href="css/status-indicator.css">
+    <link rel="stylesheet" href="css/interactive-styles.css">
 </head>
 <body>
     <!-- Loading Overlay -->
@@ -812,7 +822,7 @@
                 
                 <!-- Report Actions -->
                 <div class="report-actions">
-                    <button id="download-pdf" class="btn-secondary btn-full" onclick="window.aiAnalysis.downloadReportPDF()">
+                    <button id="download-pdf" class="btn-secondary btn-full" onclick="window.aiAnalysis.downloadReport()">
                         📄 Baixar Relatório em PDF
                     </button>
                 </div>

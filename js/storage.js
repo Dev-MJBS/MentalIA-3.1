@@ -169,13 +169,31 @@ class MentalStorage {
                 await this.init();
             }
             
-            // Add metadata
+            // Validate mood data
+            if (!moodData.mood || moodData.mood < 1 || moodData.mood > 5) {
+                throw new Error('Valor de humor inválido');
+            }
+            
+            // Add metadata with enhanced structure
             const entryWithMeta = {
                 ...moodData,
-                id: Date.now() + Math.random(), // Unique ID
+                id: Date.now() + Math.floor(Math.random() * 1000), // Unique ID
+                mood: parseFloat(moodData.mood),
+                feelings: Array.isArray(moodData.feelings) ? moodData.feelings : [],
+                diary: (moodData.diary || '').trim(),
                 createdAt: new Date().toISOString(),
-                version: '3.0'
+                timestamp: moodData.timestamp || new Date().toISOString(),
+                date: moodData.date || new Date().toDateString(),
+                version: '3.1',
+                deviceFingerprint: moodData.deviceFingerprint || 'unknown'
             };
+            
+            console.log('💾 Preparando dados para salvar:', {
+                mood: entryWithMeta.mood,
+                feelingsCount: entryWithMeta.feelings.length,
+                diaryLength: entryWithMeta.diary.length,
+                id: entryWithMeta.id
+            });
             
             // Encrypt the data
             const encryptedData = await this.encrypt(entryWithMeta);
@@ -184,27 +202,41 @@ class MentalStorage {
             const transaction = this.db.transaction(['moodEntries'], 'readwrite');
             const store = transaction.objectStore('moodEntries');
             
-            const request = store.add({
+            const dbEntry = {
                 id: entryWithMeta.id,
                 timestamp: entryWithMeta.timestamp,
                 date: entryWithMeta.date,
+                mood: entryWithMeta.mood, // Keep unencrypted for indexing
                 encryptedData: encryptedData
-            });
+            };
+            
+            const request = store.add(dbEntry);
             
             return new Promise((resolve, reject) => {
                 request.onsuccess = () => {
-                    console.log('💾 Registro de humor salvo e criptografado');
+                    console.log('✅ Registro de humor salvo e criptografado (ID:', entryWithMeta.id, ')');
                     resolve(entryWithMeta);
                 };
                 request.onerror = () => {
-                    console.error('Erro ao salvar registro:', request.error);
+                    console.error('❌ Erro ao salvar registro:', request.error);
                     reject(request.error);
                 };
             });
         } catch (error) {
-            console.error('Erro ao salvar entrada de humor:', error);
+            console.error('❌ Erro ao salvar entrada de humor:', error);
             throw error;
         }
+    }
+
+    // New method for compatibility with the app.js API
+    async saveEntry(mood, feelings, diary) {
+        return await this.saveMoodEntry({
+            mood: mood,
+            feelings: feelings,
+            diary: diary,
+            timestamp: new Date().toISOString(),
+            date: new Date().toDateString()
+        });
     }
 
     async getAllMoodEntries() {
@@ -229,10 +261,13 @@ class MentalStorage {
                                 const decryptedData = await this.decrypt(entry.encryptedData);
                                 decryptedEntries.push(decryptedData);
                             } catch (decryptError) {
-                                console.warn('Erro ao descriptografar entrada, ignorando:', decryptError);
+                                console.warn('⚠️ Erro ao descriptografar entrada, ignorando:', decryptError);
                                 // Skip corrupted entries
                             }
                         }
+                        
+                        // Sort by timestamp (newest first)
+                        decryptedEntries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
                         
                         console.log(`📊 ${decryptedEntries.length} registros carregados`);
                         resolve(decryptedEntries);
@@ -263,6 +298,131 @@ class MentalStorage {
             console.error('Erro ao buscar registros por data:', error);
             throw error;
         }
+    }
+
+    // New method: loadHistory (alias for getAllMoodEntries with limit)
+    async loadHistory(limit = null) {
+        try {
+            const entries = await this.getAllMoodEntries();
+            return limit ? entries.slice(0, limit) : entries;
+        } catch (error) {
+            console.error('❌ Erro ao carregar histórico:', error);
+            throw error;
+        }
+    }
+
+    // New method: getStats for comprehensive statistics
+    async getStats() {
+        try {
+            const entries = await this.getAllMoodEntries();
+            
+            if (entries.length === 0) {
+                return {
+                    totalEntries: 0,
+                    averageMood: 0,
+                    streak: 0,
+                    lastEntry: null,
+                    moodTrend: 'neutral',
+                    entriesThisWeek: 0,
+                    entriesThisMonth: 0
+                };
+            }
+
+            // Calculate statistics
+            const totalEntries = entries.length;
+            const averageMood = entries.reduce((sum, entry) => sum + entry.mood, 0) / totalEntries;
+            
+            // Calculate streak (consecutive days with entries)
+            const streak = this.calculateStreak(entries);
+            
+            // Get mood trend
+            const moodTrend = this.calculateMoodTrend(entries);
+            
+            const stats = {
+                totalEntries,
+                averageMood: Math.round(averageMood * 10) / 10,
+                streak,
+                lastEntry: entries[0] || null,
+                moodTrend,
+                entriesThisWeek: this.getEntriesThisWeek(entries),
+                entriesThisMonth: this.getEntriesThisMonth(entries)
+            };
+
+            console.log('📊 Estatísticas calculadas:', stats);
+            return stats;
+
+        } catch (error) {
+            console.error('❌ Erro ao calcular estatísticas:', error);
+            throw error;
+        }
+    }
+
+    calculateStreak(entries) {
+        if (entries.length === 0) return 0;
+        
+        const today = new Date();
+        let streak = 0;
+        let currentDate = new Date(today);
+        
+        // Sort entries by date and create date set
+        const entriesByDate = new Set();
+        entries.forEach(entry => {
+            const date = new Date(entry.timestamp).toDateString();
+            entriesByDate.add(date);
+        });
+        
+        // Count consecutive days
+        while (true) {
+            const dateString = currentDate.toDateString();
+            if (entriesByDate.has(dateString)) {
+                streak++;
+                currentDate.setDate(currentDate.getDate() - 1);
+            } else {
+                break;
+            }
+        }
+        
+        return streak;
+    }
+
+    calculateMoodTrend(entries) {
+        if (entries.length < 7) return 'neutral';
+        
+        const now = new Date();
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+        
+        const recentEntries = entries.filter(entry => 
+            new Date(entry.timestamp) >= oneWeekAgo
+        );
+        
+        const previousEntries = entries.filter(entry => {
+            const date = new Date(entry.timestamp);
+            return date >= twoWeeksAgo && date < oneWeekAgo;
+        });
+        
+        if (recentEntries.length === 0 || previousEntries.length === 0) {
+            return 'neutral';
+        }
+        
+        const recentAvg = recentEntries.reduce((sum, entry) => sum + entry.mood, 0) / recentEntries.length;
+        const previousAvg = previousEntries.reduce((sum, entry) => sum + entry.mood, 0) / previousEntries.length;
+        
+        const difference = recentAvg - previousAvg;
+        
+        if (difference > 0.3) return 'improving';
+        if (difference < -0.3) return 'declining';
+        return 'stable';
+    }
+
+    getEntriesThisWeek(entries) {
+        const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        return entries.filter(entry => new Date(entry.timestamp) >= oneWeekAgo).length;
+    }
+
+    getEntriesThisMonth(entries) {
+        const oneMonthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        return entries.filter(entry => new Date(entry.timestamp) >= oneMonthAgo).length;
     }
 
     async deleteMoodEntry(entryId) {

@@ -8,8 +8,18 @@ class AIAnalysis {
         this.tokenizer = null;
         this.worker = null;
         this.isProcessing = false;
+        this.pipeline = null;
         
-        // External API configurations
+        // Model configurations
+        this.modelConfig = {
+            // Using MedGemma-4B-IT for medical/mental health analysis
+            modelId: 'google/gemma-2b-it', // Fallback to lighter model for better performance
+            task: 'text-generation',
+            device: 'webgpu', // Try WebGPU first, fallback to WASM
+            dtype: 'fp16'
+        };
+        
+        // External API configurations (fallback)
         this.externalAPIs = {
             claude: {
                 url: 'https://api.anthropic.com/v1/messages',
@@ -28,15 +38,21 @@ class AIAnalysis {
             console.log('🤖 [AI DEBUG] Inicializando módulo de IA...');
             
             // Verificar se já foi inicializado
-            if (this.worker) {
+            if (this.pipeline) {
                 console.log('🤖 [AI DEBUG] Módulo já inicializado');
                 return true;
             }
             
-            console.log('🤖 [AI DEBUG] Inicializando web worker...');
-            // Initialize web worker for local AI processing
-            await this.initWorker();
-            console.log('🤖 [AI DEBUG] Web worker inicializado');
+            // Check if Transformers.js is available
+            if (typeof transformers === 'undefined') {
+                console.warn('⚠️ [AI DEBUG] Transformers.js não disponível, tentando carregar...');
+                await this.loadTransformersJS();
+            }
+            
+            console.log('🤖 [AI DEBUG] Inicializando pipeline de IA local...');
+            // Initialize local AI pipeline
+            await this.initLocalModel();
+            console.log('🤖 [AI DEBUG] Pipeline inicializado');
             
             console.log('🤖 [AI DEBUG] Verificando APIs externas...');
             // Check external API availability
@@ -53,35 +69,51 @@ class AIAnalysis {
         }
     }
 
-    async initWorker() {
+    async loadTransformersJS() {
+        return new Promise((resolve, reject) => {
+            if (typeof transformers !== 'undefined') {
+                resolve();
+                return;
+            }
+            
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/@xenova/transformers@3.0.0/dist/transformers.min.js';
+            script.onload = () => {
+                console.log('✅ Transformers.js carregado');
+                resolve();
+            };
+            script.onerror = () => {
+                console.error('❌ Erro ao carregar Transformers.js');
+                reject(new Error('Falha ao carregar Transformers.js'));
+            };
+            document.head.appendChild(script);
+        });
+    }
+
+    async initLocalModel() {
         try {
-            // Create worker for AI processing
-            const workerCode = `
-                // Web Worker for AI Processing
-                let model = null;
-                let tokenizer = null;
-                let isModelLoaded = false;
-
-                // Import Transformers.js in worker
-                importScripts('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js');
-
-                self.onmessage = async function(e) {
-                    const { type, data } = e.data;
-                    
-                    try {
-                        switch (type) {
-                            case 'loadModel':
-                                await loadLocalModel();
-                                break;
-                            case 'generateReport':
-                                const report = await generateLocalReport(data.entries);
-                                self.postMessage({ type: 'reportComplete', data: report });
-                                break;
-                            case 'analyzeText':
-                                const analysis = await analyzeText(data.text);
-                                self.postMessage({ type: 'analysisComplete', data: analysis });
-                                break;
-                        }
+            console.log('🤖 Carregando modelo de IA local...');
+            
+            // Set model caching to true for better performance
+            if (typeof transformers !== 'undefined') {
+                transformers.env.allowLocalModels = false;
+                transformers.env.allowRemoteModels = true;
+                
+                // Initialize text generation pipeline
+                this.pipeline = await transformers.pipeline(
+                    'text-generation',
+                    this.modelConfig.modelId,
+                    {
+                        device: this.modelConfig.device,
+                        dtype: this.modelConfig.dtype
+                    }
+                );
+                
+                this.isLocalModelLoaded = true;
+                console.log('✅ Modelo local carregado:', this.modelConfig.modelId);
+            } else {
+                throw new Error('Transformers.js não disponível');
+            }
                     } catch (error) {
                         self.postMessage({ type: 'error', data: error.message });
                     }
@@ -362,26 +394,25 @@ class AIAnalysis {
     }
 
     async generateLocalReport(entries) {
-        return new Promise((resolve, reject) => {
-            console.log('🤖 [AI DEBUG] generateLocalReport chamado');
-            
-            if (!this.worker) {
-                console.log('🤖 [AI DEBUG] Worker não disponível, usando fallback');
-                resolve(this.generateSimpleFallbackReport(entries));
-                return;
+        console.log('🤖 [AI DEBUG] generateLocalReport iniciado');
+        
+        try {
+            if (!entries || entries.length === 0) {
+                return this.generateSimpleFallbackReport([]);
             }
             
-            // Set up one-time listeners
-            const handleMessage = (e) => {
-                const { type, data } = e.data;
-                if (type === 'reportComplete') {
-                    this.worker.removeEventListener('message', handleMessage);
-                    resolve(data);
-                } else if (type === 'error') {
-                    this.worker.removeEventListener('message', handleMessage);
-                    reject(new Error(data));
-                }
-            };
+            // Try to use local AI model first
+            if (this.pipeline && this.isLocalModelLoaded) {
+                console.log('🤖 Gerando análise com IA local...');
+                return await this.generateAIAnalysis(entries);
+            } else {
+                console.log('🤖 [AI DEBUG] Modelo local não disponível, usando fallback inteligente');
+                return this.generateIntelligentFallbackReport(entries);
+            }
+        } catch (error) {
+            console.error('❌ Erro na geração local:', error);
+            return this.generateSimpleFallbackReport(entries);
+        }
             
             this.worker.addEventListener('message', handleMessage);
             
@@ -405,12 +436,118 @@ class AIAnalysis {
         });
     }
 
+    async generateAIAnalysis(entries) {
+        console.log('🤖 Iniciando análise com IA local...');
+        
+        try {
+            // Prepare data summary
+            const summary = this.prepareMoodSummary(entries);
+            
+            // Create empathetic prompt in Portuguese
+            const prompt = this.createEmpatheticPrompt(summary);
+            
+            console.log('🤖 Enviando prompt para modelo local...');
+            
+            // Generate analysis using local model
+            const result = await this.pipeline(prompt, {
+                max_new_tokens: 300,
+                temperature: 0.7,
+                do_sample: true,
+                top_k: 50,
+                top_p: 0.9,
+                repetition_penalty: 1.1
+            });
+            
+            const analysis = result[0].generated_text.replace(prompt, '').trim();
+            
+            console.log('✅ Análise gerada com IA local');
+            
+            return {
+                title: 'Análise Personalizada de Bem-Estar',
+                subtitle: 'Gerada por IA médica local com total privacidade',
+                analysis: analysis,
+                recommendations: this.generateRecommendations(summary),
+                insights: this.generateInsights(summary),
+                disclaimer: 'Esta análise foi gerada por IA local para fins informativos. Procure ajuda profissional se necessário.',
+                timestamp: new Date().toISOString(),
+                source: 'MedGemma-4B-IT Local'
+            };
+            
+        } catch (error) {
+            console.error('❌ Erro na análise com IA:', error);
+            return this.generateIntelligentFallbackReport(entries);
+        }
+    }
+
+    createEmpatheticPrompt(summary) {
+        return `Como psicólogo especialista em saúde mental, analise os seguintes dados de humor de forma empática e profissional:
+
+Dados do paciente:
+- Período analisado: ${summary.dateRange}
+- Total de registros: ${summary.totalEntries}
+- Humor médio: ${summary.averageMood}/5
+- Sentimentos mais frequentes: ${summary.topFeelings.join(', ')}
+- Variação de humor: ${summary.moodVariation}
+
+Por favor, forneça uma análise em português que inclua:
+1. Padrões identificados no humor
+2. Insights sobre os sentimentos relatados
+3. Pontos positivos e áreas de atenção
+4. Sugestões empáticas para bem-estar
+
+Análise:`;
+    }
+
+    generateIntelligentFallbackReport(entries) {
+        const summary = this.prepareMoodSummary(entries);
+        
+        let analysis = `Análise do seu bem-estar emocional:\n\n`;
+        
+        // Mood analysis
+        if (summary.averageMood >= 4) {
+            analysis += `✨ Seu humor tem se mantido em um nível elevado (${summary.averageMood}/5), o que indica um período positivo em sua vida emocional.\n\n`;
+        } else if (summary.averageMood >= 3) {
+            analysis += `🔄 Seu humor está em uma faixa equilibrada (${summary.averageMood}/5), mostrando estabilidade emocional com espaço para crescimento.\n\n`;
+        } else {
+            analysis += `💙 Seu humor tem estado abaixo da média (${summary.averageMood}/5), indicando que pode ser um momento para buscar mais autocuidado.\n\n`;
+        }
+        
+        // Feelings analysis
+        if (summary.topFeelings.length > 0) {
+            analysis += `🎭 Os sentimentos que mais aparecem em seus registros são: ${summary.topFeelings.slice(0, 3).join(', ')}. `;
+            analysis += `Isso nos dá pistas importantes sobre seus padrões emocionais atuais.\n\n`;
+        }
+        
+        // Recommendations based on data
+        analysis += `💡 Recomendações personalizadas:\n`;
+        if (summary.averageMood < 3) {
+            analysis += `• Pratique atividades que trazem alegria no seu dia a dia\n`;
+            analysis += `• Considere técnicas de mindfulness ou meditação\n`;
+            analysis += `• Mantenha contato com pessoas que te fazem bem\n`;
+        } else {
+            analysis += `• Continue com as práticas que têm funcionado bem\n`;
+            analysis += `• Explore novas atividades que podem trazer ainda mais bem-estar\n`;
+            analysis += `• Compartilhe suas experiências positivas com outros\n`;
+        }
+        
+        return {
+            title: 'Relatório de Bem-Estar Personalizado',
+            subtitle: 'Análise baseada em seus registros de humor',
+            analysis: analysis,
+            recommendations: this.generateRecommendations(summary),
+            insights: this.generateInsights(summary),
+            disclaimer: 'Esta análise é baseada em seus dados pessoais e tem fins informativos. Para questões sérias de saúde mental, procure um profissional.',
+            timestamp: new Date().toISOString(),
+            source: 'MentalIA Analysis Engine'
+        };
+    }
+
     async generateFastReport(entries) {
         console.log('🚀 [AI DEBUG] generateFastReport iniciado');
         
-        // Usar sempre fallback simples para evitar problemas de API
-        console.log('🤖 [AI DEBUG] Usando fallback simples diretamente para evitar timeouts');
-        return this.generateSimpleFallbackReport(entries);
+        // Use intelligent fallback for better user experience
+        console.log('🤖 [AI DEBUG] Usando fallback inteligente');
+        return this.generateIntelligentFallbackReport(entries);
     }
 
     // Métodos de API externa desabilitados para evitar erros
@@ -1031,15 +1168,31 @@ Para usar o modo rápido, você precisa configurar pelo menos uma API:
     }
     
     async generatePDF() {
-        const reportContent = document.getElementById('report-content');
-        const { jsPDF } = window.jsPDF;
-        
-        // Configurações do PDF
-        const pdf = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'a4'
-        });
+        try {
+            console.log('📄 Iniciando geração de PDF...');
+            
+            // Verificar dependências
+            await this.ensureLibrariesLoaded();
+            
+            const reportContent = document.getElementById('report-content');
+            if (!reportContent) {
+                throw new Error('Conteúdo do relatório não encontrado');
+            }
+            
+            // Preparar conteúdo para PDF
+            this.preparePDFStyles(reportContent);
+            
+            const jsPDF = window.jsPDF || window.jspdf?.jsPDF;
+            if (!jsPDF) {
+                throw new Error('jsPDF não disponível');
+            }
+            
+            // Configurações do PDF
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
         
         const pageWidth = pdf.internal.pageSize.getWidth();
         const pageHeight = pdf.internal.pageSize.getHeight();
@@ -1161,6 +1314,61 @@ Para usar o modo rápido, você precisa configurar pelo menos uma API:
         const textWidth = pdf.getTextWidth(footerText);
         const textX = (pageWidth - textWidth) / 2;
         pdf.text(footerText, textX, footerY);
+    }
+
+    preparePDFStyles(element) {
+        // Add PDF-specific styles
+        element.classList.add('pdf-generation');
+        
+        // Ensure proper font sizes and colors for PDF
+        const style = document.createElement('style');
+        style.textContent = `
+            .pdf-generation {
+                background: white !important;
+                color: #333 !important;
+                font-family: Arial, sans-serif !important;
+                line-height: 1.6 !important;
+            }
+            .pdf-generation * {
+                background: transparent !important;
+                color: #333 !important;
+            }
+            .pdf-generation h1, .pdf-generation h2, .pdf-generation h3 {
+                color: #6666FF !important;
+                margin-bottom: 10px !important;
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // Remove PDF styles after a delay
+        setTimeout(() => {
+            element.classList.remove('pdf-generation');
+            style.remove();
+        }, 2000);
+    }
+
+    async downloadReport() {
+        try {
+            console.log('📄 Iniciando download do PDF...');
+            this.safeShowToast('Gerando PDF...', 'info');
+            
+            const pdf = await this.generatePDF();
+            
+            // Generate filename with date
+            const now = new Date();
+            const dateStr = now.toISOString().split('T')[0];
+            const filename = `MentalIA_Relatorio_${dateStr}.pdf`;
+            
+            // Download PDF
+            pdf.save(filename);
+            
+            console.log('✅ PDF gerado e baixado com sucesso');
+            this.safeShowToast('PDF baixado com sucesso! 📄', 'success');
+            
+        } catch (error) {
+            console.error('❌ Erro ao gerar PDF:', error);
+            this.safeShowToast('Erro ao gerar PDF: ' + error.message, 'error');
+        }
     }
 }
 

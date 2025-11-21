@@ -5,8 +5,8 @@
 
 class GoogleDriveBackup {
     constructor() {
-        // Client ID configurado dinamicamente ou modo offline
-        this.clientId = this.getConfiguredClientId();
+        // Fixed Client ID for MentalIA
+        this.clientId = 'ivoemo399amv728d61llbdqn3fbcr8tk.apps.googleusercontent.com';
         this.discoveryDoc = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
         this.scopes = 'https://www.googleapis.com/auth/drive.appdata';
         
@@ -14,14 +14,13 @@ class GoogleDriveBackup {
         this.gapi = null;
         this.currentUser = null;
         this.oneTapInitialized = false;
-        this.isOfflineMode = !this.clientId;
+        this.isOfflineMode = false;
         
-        if (!this.isOfflineMode) {
-            this.initializeGoogleAPIs();
-        } else {
-            console.log('📴 [BACKUP] Modo offline ativado - backup local disponível');
-            this.setupOfflineMode();
-        }
+        console.log('☁️ [BACKUP] Inicializando sistema de backup Google Drive...');
+        this.initializeGoogleAPIs();
+        
+        // Initialize UI
+        this.updateDriveStatus(false, 'Conectando...');
     }
     
     getConfiguredClientId() {
@@ -416,19 +415,9 @@ class GoogleDriveBackup {
 
     async initializeGoogleAPIs() {
         try {
-            // Primeiro tentar carregar credenciais do arquivo se não estiver configurado
-            if (!this.clientId) {
-                await this.loadCredentialsFromFile();
-            }
+            console.log('☁️ [BACKUP] Inicializando Google APIs...');
             
-            // Se ainda não tem clientId, permanecer em modo offline
-            if (!this.clientId) {
-                console.log('📴 [BACKUP] Permanecendo em modo offline');
-                this.setupOfflineMode();
-                return;
-            }
-            
-            // Wait for both Google APIs and One Tap to be available
+            // Wait for Google APIs to load
             await this.waitForGoogleAPIs();
             
             // Initialize GAPI client
@@ -437,32 +426,46 @@ class GoogleDriveBackup {
             // Initialize Google One Tap
             await this.initializeOneTap();
             
-            // Update UI status
-            this.updateDriveStatus();
+            // Setup event listeners
+            this.setupEventListeners();
             
-            console.log('✅ Google APIs initialized successfully');
+            console.log('✅ [BACKUP] Google APIs inicializados com sucesso');
+            this.updateDriveStatus(false, 'Pronto para login');
             
         } catch (error) {
-            console.error('❌ Erro ao inicializar Google APIs:', error);
+            console.error('❌ [BACKUP] Erro ao inicializar Google APIs:', error);
             this.updateDriveStatus(false, 'Erro na inicialização');
         }
     }
 
     async waitForGoogleAPIs() {
-        // Wait for GAPI
-        return new Promise((resolve) => {
-            const checkGapi = () => {
+        console.log('⏳ [BACKUP] Aguardando Google APIs...');
+        
+        return new Promise((resolve, reject) => {
+            let attempts = 0;
+            const maxAttempts = 50; // 5 seconds timeout
+            
+            const checkAPIs = () => {
+                attempts++;
+                
                 if (typeof gapi !== 'undefined' && typeof google !== 'undefined') {
+                    console.log('✅ [BACKUP] Google APIs carregadas');
                     resolve();
+                } else if (attempts >= maxAttempts) {
+                    console.error('❌ [BACKUP] Timeout aguardando Google APIs');
+                    reject(new Error('Timeout loading Google APIs'));
                 } else {
-                    setTimeout(checkGapi, 100);
+                    setTimeout(checkAPIs, 100);
                 }
             };
-            checkGapi();
+            
+            checkAPIs();
         });
     }
     
     async initializeGapiClient() {
+        console.log('🔧 [BACKUP] Inicializando GAPI client...');
+        
         return new Promise((resolve, reject) => {
             gapi.load('client:auth2', async () => {
                 try {
@@ -478,11 +481,14 @@ class GoogleDriveBackup {
                     
                     if (this.isSignedIn) {
                         this.currentUser = authInstance.currentUser.get();
-                        console.log('✅ Usuário já conectado ao Google Drive');
+                        console.log('✅ [BACKUP] Usuário já conectado:', this.currentUser.getBasicProfile().getEmail());
+                        this.updateDriveStatus(true, `Conectado: ${this.currentUser.getBasicProfile().getEmail()}`);
                     }
                     
+                    console.log('✅ [BACKUP] GAPI client inicializado');
                     resolve();
                 } catch (error) {
+                    console.error('❌ [BACKUP] Erro ao inicializar GAPI:', error);
                     reject(error);
                 }
             });
@@ -493,6 +499,8 @@ class GoogleDriveBackup {
         if (this.oneTapInitialized) return;
         
         try {
+            console.log('🚪 [BACKUP] Inicializando One Tap...');
+            
             // Configure Google One Tap
             google.accounts.id.initialize({
                 client_id: this.clientId,
@@ -502,11 +510,350 @@ class GoogleDriveBackup {
             });
             
             this.oneTapInitialized = true;
-            console.log('✅ Google One Tap initialized');
+            console.log('✅ [BACKUP] Google One Tap inicializado');
             
         } catch (error) {
-            console.error('❌ Erro ao inicializar One Tap:', error);
+            console.error('❌ [BACKUP] Erro ao inicializar One Tap:', error);
         }
+    }
+
+    setupEventListeners() {
+        console.log('🔗 [BACKUP] Configurando event listeners...');
+        
+        // Backup button
+        const backupBtn = document.getElementById('backup-data');
+        if (backupBtn) {
+            backupBtn.removeEventListener('click', this.handleBackupClick.bind(this)); // Remove existing
+            backupBtn.addEventListener('click', this.handleBackupClick.bind(this));
+        }
+
+        // Disconnect button
+        const disconnectBtn = document.getElementById('disconnect-drive');
+        if (disconnectBtn) {
+            disconnectBtn.addEventListener('click', this.disconnect.bind(this));
+        }
+
+        console.log('✅ [BACKUP] Event listeners configurados');
+    }
+
+    async handleBackupClick() {
+        console.log('☁️ [BACKUP] Botão backup clicado');
+        
+        if (!this.isSignedIn) {
+            console.log('🔐 [BACKUP] Usuário não logado, iniciando login...');
+            await this.signIn();
+        } else {
+            console.log('📤 [BACKUP] Usuário logado, iniciando backup...');
+            await this.performBackup();
+        }
+    }
+
+    async signIn() {
+        try {
+            console.log('🚪 [BACKUP] Iniciando processo de login...');
+            this.updateDriveStatus(false, 'Fazendo login...');
+            
+            // Try One Tap first
+            if (this.oneTapInitialized) {
+                google.accounts.id.prompt((notification) => {
+                    if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                        console.log('⚠️ [BACKUP] One Tap não exibido, usando popup tradicional');
+                        this.signInWithPopup();
+                    }
+                });
+            } else {
+                await this.signInWithPopup();
+            }
+        } catch (error) {
+            console.error('❌ [BACKUP] Erro no login:', error);
+            this.updateDriveStatus(false, 'Erro no login');
+            this.showToast('Erro ao fazer login. Tente novamente.', 'error');
+        }
+    }
+
+    async signInWithPopup() {
+        try {
+            console.log('🪟 [BACKUP] Abrindo popup de login...');
+            const authInstance = gapi.auth2.getAuthInstance();
+            const user = await authInstance.signIn();
+            
+            this.currentUser = user;
+            this.isSignedIn = true;
+            
+            const email = user.getBasicProfile().getEmail();
+            console.log('✅ [BACKUP] Login realizado:', email);
+            
+            this.updateDriveStatus(true, `Conectado: ${email}`);
+            this.showToast(`Conectado ao Google Drive! ${email}`, 'success');
+            
+        } catch (error) {
+            console.error('❌ [BACKUP] Erro no popup de login:', error);
+            this.updateDriveStatus(false, 'Erro no login');
+            throw error;
+        }
+    }
+
+    async performBackup() {
+        try {
+            console.log('📤 [BACKUP] Iniciando backup para Google Drive...');
+            this.updateDriveStatus(true, 'Fazendo backup...');
+            
+            // Get data from storage
+            if (!window.mentalStorage) {
+                throw new Error('Sistema de storage não disponível');
+            }
+
+            const backupData = await this.prepareBackupData();
+            console.log('📊 [BACKUP] Dados preparados:', Object.keys(backupData));
+
+            // Encrypt backup data
+            const encryptedData = await this.encryptBackupData(backupData);
+            console.log('🔐 [BACKUP] Dados criptografados');
+
+            // Upload to Google Drive
+            const fileId = await this.uploadToGoogleDrive(encryptedData);
+            console.log('☁️ [BACKUP] Upload concluído, File ID:', fileId);
+
+            // Update UI
+            const email = this.currentUser.getBasicProfile().getEmail();
+            this.updateDriveStatus(true, `Backup realizado: ${email}`);
+            this.showToast('Backup realizado com sucesso! ☁️', 'success');
+
+        } catch (error) {
+            console.error('❌ [BACKUP] Erro no backup:', error);
+            const email = this.currentUser?.getBasicProfile()?.getEmail() || 'Usuário';
+            this.updateDriveStatus(true, `Conectado: ${email}`);
+            this.showToast('Erro no backup: ' + error.message, 'error');
+        }
+    }
+
+    async prepareBackupData() {
+        console.log('📋 [BACKUP] Preparando dados para backup...');
+        
+        // Get all data from storage
+        const entries = await window.mentalStorage.getAllMoodEntries();
+        const stats = await window.mentalStorage.getStats();
+        
+        const backupData = {
+            version: '3.1',
+            timestamp: new Date().toISOString(),
+            deviceId: await this.getDeviceId(),
+            entries: entries,
+            stats: stats,
+            totalEntries: entries.length
+        };
+
+        console.log(`📊 [BACKUP] ${backupData.totalEntries} entradas preparadas`);
+        return backupData;
+    }
+
+    async encryptBackupData(data) {
+        console.log('🔐 [BACKUP] Criptografando dados...');
+        
+        // Use the same encryption as the storage system
+        if (window.mentalStorage && typeof window.mentalStorage.encrypt === 'function') {
+            return await window.mentalStorage.encrypt(data);
+        } else {
+            // Fallback: JSON stringify
+            console.warn('⚠️ [BACKUP] Sistema de criptografia não disponível, usando JSON');
+            return JSON.stringify(data);
+        }
+    }
+
+    async uploadToGoogleDrive(encryptedData) {
+        console.log('☁️ [BACKUP] Fazendo upload para Google Drive...');
+        
+        const fileName = 'MentalIA_backup.enc';
+        const boundary = '-------314159265358979323846';
+        const delimiter = "\r\n--" + boundary + "\r\n";
+        const close_delim = "\r\n--" + boundary + "--";
+
+        let metadata = JSON.stringify({
+            'name': fileName,
+            'parents': ['appDataFolder']
+        });
+
+        let multipartRequestBody =
+            delimiter +
+            'Content-Type: application/json\r\n\r\n' +
+            metadata +
+            delimiter +
+            'Content-Type: application/octet-stream\r\n\r\n' +
+            (typeof encryptedData === 'string' ? encryptedData : JSON.stringify(encryptedData)) +
+            close_delim;
+
+        const request = gapi.client.request({
+            'path': 'https://www.googleapis.com/upload/drive/v3/files',
+            'method': 'POST',
+            'params': {'uploadType': 'multipart'},
+            'headers': {
+                'Content-Type': 'multipart/related; boundary="' + boundary + '"'
+            },
+            'body': multipartRequestBody
+        });
+
+        const response = await request;
+        console.log('✅ [BACKUP] Upload response:', response);
+        
+        return response.result.id;
+    }
+
+    async getDeviceId() {
+        // Generate or get device ID
+        let deviceId = localStorage.getItem('mental-ia-device-id');
+        if (!deviceId) {
+            deviceId = 'device-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('mental-ia-device-id', deviceId);
+        }
+        return deviceId;
+    }
+
+    disconnect() {
+        try {
+            console.log('🚪 [BACKUP] Desconectando do Google Drive...');
+            
+            const authInstance = gapi.auth2.getAuthInstance();
+            authInstance.signOut();
+            
+            this.isSignedIn = false;
+            this.currentUser = null;
+            
+            this.updateDriveStatus(false, 'Desconectado');
+            this.showToast('Desconectado do Google Drive', 'info');
+            
+        } catch (error) {
+            console.error('❌ [BACKUP] Erro ao desconectar:', error);
+        }
+    }
+
+    updateDriveStatus(connected, statusText = '') {
+        console.log(`🔄 [BACKUP] Atualizando status: ${connected ? 'Conectado' : 'Desconectado'} - ${statusText}`);
+        
+        // Update status indicators
+        const statusIndicators = document.querySelectorAll('.drive-status');
+        statusIndicators.forEach(indicator => {
+            indicator.className = `drive-status ${connected ? 'connected' : 'disconnected'}`;
+            indicator.textContent = connected ? '🟢' : '🔴';
+            indicator.title = statusText || (connected ? 'Conectado ao Google Drive' : 'Desconectado do Google Drive');
+        });
+
+        // Update status text elements
+        const statusTexts = document.querySelectorAll('.drive-status-text');
+        statusTexts.forEach(text => {
+            text.textContent = statusText || (connected ? 'Conectado' : 'Desconectado');
+        });
+
+        // Update button states
+        const backupButtons = document.querySelectorAll('.backup-btn');
+        backupButtons.forEach(btn => {
+            btn.disabled = !connected;
+            btn.textContent = connected ? '☁️ Fazer Backup' : '🔒 Fazer Login';
+        });
+
+        // Update disconnect buttons  
+        const disconnectButtons = document.querySelectorAll('.disconnect-btn');
+        disconnectButtons.forEach(btn => {
+            btn.style.display = connected ? 'inline-block' : 'none';
+        });
+
+        // Update specific elements by ID
+        const statusIndicator = document.getElementById('status-indicator');
+        if (statusIndicator) {
+            if (connected) {
+                statusIndicator.className = 'status-indicator online';
+                statusIndicator.innerHTML = `
+                    <span class="status-icon">🟢</span>
+                    <span class="status-text">Conectado ao Drive${statusText ? ` (${statusText})` : ''}</span>
+                `;
+            } else {
+                statusIndicator.className = 'status-indicator offline';
+                statusIndicator.innerHTML = `
+                    <span class="status-icon">🔴</span>
+                    <span class="status-text">${statusText || 'Faça login primeiro'}</span>
+                `;
+            }
+        }
+
+        const disconnectBtn = document.getElementById('disconnect-drive');
+        if (disconnectBtn) {
+            disconnectBtn.style.display = connected ? 'inline-block' : 'none';
+        }
+
+        const loginPrompt = document.getElementById('login-prompt');
+        if (loginPrompt) {
+            loginPrompt.style.display = connected ? 'none' : 'block';
+        }
+    }
+
+    showToast(message, type = 'info') {
+        console.log(`🍞 [TOAST] ${type.toUpperCase()}: ${message}`);
+        
+        // Remove existing toasts
+        const existingToasts = document.querySelectorAll('.toast-notification');
+        existingToasts.forEach(toast => toast.remove());
+
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `toast-notification toast-${type}`;
+        toast.innerHTML = `
+            <div class="toast-content">
+                ${this.getToastIcon(type)} ${message}
+            </div>
+        `;
+
+        // Add styles if not already present
+        if (!document.querySelector('#toast-styles')) {
+            const styles = document.createElement('style');
+            styles.id = 'toast-styles';
+            styles.textContent = `
+                .toast-notification {
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    z-index: 9999;
+                    padding: 12px 20px;
+                    border-radius: 8px;
+                    color: white;
+                    font-weight: 500;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                    animation: toastSlideIn 0.3s ease-out;
+                    max-width: 300px;
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                }
+                .toast-success { background: #4CAF50; }
+                .toast-error { background: #f44336; }
+                .toast-info { background: #2196F3; }
+                .toast-warning { background: #FF9800; }
+                @keyframes toastSlideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes toastSlideOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(styles);
+        }
+
+        // Add to page
+        document.body.appendChild(toast);
+
+        // Auto remove after 4 seconds
+        setTimeout(() => {
+            toast.style.animation = 'toastSlideOut 0.3s ease-in';
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
+    }
+
+    getToastIcon(type) {
+        const icons = {
+            success: '✅',
+            error: '❌',
+            info: 'ℹ️',
+            warning: '⚠️'
+        };
+        return icons[type] || 'ℹ️';
     }
     
     handleOneTapResponse(response) {
@@ -630,48 +977,7 @@ class GoogleDriveBackup {
         }
     }
 
-    updateDriveStatus(isOnline = null, userEmail = null) {
-        const statusIndicator = document.getElementById('status-indicator');
-        const disconnectBtn = document.getElementById('disconnect-drive');
-        const loginPrompt = document.getElementById('login-prompt');
-        
-        if (isOnline === null) {
-            isOnline = this.isSignedIn;
-        }
-        
-        if (statusIndicator) {
-            if (isOnline) {
-                statusIndicator.className = 'status-indicator online';
-                statusIndicator.innerHTML = `
-                    <span class="status-icon">🟢</span>
-                    <span class="status-text">Conectado ao Drive${userEmail ? ` (${userEmail})` : ''}</span>
-                `;
-                
-                if (disconnectBtn) {
-                    disconnectBtn.classList.add('show');
-                }
-                
-                if (loginPrompt) {
-                    loginPrompt.style.display = 'none';
-                }
-                
-            } else {
-                statusIndicator.className = 'status-indicator offline';
-                statusIndicator.innerHTML = `
-                    <span class="status-icon">🔴</span>
-                    <span class="status-text">Faça login primeiro</span>
-                `;
-                
-                if (disconnectBtn) {
-                    disconnectBtn.classList.remove('show');
-                }
-                
-                if (loginPrompt) {
-                    loginPrompt.style.display = 'block';
-                }
-            }
-        }
-    }
+
 
     async performBackup() {
         try {
@@ -884,13 +1190,7 @@ class GoogleDriveBackup {
         }
     }
 
-    showToast(message, type = 'info') {
-        if (window.mentalIA && window.mentalIA.showToast) {
-            window.mentalIA.showToast(message, type);
-        } else {
-            console.log(`${type.toUpperCase()}: ${message}`);
-        }
-    }
+
 
     // Initialize event listeners
     initEventListeners() {
