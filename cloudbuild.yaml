@@ -3,19 +3,9 @@ steps:
     args: ['build', '-t', 'gcr.io/$PROJECT_ID/mentalia:latest', '.']
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/$PROJECT_ID/mentalia:latest']
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
-    args:
-      - 'run'
-      - 'services'
-      - 'update'
-      - 'mentalia'
-      - '--image=gcr.io/$PROJECT_ID/mentalia:latest'
-      - '--platform=managed'
-      - '--region=us-central1'
-      - '--allow-unauthenticated'
-      - '--memory=512Mi'
-      - '--cpu=1'
-    env:
-      - 'CLOUD_RUN_SERVICE_NAME=mentalia'
+
 images:
   - 'gcr.io/$PROJECT_ID/mentalia:latest'
+
+options:
+  default_logs_bucket_behavior: REGIONAL_USER_OWNED_BUCKET
