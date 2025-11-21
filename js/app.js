@@ -12,6 +12,13 @@ class MentalIA {
     async init() {
         console.log('🧠 MentalIA 3.1 inicializando...');
 
+        // Check dependencies
+        if (!window.mentalStorage) {
+            console.error('Storage não carregado! Inclua storage.js antes de app.js');
+            this.showToast('Erro interno: armazenamento não disponível', 'error');
+            return;
+        }
+
         // Setup all event listeners AFTER DOM is ready
         this.setupEventListeners();
 
@@ -95,10 +102,27 @@ class MentalIA {
             slider.style.pointerEvents = 'auto';
             slider.style.cursor = 'pointer';
             slider.disabled = false;
+            slider.style.opacity = '1'; // Make sure it's visible for debugging
+
+            console.log('🎚️ Propriedades do slider:', {
+                value: slider.value,
+                min: slider.min,
+                max: slider.max,
+                step: slider.step,
+                disabled: slider.disabled,
+                style: {
+                    pointerEvents: slider.style.pointerEvents,
+                    cursor: slider.style.cursor,
+                    opacity: slider.style.opacity
+                }
+            });
 
             // Remove existing listeners to avoid duplicates
             slider.removeEventListener('input', this.handleSliderInput);
             slider.removeEventListener('change', this.handleSliderChange);
+            slider.removeEventListener('touchstart', this.handleTouchStart);
+            slider.removeEventListener('touchmove', this.handleTouchMove);
+            slider.removeEventListener('touchend', this.handleTouchEnd);
 
             // Add new listeners
             this.handleSliderInput = (e) => {
@@ -111,10 +135,31 @@ class MentalIA {
                 this.updateMoodValue(parseFloat(e.target.value));
             };
 
+            // Touch events for mobile
+            this.handleTouchStart = (e) => {
+                console.log('🎚️ Touch start');
+            };
+
+            this.handleTouchMove = (e) => {
+                console.log('🎚️ Touch move');
+            };
+
+            this.handleTouchEnd = (e) => {
+                console.log('🎚️ Touch end');
+            };
+
             slider.addEventListener('input', this.handleSliderInput);
             slider.addEventListener('change', this.handleSliderChange);
+            slider.addEventListener('touchstart', this.handleTouchStart, { passive: true });
+            slider.addEventListener('touchmove', this.handleTouchMove, { passive: true });
+            slider.addEventListener('touchend', this.handleTouchEnd, { passive: true });
 
             console.log('🎚️ Event listeners adicionados ao slider');
+
+            // Força repaint do slider (resolve bug em alguns Androids)
+            slider.style.display = 'none';
+            slider.offsetHeight; // trigger reflow
+            slider.style.display = 'block';
 
             // Set initial value
             this.updateMoodValue(3.0);
@@ -138,6 +183,11 @@ class MentalIA {
         if (slider) {
             slider.value = this.currentMood;
             console.log('🎚️ Slider value set to:', this.currentMood);
+
+            // Força repaint do slider (resolve bug em alguns Androids)
+            slider.style.display = 'none';
+            slider.offsetHeight; // trigger reflow
+            slider.style.display = 'block';
         }
 
         // Update color gradient (red to blue)
@@ -399,31 +449,49 @@ class MentalIA {
     }
 
     initChart() {
-        const ctx = document.getElementById('mood-chart');
-        if (!ctx) return;
+        console.log('📊 Inicializando gráfico...');
+        console.log('📊 Chart.js disponível:', typeof Chart);
 
-        this.chart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'Humor',
-                    data: [],
-                    borderColor: '#6366f1',
-                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: { beginAtZero: true, max: 5 }
+        const ctx = document.getElementById('mood-chart');
+        console.log('📊 Canvas encontrado:', !!ctx, ctx);
+
+        if (!ctx) {
+            console.error('❌ Canvas do gráfico não encontrado!');
+            return;
+        }
+
+        if (typeof Chart === 'undefined') {
+            console.error('❌ Chart.js não carregado!');
+            return;
+        }
+
+        try {
+            this.chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Humor',
+                        data: [],
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, max: 5 }
+                    }
                 }
-            }
-        });
+            });
+            console.log('✅ Gráfico inicializado com sucesso');
+        } catch (error) {
+            console.error('❌ Erro ao inicializar gráfico:', error);
+        }
     }
 
     updateChart(entries) {
@@ -625,11 +693,39 @@ document.addEventListener('DOMContentLoaded', () => {
     const moodScreen = document.getElementById('mood-screen');
     if (moodScreen) {
         const testBtn = document.createElement('button');
-        testBtn.textContent = '🧪 Testar Botões';
+        testBtn.textContent = '🧪 Testar Funcionalidades';
         testBtn.style.cssText = 'position: fixed; top: 10px; right: 10px; z-index: 9999; padding: 10px; background: red; color: white; border: none; border-radius: 5px; cursor: pointer;';
         testBtn.onclick = () => {
-            console.log('🧪 Teste: Botão funcionando!');
-            alert('Botões estão funcionando! ✅');
+            console.log('🧪 Teste: Iniciando testes...');
+            
+            // Test slider
+            const slider = document.getElementById('mood-slider');
+            if (slider) {
+                console.log('🎚️ Slider test:', {
+                    value: slider.value,
+                    visible: slider.offsetWidth > 0,
+                    events: slider.style.pointerEvents
+                });
+                // Test setting value
+                slider.value = 4.0;
+                window.mentalIA.updateMoodValue(4.0);
+            }
+            
+            // Test chart
+            if (window.mentalIA.chart) {
+                console.log('📊 Chart test: OK');
+            } else {
+                console.log('📊 Chart test: FAIL - chart not initialized');
+            }
+            
+            // Test feelings text
+            const feelings = document.querySelectorAll('.sub-label');
+            console.log('😊 Feelings test:', feelings.length, 'items found');
+            if (feelings.length > 0) {
+                console.log('😊 First feeling font-size:', getComputedStyle(feelings[0]).fontSize);
+            }
+            
+            alert('Testes concluídos! Verifique o console (F12) para detalhes.');
         };
         moodScreen.appendChild(testBtn);
     }
