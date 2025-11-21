@@ -79,20 +79,24 @@ class PremiumManager {
         console.log('🔄 Aguardando MentalIA inicializar...');
         
         let attempts = 0;
-        const maxAttempts = 100; // 10 segundos máximo
+        const maxAttempts = 50; // 5 segundos máximo (reduzido)
         
         while (attempts < maxAttempts) {
-            // Verifica se MentalIA existe e está inicializado
-            if (window.mentalIA && 
-                typeof window.mentalIA.getGoogleUser === 'function' &&
-                window.mentalIA.isInitialized !== false) {
-                console.log('✅ MentalIA carregado com sucesso!');
-                return true;
-            }
-            
-            // Verifica se DOM ainda está carregando
-            if (document.readyState !== 'complete') {
-                console.log('⏳ Aguardando DOM completar...');
+            try {
+                // 🔥 CORREÇÃO: Verificação mais segura
+                if (window.mentalIA && 
+                    typeof window.mentalIA.getGoogleUser === 'function') {
+                    console.log('✅ MentalIA carregado com sucesso!');
+                    return true;
+                }
+                
+                // Log mais detalhado para debug
+                if (attempts % 10 === 0) { // Log a cada 1 segundo
+                    console.log(`⏳ Tentativa ${attempts + 1}/${maxAttempts} - MentalIA: ${!!window.mentalIA}, getGoogleUser: ${window.mentalIA ? typeof window.mentalIA.getGoogleUser : 'N/A'}`);
+                }
+                
+            } catch (error) {
+                console.error('❌ Erro ao verificar MentalIA:', error);
             }
             
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -113,27 +117,33 @@ class PremiumManager {
         try {
             console.log('🔍 Tentando obter usuário Google...');
             
-            // Estratégia 1: Tentar aguardar MentalIA
-            if (!window.mentalIA) {
-                console.log('⏳ MentalIA não encontrado, aguardando...');
+            // 🔥 CORREÇÃO: Verificação mais robusta
+            // Estratégia 1: Verificar se MentalIA existe e tem o método
+            if (!window.mentalIA || typeof window.mentalIA.getGoogleUser !== 'function') {
+                console.log('⏳ MentalIA não disponível, aguardando...');
                 const mentalIAReady = await this.waitForMentalIA();
                 
                 if (!mentalIAReady) {
-                    // Estratégia 2: Fallback para auth direta
+                    console.warn('⚠️ MentalIA não inicializou, usando fallback');
                     return await this.getGoogleUserFallback();
                 }
             }
             
-            // Verifica se método existe
-            if (typeof window.mentalIA.getGoogleUser !== 'function') {
-                console.warn('⚠️ Método getGoogleUser não disponível, usando fallback');
+            // Dupla verificação antes de usar
+            if (!window.mentalIA || typeof window.mentalIA.getGoogleUser !== 'function') {
+                console.warn('⚠️ Método getGoogleUser ainda não disponível, usando fallback');
                 return await this.getGoogleUserFallback();
             }
             
-            // Estratégia principal: usar MentalIA
-            const user = await window.mentalIA.getGoogleUser();
-            console.log('✅ Usuário obtido via MentalIA:', user ? user.email : 'não logado');
-            return user;
+            // Estratégia principal: usar MentalIA com try-catch adicional
+            try {
+                const user = await window.mentalIA.getGoogleUser();
+                console.log('✅ Usuário obtido via MentalIA:', user ? user.email : 'não logado');
+                return user;
+            } catch (mentalIAError) {
+                console.error('❌ Erro específico do MentalIA:', mentalIAError);
+                return await this.getGoogleUserFallback();
+            }
             
         } catch (error) {
             console.error('❌ Erro ao obter usuário via MentalIA:', error.message);
@@ -238,7 +248,17 @@ class PremiumManager {
                 
             this.showLoading(loadingMsg);
             
-            const user = await this.getGoogleUser();
+            // 🔥 CORREÇÃO: Tratamento adicional para evitar erro undefined
+            let user = null;
+            try {
+                user = await this.getGoogleUser();
+            } catch (getUserError) {
+                console.error('❌ Erro ao obter usuário para checkout:', getUserError);
+                this.hideLoading();
+                this.showError('Problema ao verificar login. Tente recarregar a página.');
+                return;
+            }
+            
             if (!user) {
                 // Se não conseguiu o usuário, mostra opção de login
                 this.hideLoading();
@@ -407,7 +427,7 @@ class PremiumManager {
 
     async checkPremiumStatus() {
         try {
-            const user = await window.app.getGoogleUser();
+            const user = await this.getGoogleUser();
             if (!user) return false;
 
             // Verifica no IndexedDB local primeiro
@@ -532,8 +552,14 @@ class PremiumManager {
         if (premiumModal) {
             premiumModal.style.display = 'flex';
         } else {
-            // Se não existe modal, navega para página
-            window.location.href = '/premium.html';
+            // 🔥 CORREÇÃO: URL correta para GitHub Pages
+            const isGitHubPages = window.location.hostname.includes('github.io');
+            const premiumUrl = isGitHubPages ? 
+                `${window.location.origin}/MentalIA-3.1/premium.html` : 
+                './premium.html';
+            
+            console.log('🔄 Redirecionando para premium:', premiumUrl);
+            window.location.href = premiumUrl;
         }
     }
 

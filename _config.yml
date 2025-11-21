@@ -1,0 +1,50 @@
+# GitHub Pages Configuration for MentalIA-3.1
+# This file enables GitHub Pages to serve the site correctly
+
+# Basic configuration
+title: "MentalIA 3.1 - Cuidando da Sua Saúde Mental"
+description: "Aplicativo web inteligente para monitoramento e análise do bem-estar mental"
+baseurl: "/MentalIA-3.1"
+url: "https://dev-mjbs.github.io"
+
+# Build settings
+plugins:
+  - jekyll-relative-links
+
+# Enable relative links to become markdown links
+relative_links:
+  enabled: true
+  collections: true
+
+# Include files that start with underscores
+include:
+  - .env.example
+  - .gitignore
+
+# Exclude unnecessary files from the build
+exclude:
+  - node_modules/
+  - .cache/
+  - .tmp/
+  - .env
+  - functions/
+  - stripe-cli/
+  - README.md
+  - package*.json
+
+# Default layout
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "default"
+
+# GitHub Pages settings
+github:
+  repository_name: "MentalIA-3.1"
+  repository_url: "https://github.com/Dev-MJBS/MentalIA-3.1"
+
+# Site verification and SEO
+lang: pt-BR
+timezone: America/Sao_Paulo
