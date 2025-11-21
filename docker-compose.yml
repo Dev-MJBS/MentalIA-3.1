@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  mentalia:
+    build: .
+    ports:
+      - "3000:80"
+    container_name: mentalia-3.1
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Para desenvolvimento com hot reload (opcional)
+  mentalia-dev:
+    build: .
+    ports:
+      - "3001:80"
+    volumes:
+      - .:/usr/share/nginx/html:ro
+    container_name: mentalia-3.1-dev
+    profiles: ["dev"]
