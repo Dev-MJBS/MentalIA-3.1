@@ -22,7 +22,7 @@
     <script src="https://apis.google.com/js/api.js" async defer></script>
     
     <!-- CSS -->
-    <link rel="stylesheet" href="css/styles.css?v=1142">
+    <link rel="stylesheet" href="css/styles.css?v=1143">
     <link rel="stylesheet" href="css/pdf-addon.css">
     <link rel="stylesheet" href="css/auth-styles.css">
     <link rel="stylesheet" href="css/status-indicator.css">
@@ -31,7 +31,7 @@
     <!-- FIX TOQUE NO CELULAR + TOAST BONITO -->
     <style>
         *, *::before, *::after { -webkit-tap-highlight-color: transparent; }
-        button, .nav-btn, .btn-primary, .btn-login, [data-screen], 
+        button, .nav-btn, .btn-primary, .btn-login, [data-screen],
         .primary-feeling-btn, .expand-icon, .sub-feeling-item,
         #backup-data, #generate-report, #theme-toggle, #login-toggle {
             cursor: pointer !important;
@@ -42,15 +42,6 @@
             user-select: none;
         }
         html, body { touch-action: pan-x pan-y pinch-zoom; }
-        #toast-container {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 9999;
-        }
-        .toast { background: rgba(0,0,0,0.9); color: white; padding: 14px 24px; border-radius: 12px; margin: 8px; animation: fadeIn 0.4s; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>

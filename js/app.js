@@ -794,13 +794,53 @@ class MentalIA {
 
     // ===== UTILITIES =====
     showToast(message, type = 'info') {
-        const container = document.getElementById('toast-container') || document.body;
+        // Create toast container if it doesn't exist
+        let container = document.getElementById('toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toast-container';
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+        }
+
+        // Create toast element
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
-        toast.innerHTML = `<div class="toast-content">${message}</div>`;
+
+        // Add icon based on type
+        const iconMap = {
+            success: '✅',
+            error: '❌',
+            warning: '⚠️',
+            info: 'ℹ️'
+        };
+
+        toast.innerHTML = `
+            <div class="toast-content">
+                <span class="toast-icon">${iconMap[type] || iconMap.info}</span>
+                <span class="toast-message">${message}</span>
+                <button class="toast-close" onclick="this.parentElement.parentElement.remove()">×</button>
+            </div>
+        `;
+
+        // Add to container
         container.appendChild(toast);
 
-        setTimeout(() => toast.remove(), 4000);
+        // Trigger animation
+        setTimeout(() => toast.classList.add('toast-show'), 10);
+
+        // Auto remove after 4 seconds
+        setTimeout(() => {
+            toast.classList.remove('toast-show');
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.remove();
+                }
+            }, 300); // Wait for fade out animation
+        }, 4000);
+
+        // Return toast element for manual control if needed
+        return toast;
     }
 }
 
