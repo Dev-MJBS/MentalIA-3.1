@@ -15,7 +15,12 @@ async function criarAssinatura(plano) {
     }
     
     const session = await response.json();
-    const stripe = Stripe('pk_live_...'); // sua chave pública do Stripe
+    // Use a chave pública configurada na página ou fallback seguro
+    const stripeKey = window.STRIPE_PUBLIC_KEY || document.querySelector('meta[name="stripe-key"]')?.content;
+    if (!stripeKey || stripeKey.includes('YOUR_KEY_HERE')) {
+      throw new Error('Chave Stripe não configurada. Configure STRIPE_PUBLIC_KEY.');
+    }
+    const stripe = Stripe(stripeKey);
     
     await stripe.redirectToCheckout({ sessionId: session.id });
   } catch (error) {

@@ -1,25 +1,185 @@
 // js/premium.js - Sistema de Premium do MentalIA 3.1
 class PremiumManager {
     constructor() {
-        this.stripePublicKey = 'pk_test_SUA_CHAVE_PUBLICA_AQUI'; // Substituir pela chave real
+        this.stripePublicKey = window.STRIPE_PUBLIC_KEY || 'CONFIGURE_SUA_CHAVE_PUBLICA_STRIPE'; // Configure no .env
         this.stripe = null;
         this.plans = {
-            monthly: 'price_monthly_590', // ID do preço mensal no Stripe
-            annual: 'price_annual_4990'   // ID do preço anual no Stripe
+            monthly: 'price_1SW1Y1ABSqS06Hy4BElLP4ai', // ID do preço mensal no Stripe - R$ 5,90/mês
+            annual: 'price_1SW1YHABSqS06Hy4xDgkezV7'   // ID do preço anual no Stripe - R$ 49,90/ano
         };
         this.init();
     }
 
     async init() {
-        // Carrega Stripe SDK se não estiver carregado
-        if (!window.Stripe) {
-            await this.loadStripeSDK();
-        }
-        this.stripe = Stripe(this.stripePublicKey);
+        console.log('🚀 Inicializando PremiumManager...');
         
-        // Verifica status premium na inicialização
-        await this.checkPremiumStatus();
-        this.setupEventListeners();
+        try {
+            // Carrega Stripe SDK primeiro (independente do MentalIA)
+            if (!window.Stripe) {
+                console.log('📦 Carregando Stripe SDK...');
+                await this.loadStripeSDK();
+            }
+            this.stripe = Stripe(this.stripePublicKey);
+            console.log('✅ Stripe SDK carregado');
+            
+            // Setup básico sempre funciona
+            this.setupEventListeners();
+            console.log('✅ Event listeners configurados');
+            
+            // Aguarda MentalIA (sem bloquear se falhar)
+            const mentalIAReady = await this.waitForMentalIA();
+            
+            if (mentalIAReady) {
+                // Se MentalIA estiver pronto, verifica status premium
+                await this.checkPremiumStatus();
+                console.log('✅ Status premium verificado');
+            } else {
+                // Se MentalIA não estiver pronto, configura inicialização tardia
+                console.log('⏳ Configurando inicialização tardia...');
+                this.setupLateInitialization();
+            }
+            
+            console.log('✅ PremiumManager inicializado com sucesso!');
+            
+        } catch (error) {
+            console.error('❌ Erro na inicialização do Premium:', error);
+            // Não falha completamente, permite funcionalidade básica
+            this.setupEventListeners();
+            this.setupLateInitialization();
+        }
+    }
+    
+    // Configura inicialização tardia para quando MentalIA estiver pronto
+    setupLateInitialization() {
+        console.log('🔄 Configurando inicialização tardia...');
+        
+        // Verifica periodicamente se MentalIA ficou disponível
+        const checkInterval = setInterval(async () => {
+            if (window.mentalIA && typeof window.mentalIA.getGoogleUser === 'function') {
+                console.log('🎉 MentalIA agora disponível! Finalizando inicialização...');
+                clearInterval(checkInterval);
+                
+                try {
+                    await this.checkPremiumStatus();
+                    console.log('✅ Inicialização tardia concluída');
+                } catch (error) {
+                    console.error('❌ Erro na inicialização tardia:', error);
+                }
+            }
+        }, 500);
+        
+        // Para de verificar após 30 segundos
+        setTimeout(() => {
+            clearInterval(checkInterval);
+            console.log('⏱️ Timeout da inicialização tardia');
+        }, 30000);
+    }
+
+    async waitForMentalIA() {
+        console.log('🔄 Aguardando MentalIA inicializar...');
+        
+        let attempts = 0;
+        const maxAttempts = 100; // 10 segundos máximo
+        
+        while (attempts < maxAttempts) {
+            // Verifica se MentalIA existe e está inicializado
+            if (window.mentalIA && 
+                typeof window.mentalIA.getGoogleUser === 'function' &&
+                window.mentalIA.isInitialized !== false) {
+                console.log('✅ MentalIA carregado com sucesso!');
+                return true;
+            }
+            
+            // Verifica se DOM ainda está carregando
+            if (document.readyState !== 'complete') {
+                console.log('⏳ Aguardando DOM completar...');
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+            
+            // Log de progresso a cada segundo
+            if (attempts % 10 === 0) {
+                console.log(`⏳ Tentativa ${attempts}/${maxAttempts} - Aguardando MentalIA...`);
+            }
+        }
+        
+        console.warn('⚠️ MentalIA não foi carregado a tempo. Usando modo fallback.');
+        return false;
+    }
+
+    // Helper method to safely get Google user with multiple fallback strategies
+    async getGoogleUser() {
+        try {
+            console.log('🔍 Tentando obter usuário Google...');
+            
+            // Estratégia 1: Tentar aguardar MentalIA
+            if (!window.mentalIA) {
+                console.log('⏳ MentalIA não encontrado, aguardando...');
+                const mentalIAReady = await this.waitForMentalIA();
+                
+                if (!mentalIAReady) {
+                    // Estratégia 2: Fallback para auth direta
+                    return await this.getGoogleUserFallback();
+                }
+            }
+            
+            // Verifica se método existe
+            if (typeof window.mentalIA.getGoogleUser !== 'function') {
+                console.warn('⚠️ Método getGoogleUser não disponível, usando fallback');
+                return await this.getGoogleUserFallback();
+            }
+            
+            // Estratégia principal: usar MentalIA
+            const user = await window.mentalIA.getGoogleUser();
+            console.log('✅ Usuário obtido via MentalIA:', user ? user.email : 'não logado');
+            return user;
+            
+        } catch (error) {
+            console.error('❌ Erro ao obter usuário via MentalIA:', error.message);
+            
+            // Estratégia 3: Último fallback
+            try {
+                return await this.getGoogleUserFallback();
+            } catch (fallbackError) {
+                console.error('❌ Todos os métodos falharam:', fallbackError.message);
+                throw new Error('Não foi possível obter usuário. Tente recarregar a página.');
+            }
+        }
+    }
+    
+    // Método de fallback para obter usuário diretamente do localStorage ou auth
+    async getGoogleUserFallback() {
+        console.log('🔄 Usando método de fallback para obter usuário...');
+        
+        try {
+            // Verifica localStorage primeiro
+            const sessionData = localStorage.getItem('mentalia_session');
+            if (sessionData) {
+                const user = JSON.parse(sessionData);
+                if (user && user.email) {
+                    console.log('✅ Usuário obtido via localStorage:', user.email);
+                    return user;
+                }
+            }
+            
+            // Verifica se auth está disponível
+            if (window.mentalIA && window.mentalIA.auth && typeof window.mentalIA.auth.getCurrentUser === 'function') {
+                const user = await window.mentalIA.auth.getCurrentUser();
+                if (user) {
+                    console.log('✅ Usuário obtido via auth:', user.email);
+                    return user;
+                }
+            }
+            
+            // Sem usuário logado
+            console.log('ℹ️ Nenhum usuário logado encontrado');
+            return null;
+            
+        } catch (error) {
+            console.error('❌ Erro no fallback:', error);
+            return null;
+        }
     }
 
     async loadStripeSDK() {
@@ -60,13 +220,40 @@ class PremiumManager {
         });
     }
 
-    async startCheckout(plan) {
+    async startCheckout(plan, retryCount = 0) {
+        return this.startCheckoutInternal(plan, retryCount, false);
+    }
+    
+    async startTrialCheckout(plan = 'monthly', retryCount = 0) {
+        return this.startCheckoutInternal(plan, retryCount, true);
+    }
+    
+    async startCheckoutInternal(plan, retryCount = 0, isTrial = false) {
+        const maxRetries = 3;
+        
         try {
-            this.showLoading('Preparando pagamento...');
+            const loadingMsg = isTrial ? 
+                `Preparando teste grátis... ${retryCount > 0 ? `(Tentativa ${retryCount + 1})` : ''}` :
+                `Preparando pagamento... ${retryCount > 0 ? `(Tentativa ${retryCount + 1})` : ''}`;
+                
+            this.showLoading(loadingMsg);
             
-            const user = await window.app.getGoogleUser();
+            const user = await this.getGoogleUser();
             if (!user) {
-                throw new Error('Faça login com Google primeiro');
+                // Se não conseguiu o usuário, mostra opção de login
+                this.hideLoading();
+                this.showError('É necessário fazer login primeiro. Redirecionando...');
+                
+                // Tenta abrir tela de login se disponível
+                setTimeout(() => {
+                    if (window.mentalIA && typeof window.mentalIA.showScreen === 'function') {
+                        window.mentalIA.showScreen('welcome');
+                    } else {
+                        window.location.reload();
+                    }
+                }, 2000);
+                
+                return;
             }
 
             // Modo desenvolvimento - usa mock API
@@ -77,15 +264,31 @@ class PremiumManager {
                 
                 const mockResult = await window.mockStripeAPI.createCheckout(
                     this.plans[plan], 
-                    user.email
+                    user.email,
+                    isTrial
                 );
                 
                 this.hideLoading();
                 
                 // Simula sucesso após 2 segundos
                 setTimeout(() => {
-                    this.showSuccess('Checkout simulado! Ativando premium... 🎉');
-                    localStorage.setItem('mock_premium', 'true');
+                    if (isTrial) {
+                        this.showSuccess('Trial de 7 dias ativado! Bem-vindo ao Premium! 🎉');
+                        localStorage.setItem('mock_premium', 'true');
+                        localStorage.setItem('mock_trial', JSON.stringify({
+                            startDate: new Date().getTime(),
+                            endDate: new Date().getTime() + (7 * 24 * 60 * 60 * 1000),
+                            plan: plan
+                        }));
+                        
+                        // Dispatch trial activation event
+                        window.dispatchEvent(new CustomEvent('premiumActivated', {
+                            detail: { trial: true, plan: plan }
+                        }));
+                    } else {
+                        this.showSuccess('Checkout simulado! Ativando premium... 🎉');
+                        localStorage.setItem('mock_premium', 'true');
+                    }
                     this.checkPremiumStatus();
                 }, 2000);
                 
@@ -102,7 +305,9 @@ class PremiumManager {
                     priceId: this.plans[plan],
                     userId: user.email,
                     userEmail: user.email,
-                    userName: user.name
+                    userName: user.name,
+                    trial: isTrial,
+                    trialDays: isTrial ? 7 : 0
                 })
             });
 
@@ -125,8 +330,44 @@ class PremiumManager {
 
         } catch (error) {
             this.hideLoading();
-            this.showError('Erro no pagamento: ' + error.message);
             console.error('Checkout error:', error);
+            
+            // Se o erro é de inicialização e ainda temos tentativas
+            if (error.message.includes('MentalIA ainda não foi inicializado') && retryCount < maxRetries) {
+                console.log(`🔄 Tentando novamente em 2 segundos... (${retryCount + 1}/${maxRetries})`);
+                
+                this.showLoading('MentalIA carregando... Tentando novamente...');
+                
+                setTimeout(() => {
+                    this.hideLoading();
+                    if (isTrial) {
+                        this.startTrialCheckout(plan, retryCount + 1);
+                    } else {
+                        this.startCheckout(plan, retryCount + 1);
+                    }
+                }, 2000);
+                
+                return;
+            }
+            
+            // Erro final ou outros tipos de erro
+            let errorMessage = error.message;
+            
+            // Mensagens mais amigáveis
+            if (error.message.includes('MentalIA ainda não foi inicializado')) {
+                errorMessage = 'Sistema ainda carregando. Tente recarregar a página.';
+            } else if (error.message.includes('Não foi possível obter usuário')) {
+                errorMessage = 'Problema de conexão. Tente recarregar a página.';
+            }
+            
+            this.showError('Erro no pagamento: ' + errorMessage);
+            
+            // Oferece opção de recarregar página
+            setTimeout(() => {
+                if (confirm('Deseja recarregar a página para tentar novamente?')) {
+                    window.location.reload();
+                }
+            }, 3000);
         }
     }
 
@@ -134,7 +375,7 @@ class PremiumManager {
         try {
             this.showLoading('Abrindo gerenciamento...');
             
-            const user = await window.app.getGoogleUser();
+            const user = await this.getGoogleUser();
             if (!user) {
                 throw new Error('Faça login primeiro');
             }
@@ -300,9 +541,12 @@ class PremiumManager {
         this.showSuccess('Premium ativado com sucesso! 🎉');
         this.updatePremiumUI(true);
         
-        // Recarrega dados se necessário
-        if (window.app && window.app.refreshData) {
-            window.app.refreshData();
+        // Atualiza interface se necessário
+        if (window.mentalIA && typeof window.mentalIA.init === 'function') {
+            // Força recarregamento da interface
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
         }
     }
 
@@ -363,7 +607,7 @@ class PremiumManager {
 
     // Métodos utilitários para verificação premium
     async isPremium() {
-        const user = await window.app.getGoogleUser();
+        const user = await this.getGoogleUser();
         if (!user) return false;
         
         const status = await this.getLocalPremiumStatus(user.email);
@@ -381,8 +625,57 @@ class PremiumManager {
     }
 }
 
-// Inicializa o gerenciador premium
-window.premiumManager = new PremiumManager();
+// Sistema de inicialização inteligente do Premium
+(function() {
+    'use strict';
+    
+    console.log('🎯 Carregando sistema Premium...');
+    
+    // Função para inicializar premium de forma segura
+    async function initializePremium() {
+        try {
+            if (window.premiumManager) {
+                console.log('✅ PremiumManager já existe');
+                return;
+            }
+            
+            console.log('🚀 Criando PremiumManager...');
+            window.premiumManager = new PremiumManager();
+            console.log('✅ PremiumManager criado com sucesso');
+            
+        } catch (error) {
+            console.error('❌ Erro ao criar PremiumManager:', error);
+            
+            // Retry após 1 segundo
+            setTimeout(() => {
+                console.log('🔄 Tentando criar PremiumManager novamente...');
+                initializePremium();
+            }, 1000);
+        }
+    }
+    
+    // Estratégia 1: Se DOM já está pronto
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        console.log('📋 DOM já pronto, inicializando Premium...');
+        initializePremium();
+    } else {
+        // Estratégia 2: Aguardar DOM ficar pronto
+        console.log('⏳ Aguardando DOM ficar pronto...');
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('📋 DOM pronto, inicializando Premium...');
+            initializePremium();
+        });
+    }
+    
+    // Estratégia 3: Fallback com timeout
+    setTimeout(() => {
+        if (!window.premiumManager) {
+            console.log('⏰ Timeout - forçando inicialização Premium...');
+            initializePremium();
+        }
+    }, 2000);
+    
+})();
 
 // Export para uso em outros módulos
 if (typeof module !== 'undefined' && module.exports) {

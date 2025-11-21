@@ -29,7 +29,7 @@ app.get('/', (req, res) => {
 // Criar sessão de checkout Stripe
 app.post('/create-checkout', async (req, res) => {
     try {
-        const { priceId, userId, userEmail, userName } = req.body;
+        const { priceId, userId, userEmail, userName, trial, trialDays } = req.body;
 
         if (!priceId || !userId || !userEmail) {
             return res.status(400).json({ 
@@ -37,9 +37,10 @@ app.post('/create-checkout', async (req, res) => {
             });
         }
 
-        console.log('Criando checkout para:', { priceId, userEmail });
+        console.log('Criando checkout para:', { priceId, userEmail, trial, trialDays });
 
-        const session = await stripe.checkout.sessions.create({
+        // Configuração base da sessão
+        const sessionConfig = {
             mode: 'subscription',
             payment_method_types: ['card'],
             line_items: [{
@@ -53,7 +54,9 @@ app.post('/create-checkout', async (req, res) => {
             metadata: {
                 userId: userId,
                 userEmail: userEmail,
-                userName: userName || 'Usuário MentalIA'
+                userName: userName || 'Usuário MentalIA',
+                trial: trial ? 'true' : 'false',
+                trialDays: trialDays || '0'
             },
             subscription_data: {
                 metadata: {
@@ -62,7 +65,15 @@ app.post('/create-checkout', async (req, res) => {
                 }
             },
             locale: 'pt-BR'
-        });
+        };
+
+        // Adiciona trial se solicitado
+        if (trial && trialDays > 0) {
+            sessionConfig.subscription_data.trial_period_days = trialDays;
+            console.log(`Trial configurado: ${trialDays} dias`);
+        }
+
+        const session = await stripe.checkout.sessions.create(sessionConfig);
 
         console.log('Checkout criado:', session.id);
 
