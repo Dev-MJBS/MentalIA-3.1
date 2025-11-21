@@ -1830,6 +1830,47 @@ textarea:focus {
     background: white !important;
   }
 }
+
+/* FIX DEFINITIVO: Botões e toques no celular (Android/iOS) */
+*,
+*::before,
+*::after {
+  -webkit-tap-highlight-color: transparent; /* Remove destaque azul no Android */
+}
+
+button,
+.nav-btn,
+.primary-btn,
+.secondary-btn,
+.btn-primary,
+[data-screen],
+.primary-feeling-btn,
+.expand-icon,
+.sub-feeling-item,
+#backup-data,
+#generate-report,
+#theme-toggle {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Garante que área de toque seja grande o suficiente */
+button,
+.nav-btn,
+[data-screen],
+.primary-feeling-btn {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 12px 16px;
+}
+
+/* Remove qualquer bloqueio de toque que o navegador coloca */
+html, body {
+  touch-action: pan-x pan-y pinch-zoom;
+}
  
  / *   G o o g l e   D r i v e   B a c k u p   S t y l e s   * / 
  
@@ -2272,5 +2313,6 @@ textarea:focus {
          b o r d e r - r a d i u s :   1 2 p x ; 
          m a r g i n :   8 p x ; 
          a n i m a t i o n :   f a d e I n   0 . 3 s ; 
- }  
+ } 
+ 
  

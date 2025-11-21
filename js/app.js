@@ -24,7 +24,6 @@ class MentalIA {
 
         // Initialize components
         this.initTheme();
-        this.initNavigation();
         this.initChart();
         this.initPWA();
 
