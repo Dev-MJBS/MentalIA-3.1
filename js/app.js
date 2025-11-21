@@ -1817,6 +1817,38 @@ window.showScreen = function(screenName) {
 
 // Initialize app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
+    // Register service worker for PWA functionality
+    if ('serviceWorker' in navigator) {
+        console.log('🔧 Tentando registrar Service Worker...');
+        navigator.serviceWorker.register('sw.js')
+            .then(registration => {
+                console.log('✅ Service Worker registrado com sucesso:', registration.scope);
+                console.log('📊 Estado do SW:', registration.active ? 'Ativo' : 'Instalando');
+                
+                // Handle updates
+                registration.addEventListener('updatefound', () => {
+                    console.log('🔄 Update encontrado no Service Worker');
+                    const newWorker = registration.installing;
+                    if (newWorker) {
+                        newWorker.addEventListener('statechange', () => {
+                            console.log('🔄 Estado do SW mudou para:', newWorker.state);
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                // New version available
+                                console.log('🔄 Nova versão do Service Worker disponível');
+                                window.mentalIA?.showToast('Nova versão disponível! Recarregue a página.', 'info');
+                            }
+                        });
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('❌ Erro ao registrar Service Worker:', error);
+                console.error('❌ Detalhes do erro:', error.message);
+            });
+    } else {
+        console.warn('⚠️ Service Worker não suportado neste navegador');
+    }
+    
     // Initialize auth system first
     if (typeof AuthSystem !== 'undefined') {
         window.authSystem = new AuthSystem();
