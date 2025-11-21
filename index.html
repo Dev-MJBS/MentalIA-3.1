@@ -25,6 +25,9 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
     
+    <!-- Stripe SDK for Premium -->
+    <script src="https://js.stripe.com/v3/"></script>
+    
     <!-- Google One Tap Configuration -->
     <div id="g_id_onload"
          data-client_id="670002862076-ivoemo399amv728d61llbdqn3fbcr8tk.apps.googleusercontent.com"
@@ -38,6 +41,7 @@
     <link rel="stylesheet" href="css/auth-styles.css">
     <link rel="stylesheet" href="css/status-indicator.css">
     <link rel="stylesheet" href="css/interactive-styles.css?v=1142">
+    <link rel="stylesheet" href="css/premium-styles.css?v=1149">
 
     <!-- FIX TOQUE NO CELULAR + TOAST BONITO -->
     <style>
@@ -86,7 +90,16 @@
                         <span id="user-email"></span>
                         <span id="user-plan" class="plan-badge">Gratuito</span>
                     </div>
-                    <button id="logout-btn" class="btn-logout">Sair</button>
+                    <div class="user-actions">
+                        <!-- Botão Premium/Gerenciar -->
+                        <button id="premium-btn" class="btn-premium" data-show-premium>
+                            ✨ Premium
+                        </button>
+                        <button id="manage-subscription-btn" class="btn-manage hidden" data-manage-subscription>
+                            ⚙️ Gerenciar
+                        </button>
+                        <button id="logout-btn" class="btn-logout">Sair</button>
+                    </div>
                 </div>
                 
                 <button id="login-toggle" class="btn-login">Entrar</button>
@@ -775,6 +788,37 @@
                 🧠 Gerar Relatório de IA
             </button>
 
+            <!-- Premium Features -->
+            <div class="premium-features" data-free-only>
+                <div class="premium-prompt">
+                    <div class="premium-icon">✨</div>
+                    <div class="premium-text">
+                        <h4>Recursos Premium</h4>
+                        <ul>
+                            <li>🤖 IA Avançada (Claude, Gemini, MedGemma)</li>
+                            <li>📊 Relatórios em PDF profissionais</li>
+                            <li>☁️ Backup criptografado no Google Drive</li>
+                            <li>🎨 Temas exclusivos</li>
+                        </ul>
+                        <button class="btn-premium-upgrade" data-show-premium>
+                            Fazer Upgrade - R$ 5,90/mês
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Premium Report Actions -->
+            <div class="premium-actions" data-premium-only>
+                <div class="action-group">
+                    <button id="export-pdf" class="btn-secondary">
+                        📄 Exportar PDF
+                    </button>
+                    <button id="advanced-analysis" class="btn-secondary">
+                        🧠 Análise Avançada
+                    </button>
+                </div>
+            </div>
+
             <!-- Report Content -->
             <div id="report-content" class="report-content hidden">
                 <div class="report-header">
@@ -873,9 +917,11 @@
     <script src="js/debug.js?v=1141"></script>
     <script src="js/storage.js?v=1141"></script>                 <!-- 1º -->
     <script src="js/auth.js?v=1141"></script>
+    <script src="js/premium.js?v=1149"></script>                 <!-- Premium system -->
+    <script src="js/checkout.js?v=1149"></script>                <!-- Checkout functions -->
     <script src="js/ai_analysis.js?v=1148"></script>             <!-- 2º -->
     <script src="js/google_drive_backup.js?v=1141"></script>     <!-- 3º -->
-    <script src="js/app.js?v=1146"></script>                     <!-- 4º e último -->
+    <script src="js/app.js?v=1149"></script>                     <!-- 4º e último -->
 
     <!-- Service Worker + Inicialização Segura -->
     <script>

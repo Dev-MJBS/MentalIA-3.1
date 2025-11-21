@@ -8,6 +8,8 @@ class MentalIA {
         this.currentScreen = 'welcome';
         this.currentMood = 3.0;
         this.selectedFeelings = new Set();
+        this.currentUser = null;
+        this.isPremium = false;
         // setupEventListeners() will be called in init() after DOM is ready
     }
 
@@ -16,6 +18,9 @@ class MentalIA {
 
         // Check admin status and setup admin features
         this.initAdminFeatures();
+
+        // Initialize premium system
+        await this.initPremium();
 
         // Setup all event listeners AFTER DOM is ready
         this.setupEventListeners();
@@ -33,6 +38,112 @@ class MentalIA {
 
         console.log('✅ MentalIA 3.1 pronto!');
         this.showToast('MentalIA 3.1 carregado com sucesso! 🧠', 'success');
+    }
+
+    // ===== PREMIUM FEATURES =====
+    async initPremium() {
+        console.log('💎 Inicializando sistema Premium...');
+        
+        try {
+            // Verifica se o premium manager está disponível
+            if (window.premiumManager) {
+                this.isPremium = await window.premiumManager.isPremium();
+                console.log('💎 Status Premium:', this.isPremium);
+                
+                // Atualiza UI baseado no status premium
+                this.updatePremiumUI();
+                
+                // Escuta eventos de mudança de status premium
+                window.addEventListener('premiumActivated', () => {
+                    this.isPremium = true;
+                    this.updatePremiumUI();
+                    this.showToast('Premium ativado! Aproveite os recursos exclusivos! 🎉', 'success');
+                });
+            }
+        } catch (error) {
+            console.error('Erro ao inicializar Premium:', error);
+        }
+    }
+
+    updatePremiumUI() {
+        // Atualiza classe no body
+        document.body.classList.toggle('premium-user', this.isPremium);
+        
+        // Mostra/esconde elementos premium
+        const premiumOnlyElements = document.querySelectorAll('[data-premium-only]');
+        premiumOnlyElements.forEach(el => {
+            el.style.display = this.isPremium ? '' : 'none';
+        });
+
+        // Mostra/esconde elementos free
+        const freeOnlyElements = document.querySelectorAll('[data-free-only]');
+        freeOnlyElements.forEach(el => {
+            el.style.display = this.isPremium ? 'none' : '';
+        });
+
+        // Atualiza botões de upgrade
+        const upgradeButtons = document.querySelectorAll('[data-show-premium]');
+        upgradeButtons.forEach(btn => {
+            btn.style.display = this.isPremium ? 'none' : '';
+        });
+
+        // Remove watermarks se premium
+        if (this.isPremium) {
+            const watermarks = document.querySelectorAll('.mentalia-watermark');
+            watermarks.forEach(w => w.style.display = 'none');
+        }
+
+        console.log('💎 UI Premium atualizada. Status:', this.isPremium);
+    }
+
+    async requirePremium(feature = 'Esta funcionalidade') {
+        if (!this.isPremium) {
+            this.showToast(`${feature} está disponível apenas no Premium!`, 'warning');
+            
+            // Mostra opção de upgrade após 2 segundos
+            setTimeout(() => {
+                if (window.premiumManager) {
+                    window.premiumManager.showPremiumScreen();
+                }
+            }, 2000);
+            
+            return false;
+        }
+        return true;
+    }
+
+    // Método para obter usuário Google (usado pelo premium)
+    async getGoogleUser() {
+        // Se já temos o usuário cached, retorna
+        if (this.currentUser) {
+            return this.currentUser;
+        }
+
+        // Tenta obter do storage ou Google API
+        try {
+            // Implementar integração com Google OAuth aqui
+            // Por agora, simula um usuário para desenvolvimento
+            if (localStorage.getItem('google_user')) {
+                this.currentUser = JSON.parse(localStorage.getItem('google_user'));
+                return this.currentUser;
+            }
+            
+            // Se não tem usuário, retorna null (usuário precisa fazer login)
+            return null;
+            
+        } catch (error) {
+            console.error('Erro ao obter usuário Google:', error);
+            return null;
+        }
+    }
+
+    // Método para refresh de dados (usado pelo premium)
+    async refreshData() {
+        console.log('🔄 Refreshing data...');
+        await this.loadData();
+        if (this.chart) {
+            this.updateChart();
+        }
     }
 
     // ===== ADMIN FEATURES =====

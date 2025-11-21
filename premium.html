@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MentalIA Premium - Transforme sua Saúde Mental</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .premium-page {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .premium-header {
+            text-align: center;
+            padding: 2rem 1rem;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .premium-logo {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .premium-subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 2rem;
+        }
+
+        .premium-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        .benefits-section {
+            padding: 3rem 0;
+        }
+
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .benefit-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .benefit-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .benefit-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .benefit-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .benefit-description {
+            opacity: 0.9;
+            line-height: 1.5;
+        }
+
+        .pricing-section {
+            background: rgba(255,255,255,0.05);
+            padding: 3rem 0;
+            margin: 2rem 0;
+            border-radius: 24px;
+        }
+
+        .pricing-title {
+            text-align: center;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .pricing-subtitle {
+            text-align: center;
+            opacity: 0.8;
+            margin-bottom: 3rem;
+        }
+
+        .pricing-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .pricing-card {
+            background: white;
+            color: #333;
+            border-radius: 20px;
+            padding: 2.5rem 2rem;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .pricing-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.2);
+        }
+
+        .pricing-card.featured {
+            border: 3px solid #ffd700;
+            transform: scale(1.05);
+        }
+
+        .pricing-badge {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ffd700;
+            color: #333;
+            padding: 0.5rem 1.5rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .pricing-plan {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #667eea;
+        }
+
+        .pricing-price {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .pricing-currency {
+            font-size: 1.2rem;
+            opacity: 0.7;
+        }
+
+        .pricing-period {
+            opacity: 0.6;
+            margin-bottom: 2rem;
+        }
+
+        .pricing-features {
+            list-style: none;
+            padding: 0;
+            margin: 2rem 0;
+        }
+
+        .pricing-features li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .pricing-features li:last-child {
+            border-bottom: none;
+        }
+
+        .pricing-features li::before {
+            content: "✅";
+            margin-right: 0.5rem;
+        }
+
+        .pricing-button {
+            width: 100%;
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+        }
+
+        .pricing-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .faq-section {
+            padding: 3rem 0;
+        }
+
+        .faq-title {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .faq-item {
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        .faq-question {
+            padding: 1.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            border: none;
+            background: none;
+            color: white;
+            width: 100%;
+            text-align: left;
+            font-size: 1.1rem;
+        }
+
+        .faq-answer {
+            padding: 0 1.5rem 1.5rem;
+            opacity: 0.9;
+            line-height: 1.6;
+            display: none;
+        }
+
+        .faq-item.active .faq-answer {
+            display: block;
+        }
+
+        .back-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .back-button:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateX(-5px);
+        }
+
+        @media (max-width: 768px) {
+            .premium-logo {
+                font-size: 2rem;
+            }
+            
+            .pricing-title {
+                font-size: 2rem;
+            }
+            
+            .benefits-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .pricing-cards {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body class="premium-page">
+    <button class="back-button" onclick="window.history.back()">
+        ← Voltar
+    </button>
+
+    <header class="premium-header">
+        <div class="premium-container">
+            <h1 class="premium-logo">🧠 MentalIA Premium</h1>
+            <p class="premium-subtitle">Transforme sua jornada de autoconhecimento com recursos exclusivos</p>
+        </div>
+    </header>
+
+    <main class="premium-container">
+        <!-- Seção de Benefícios -->
+        <section class="benefits-section">
+            <div class="benefits-grid">
+                <div class="benefit-card">
+                    <div class="benefit-icon">☁️</div>
+                    <h3 class="benefit-title">Backup Criptografado</h3>
+                    <p class="benefit-description">Seus dados seguros no Google Drive com criptografia AES-256. Nunca perca seus registros de humor e diário.</p>
+                </div>
+
+                <div class="benefit-card">
+                    <div class="benefit-icon">🤖</div>
+                    <h3 class="benefit-title">IA Avançada</h3>
+                    <p class="benefit-description">Relatórios inteligentes com Claude, Gemini e MedGemma. Insights profundos sobre sua saúde mental.</p>
+                </div>
+
+                <div class="benefit-card">
+                    <div class="benefit-icon">🎨</div>
+                    <h3 class="benefit-title">Temas Exclusivos</h3>
+                    <p class="benefit-description">Personalize sua experiência com temas dark, light, azul, rosa e muito mais. Seu app, seu estilo.</p>
+                </div>
+
+                <div class="benefit-card">
+                    <div class="benefit-icon">📊</div>
+                    <h3 class="benefit-title">Relatórios em PDF</h3>
+                    <p class="benefit-description">Exporte relatórios profissionais em PDF para compartilhar com seu terapeuta ou médico.</p>
+                </div>
+
+                <div class="benefit-card">
+                    <div class="benefit-icon">✨</div>
+                    <h3 class="benefit-title">Sem Watermark</h3>
+                    <p class="benefit-description">Interface limpa, sem marcas d'água. Experiência premium completa em todos os recursos.</p>
+                </div>
+
+                <div class="benefit-card">
+                    <div class="benefit-icon">💬</div>
+                    <h3 class="benefit-title">Suporte VIP</h3>
+                    <p class="benefit-description">Atendimento prioritário por WhatsApp. Tire dúvidas e receba ajuda quando precisar.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Seção de Preços -->
+        <section class="pricing-section">
+            <h2 class="pricing-title">Escolha Seu Plano</h2>
+            <p class="pricing-subtitle">Invista no seu bem-estar mental com preços que cabem no seu bolso</p>
+            
+            <div class="pricing-cards">
+                <div class="pricing-card">
+                    <h3 class="pricing-plan">Mensal</h3>
+                    <div class="pricing-price">
+                        R$ <span class="pricing-currency">5,90</span>
+                    </div>
+                    <p class="pricing-period">por mês</p>
+                    
+                    <ul class="pricing-features">
+                        <li>Backup criptografado no Google Drive</li>
+                        <li>Relatórios com IA avançada</li>
+                        <li>Todos os temas exclusivos</li>
+                        <li>Exportar PDF profissional</li>
+                        <li>Interface sem watermark</li>
+                        <li>Suporte prioritário no WhatsApp</li>
+                    </ul>
+                    
+                    <button class="pricing-button" data-premium-plan="monthly">
+                        Começar Agora
+                    </button>
+                </div>
+
+                <div class="pricing-card featured">
+                    <div class="pricing-badge">Mais Popular</div>
+                    <h3 class="pricing-plan">Anual</h3>
+                    <div class="pricing-price">
+                        R$ <span class="pricing-currency">49,90</span>
+                    </div>
+                    <p class="pricing-period">por ano • <strong style="color: #4CAF50;">Economize 30%</strong></p>
+                    
+                    <ul class="pricing-features">
+                        <li>Backup criptografado no Google Drive</li>
+                        <li>Relatórios com IA avançada</li>
+                        <li>Todos os temas exclusivos</li>
+                        <li>Exportar PDF profissional</li>
+                        <li>Interface sem watermark</li>
+                        <li>Suporte prioritário no WhatsApp</li>
+                        <li><strong>2 meses grátis!</strong></li>
+                    </ul>
+                    
+                    <button class="pricing-button" data-premium-plan="annual">
+                        Economizar 30%
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- FAQ -->
+        <section class="faq-section">
+            <h2 class="faq-title">Perguntas Frequentes</h2>
+            
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFAQ(this)">
+                    Como funciona o backup criptografado?
+                </button>
+                <div class="faq-answer">
+                    Seus dados são criptografados com AES-256 antes de serem enviados para o Google Drive. Nem nós nem o Google conseguimos ler seus dados pessoais.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFAQ(this)">
+                    Posso cancelar a qualquer momento?
+                </button>
+                <div class="faq-answer">
+                    Sim! Você pode cancelar sua assinatura a qualquer momento sem taxas. Seus dados premium ficam ativos até o final do período pago.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFAQ(this)">
+                    Quais formas de pagamento aceitas?
+                </button>
+                <div class="faq-answer">
+                    Aceitamos cartão de crédito e débito (Visa, Mastercard, Elo). Em breve também teremos PIX disponível.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFAQ(this)">
+                    Meus dados ficam seguros?
+                </button>
+                <div class="faq-answer">
+                    Totalmente! Usamos criptografia de ponta a ponta, seus dados ficam apenas no seu dispositivo e no seu Google Drive pessoal. Somos 100% privados.
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question" onclick="toggleFAQ(this)">
+                    Como funciona o suporte prioritário?
+                </button>
+                <div class="faq-answer">
+                    Usuários premium têm acesso direto ao WhatsApp do desenvolvedor para dúvidas, sugestões e suporte técnico prioritário.
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/premium.js"></script>
+    <script>
+        function toggleFAQ(button) {
+            const item = button.parentElement;
+            const isActive = item.classList.contains('active');
+            
+            // Fecha todos os outros FAQs
+            document.querySelectorAll('.faq-item').forEach(faq => {
+                faq.classList.remove('active');
+            });
+            
+            // Abre o clicado se não estava ativo
+            if (!isActive) {
+                item.classList.add('active');
+            }
+        }
+
+        // Verifica se usuário já é premium
+        window.addEventListener('DOMContentLoaded', async () => {
+            if (window.premiumManager) {
+                const isPremium = await window.premiumManager.isPremium();
+                
+                if (isPremium) {
+                    // Usuário já é premium, mostra opção de gerenciar
+                    const buttons = document.querySelectorAll('.pricing-button');
+                    buttons.forEach(btn => {
+                        btn.textContent = 'Gerenciar Assinatura';
+                        btn.setAttribute('data-manage-subscription', 'true');
+                        btn.removeAttribute('data-premium-plan');
+                    });
+                }
+            }
+        });
+
+        // Trata parâmetros de sucesso/cancelamento
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        if (urlParams.get('premium') === 'success') {
+            // Checkout bem-sucedido
+            setTimeout(() => {
+                if (window.premiumManager) {
+                    window.premiumManager.showSuccess('Premium ativado com sucesso! Bem-vindo ao MentalIA Premium! 🎉');
+                    // Verifica status após 2 segundos
+                    setTimeout(() => {
+                        window.premiumManager.checkPremiumStatus();
+                    }, 2000);
+                }
+            }, 1000);
+        } else if (urlParams.get('premium') === 'cancelled') {
+            // Checkout cancelado
+            setTimeout(() => {
+                if (window.premiumManager) {
+                    window.premiumManager.showError('Pagamento cancelado. Que tal tentar novamente? 😊');
+                }
+            }, 1000);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,355 @@
+/* Premium System Styles for MentalIA 3.1 */
+
+/* Premium Badge */
+.plan-badge {
+    background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+    color: #333;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-left: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.plan-badge.premium {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+/* Premium Buttons */
+.btn-premium {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    margin-right: 0.5rem;
+}
+
+.btn-premium:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-manage {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    margin-right: 0.5rem;
+}
+
+.btn-manage:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.btn-premium-upgrade {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+    margin-top: 1rem;
+    font-size: 1rem;
+}
+
+.btn-premium-upgrade:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* User Actions Layout */
+.user-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Premium Features Prompt */
+.premium-features {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    border: 2px solid rgba(102, 126, 234, 0.2);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    backdrop-filter: blur(10px);
+}
+
+.premium-prompt {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.premium-icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+}
+
+.premium-text h4 {
+    margin: 0 0 1rem 0;
+    color: var(--text-color);
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.premium-text ul {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1rem 0;
+}
+
+.premium-text li {
+    padding: 0.25rem 0;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+/* Premium Actions */
+.premium-actions {
+    margin: 1rem 0;
+}
+
+.action-group {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.action-group .btn-secondary {
+    flex: 1;
+    min-width: 150px;
+}
+
+/* Premium Loading */
+.premium-loading {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.loading-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+}
+
+.loading-content {
+    background: var(--bg-secondary);
+    padding: 2rem;
+    border-radius: 16px;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(102, 126, 234, 0.2);
+    border-left: 4px solid #667eea;
+    border-radius: 50%;
+    animation: premium-spin 1s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes premium-spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-content p {
+    margin: 0;
+    color: var(--text-color);
+    font-weight: 500;
+}
+
+/* Premium Toasts */
+.premium-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 0;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    z-index: 9999;
+    max-width: 350px;
+    animation: premium-toast-in 0.3s ease-out;
+}
+
+.premium-toast-success {
+    border-left: 4px solid #4CAF50;
+}
+
+.premium-toast-error {
+    border-left: 4px solid #f44336;
+}
+
+.premium-toast-info {
+    border-left: 4px solid #2196F3;
+}
+
+.toast-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+}
+
+.toast-icon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.toast-message {
+    flex: 1;
+    color: var(--text-color);
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+.toast-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.toast-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+}
+
+@keyframes premium-toast-in {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Premium Body Class Modifiers */
+.premium-user .mentalia-watermark {
+    display: none !important;
+}
+
+.premium-user .plan-badge {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.premium-user .plan-badge::after {
+    content: ' Premium';
+}
+
+/* Hide/Show Elements Based on Premium Status */
+[data-premium-only] {
+    display: none;
+}
+
+.premium-user [data-premium-only] {
+    display: block;
+}
+
+.premium-user [data-free-only] {
+    display: none;
+}
+
+/* Premium Modal (if needed) */
+#premium-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 1rem;
+}
+
+.premium-modal-content {
+    background: var(--bg-primary);
+    border-radius: 20px;
+    max-width: 500px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .premium-prompt {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .action-group {
+        flex-direction: column;
+    }
+    
+    .action-group .btn-secondary {
+        min-width: auto;
+    }
+    
+    .premium-toast {
+        right: 10px;
+        left: 10px;
+        max-width: none;
+    }
+    
+    .user-actions {
+        flex-wrap: wrap;
+        gap: 0.25rem;
+    }
+    
+    .btn-premium,
+    .btn-manage {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.8rem;
+    }
+}
