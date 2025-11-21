@@ -1,8 +1,10 @@
-# Arquivos de credenciais e secrets
-client_secret_*.json
-*.json
+# Arquivos de credenciais e secrets (reais)
+client_secret_*-*.json
 credentials.json
 config.json
+
+# Permitir arquivos de exemplo
+!client_secret_EXEMPLO.json
 
 # Logs
 *.log
