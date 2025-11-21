@@ -1,11 +1,18 @@
 steps:
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/mentalia:latest', '.']
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/mentalia:latest'
+      - '.'
+    dir: '.'  # Força raiz do repo
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/$PROJECT_ID/mentalia:latest']
 
 images:
   - 'gcr.io/$PROJECT_ID/mentalia:latest'
+
+timeout: 600s  # 10 min max
 
 options:
   default_logs_bucket_behavior: REGIONAL_USER_OWNED_BUCKET
