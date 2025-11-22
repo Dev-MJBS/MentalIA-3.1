@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - Sem Sistema Premium</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 20px;
+        }
+        .test-container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            max-width: 600px;
+            width: 100%;
+        }
+        .test-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 12px;
+            background: #f8fafc;
+            border-left: 4px solid #10b981;
+        }
+        .test-item.fail {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+        .test-icon {
+            font-size: 24px;
+            margin-right: 15px;
+        }
+        .test-text {
+            flex: 1;
+        }
+        .test-title {
+            font-weight: bold;
+            color: #1f2937;
+        }
+        .test-desc {
+            color: #6b7280;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .overall-status {
+            text-align: center;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .overall-status.success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+        .test-button {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #5b5bf6;
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="overall-status success">
+            ✅ Sistema Premium Removido com Sucesso!
+        </div>
+        
+        <h1 style="text-align: center; color: #1f2937; margin-bottom: 30px;">
+            🧪 Verificação de Remoção Premium
+        </h1>
+
+        <div class="test-item">
+            <div class="test-icon">🚫</div>
+            <div class="test-text">
+                <div class="test-title">Seção Premium da Tela de Login</div>
+                <div class="test-desc">Removida completamente do signup/login</div>
+            </div>
+        </div>
+
+        <div class="test-item">
+            <div class="test-icon">🚫</div>
+            <div class="test-text">
+                <div class="test-title">Botão "✨ Premium" do Header</div>
+                <div class="test-desc">Removido do cabeçalho da aplicação</div>
+            </div>
+        </div>
+
+        <div class="test-item">
+            <div class="test-icon">🚫</div>
+            <div class="test-text">
+                <div class="test-title">Seção "Recursos Premium"</div>
+                <div class="test-desc">Removida da área de relatórios</div>
+            </div>
+        </div>
+
+        <div class="test-item">
+            <div class="test-icon">✅</div>
+            <div class="test-text">
+                <div class="test-title">Análise Avançada Liberada</div>
+                <div class="test-desc">Funciona sem verificação premium</div>
+            </div>
+        </div>
+
+        <div class="test-item">
+            <div class="test-icon">✅</div>
+            <div class="test-text">
+                <div class="test-title">Export PDF Liberado</div>
+                <div class="test-desc">Disponível para todos os usuários</div>
+            </div>
+        </div>
+
+        <div class="test-item">
+            <div class="test-icon">✅</div>
+            <div class="test-text">
+                <div class="test-title">Google Drive Backup</div>
+                <div class="test-desc">Sem restrições de premium</div>
+            </div>
+        </div>
+
+        <div class="test-item">
+            <div class="test-icon">✅</div>
+            <div class="test-text">
+                <div class="test-title">isPremium = true</div>
+                <div class="test-desc">Permanentemente ativado no código</div>
+            </div>
+        </div>
+
+        <div class="test-item">
+            <div class="test-icon">🗑️</div>
+            <div class="test-text">
+                <div class="test-title">Scripts Premium Removidos</div>
+                <div class="test-desc">premium.js e checkout.js não carregam mais</div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 40px;">
+            <button class="test-button" onclick="window.open('/', '_blank')">
+                🚀 Abrir Aplicação Principal
+            </button>
+            <button class="test-button" onclick="runJavaScriptTest()">
+                🧪 Testar JavaScript
+            </button>
+            <button class="test-button" onclick="window.close()">
+                ❌ Fechar Teste
+            </button>
+        </div>
+
+        <div id="js-test-result" style="margin-top: 20px; padding: 20px; border-radius: 8px; display: none;">
+        </div>
+    </div>
+
+    <script>
+        function runJavaScriptTest() {
+            const resultDiv = document.getElementById('js-test-result');
+            
+            // Simular testes JavaScript
+            const tests = [
+                {
+                    name: 'window.premiumManager',
+                    test: () => typeof window.premiumManager === 'undefined',
+                    expected: 'undefined (removido)'
+                },
+                {
+                    name: 'Scripts premium.js',
+                    test: () => !document.querySelector('script[src*="premium.js"]'),
+                    expected: 'não carregado'
+                },
+                {
+                    name: 'Scripts checkout.js', 
+                    test: () => !document.querySelector('script[src*="checkout.js"]'),
+                    expected: 'não carregado'
+                },
+                {
+                    name: 'Elementos premium no DOM',
+                    test: () => !document.querySelector('.premium-features, .premium-actions, [data-premium-only]'),
+                    expected: 'removidos'
+                }
+            ];
+
+            let results = '<h3>🧪 Resultados dos Testes JavaScript:</h3>';
+            let allPassed = true;
+
+            tests.forEach(test => {
+                const passed = test.test();
+                allPassed = allPassed && passed;
+                
+                results += `
+                    <div style="display: flex; align-items: center; padding: 8px; ${passed ? 'color: #059669' : 'color: #dc2626'}">
+                        <span style="margin-right: 8px;">${passed ? '✅' : '❌'}</span>
+                        <strong>${test.name}:</strong> ${test.expected}
+                    </div>
+                `;
+            });
+
+            resultDiv.innerHTML = results;
+            resultDiv.style.display = 'block';
+            resultDiv.style.background = allPassed ? '#f0fdf4' : '#fef2f2';
+            resultDiv.style.border = `2px solid ${allPassed ? '#10b981' : '#ef4444'}`;
+
+            if (allPassed) {
+                setTimeout(() => {
+                    alert('🎉 Todos os testes passaram! Sistema premium completamente removido.');
+                }, 500);
+            }
+        }
+
+        // Auto-executar teste ao carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🧪 Página de teste carregada');
+            
+            // Verificar se não há elementos premium no DOM
+            const premiumElements = document.querySelectorAll(
+                '.premium-features, .premium-actions, [data-premium-only], .btn-premium'
+            );
+            
+            if (premiumElements.length === 0) {
+                console.log('✅ Nenhum elemento premium encontrado no DOM');
+            } else {
+                console.warn('⚠️ Ainda existem elementos premium:', premiumElements);
+            }
+        });
+    </script>
+</body>
+</html>

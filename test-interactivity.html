@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Interatividade - MentalIA</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Teste de Interatividade MentalIA 3.1</h1>
+    
+    <div class="test-section">
+        <h2>🎚️ Teste 1: Slider Mood</h2>
+        <p>Teste se o slider tem event listeners funcionais e atualiza a cor dinamicamente</p>
+        <button onclick="testMoodSlider()">Testar Slider</button>
+        <div id="slider-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>▼ Teste 2: Setas de Expansão</h2>
+        <p>Teste se as setas expandem/colapsam os painéis de sub-sentimentos</p>
+        <button onclick="testExpandIcons()">Testar Setas</button>
+        <div id="expand-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📝 Teste 3: Textarea Diário</h2>
+        <p>Teste se o contador de caracteres e auto-resize funcionam</p>
+        <button onclick="testDiaryTextarea()">Testar Diário</button>
+        <div id="diary-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔄 Teste Completo</h2>
+        <button onclick="runAllTests()">Executar Todos os Testes</button>
+        <div id="complete-results"></div>
+    </div>
+
+    <script>
+        function addResult(containerId, message, type = 'success') {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.textContent = message;
+            container.appendChild(div);
+        }
+
+        function clearResults(containerId) {
+            document.getElementById(containerId).innerHTML = '';
+        }
+
+        function testMoodSlider() {
+            clearResults('slider-results');
+            
+            try {
+                const slider = document.getElementById('mood-slider');
+                if (!slider) {
+                    addResult('slider-results', '❌ Slider #mood-slider não encontrado na página principal', 'error');
+                    addResult('slider-results', 'ℹ️ Abra o index.html para testar', 'warning');
+                    return;
+                }
+
+                // Test event listeners
+                const hasInputListener = slider.onchange !== null || slider.oninput !== null;
+                addResult('slider-results', hasInputListener ? '✅ Event listeners detectados' : '⚠️ Event listeners não detectados visualmente', hasInputListener ? 'success' : 'warning');
+
+                // Test CSS variable
+                const computedStyle = getComputedStyle(document.documentElement);
+                const moodColor = computedStyle.getPropertyValue('--current-mood-color').trim();
+                addResult('slider-results', moodColor ? `✅ Cor dinâmica definida: ${moodColor}` : '⚠️ Cor dinâmica não definida', moodColor ? 'success' : 'warning');
+
+                addResult('slider-results', '✅ Teste do slider concluído', 'success');
+            } catch (error) {
+                addResult('slider-results', `❌ Erro no teste: ${error.message}`, 'error');
+            }
+        }
+
+        function testExpandIcons() {
+            clearResults('expand-results');
+            
+            try {
+                const expandIcons = document.querySelectorAll('.expand-icon');
+                if (expandIcons.length === 0) {
+                    addResult('expand-results', '❌ Nenhuma seta .expand-icon encontrada na página principal', 'error');
+                    addResult('expand-results', 'ℹ️ Abra o index.html para testar', 'warning');
+                    return;
+                }
+
+                addResult('expand-results', `✅ Encontradas ${expandIcons.length} setas de expansão`, 'success');
+
+                const primaryCards = document.querySelectorAll('.primary-feeling-card');
+                addResult('expand-results', `✅ Encontrados ${primaryCards.length} cards de sentimentos`, 'success');
+
+                const subPanels = document.querySelectorAll('.sub-feelings-panel');
+                addResult('expand-results', `✅ Encontrados ${subPanels.length} painéis de sub-sentimentos`, 'success');
+
+                addResult('expand-results', '✅ Teste das setas concluído', 'success');
+            } catch (error) {
+                addResult('expand-results', `❌ Erro no teste: ${error.message}`, 'error');
+            }
+        }
+
+        function testDiaryTextarea() {
+            clearResults('diary-results');
+            
+            try {
+                const textarea = document.getElementById('diary-entry');
+                if (!textarea) {
+                    addResult('diary-results', '❌ Textarea #diary-entry não encontrada na página principal', 'error');
+                    addResult('diary-results', 'ℹ️ Abra o index.html para testar', 'warning');
+                    return;
+                }
+
+                // Test event listeners
+                const hasInputListener = textarea.onchange !== null || textarea.oninput !== null;
+                addResult('diary-results', hasInputListener ? '✅ Event listeners detectados' : '⚠️ Event listeners não detectados visualmente', hasInputListener ? 'success' : 'warning');
+
+                // Check char counter
+                const charCounter = document.querySelector('.char-count');
+                addResult('diary-results', charCounter ? '✅ Contador de caracteres encontrado' : '⚠️ Contador de caracteres não encontrado', charCounter ? 'success' : 'warning');
+
+                addResult('diary-results', '✅ Teste do diário concluído', 'success');
+            } catch (error) {
+                addResult('diary-results', `❌ Erro no teste: ${error.message}`, 'error');
+            }
+        }
+
+        function runAllTests() {
+            clearResults('complete-results');
+            addResult('complete-results', '🚀 Executando todos os testes...', 'warning');
+            
+            setTimeout(() => {
+                testMoodSlider();
+                testExpandIcons();
+                testDiaryTextarea();
+                addResult('complete-results', '✅ Todos os testes concluídos', 'success');
+                
+                if (window.location.pathname.includes('test-interactivity')) {
+                    addResult('complete-results', 'ℹ️ Para testes completos, abra o index.html principal', 'warning');
+                }
+            }, 100);
+        }
+
+        // Auto-run tests on load
+        window.addEventListener('load', () => {
+            setTimeout(runAllTests, 500);
+        });
+    </script>
+</body>
+</html>

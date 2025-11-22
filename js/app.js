@@ -9,7 +9,7 @@ class MentalIA {
         this.currentMood = 3.0;
         this.selectedFeelings = new Set();
         this.currentUser = null;
-        this.isPremium = false;
+        this.isPremium = true; // Todos os recursos gratuitos
         // setupEventListeners() will be called in init() after DOM is ready
     }
 
@@ -42,27 +42,11 @@ class MentalIA {
 
     // ===== PREMIUM FEATURES =====
     async initPremium() {
-        console.log('💎 Inicializando sistema Premium...');
+        console.log('💎 Todos os recursos liberados gratuitamente!');
         
-        try {
-            // Verifica se o premium manager está disponível
-            if (window.premiumManager) {
-                this.isPremium = await window.premiumManager.isPremium();
-                console.log('💎 Status Premium:', this.isPremium);
-                
-                // Atualiza UI baseado no status premium
-                this.updatePremiumUI();
-                
-                // Escuta eventos de mudança de status premium
-                window.addEventListener('premiumActivated', () => {
-                    this.isPremium = true;
-                    this.updatePremiumUI();
-                    this.showToast('Premium ativado! Aproveite os recursos exclusivos! 🎉', 'success');
-                });
-            }
-        } catch (error) {
-            console.error('Erro ao inicializar Premium:', error);
-        }
+        // Definir como premium permanentemente (todos os recursos gratuitos)
+        this.isPremium = true;
+        this.updatePremiumUI();
     }
 
     updatePremiumUI() {
@@ -96,21 +80,7 @@ class MentalIA {
         console.log('💎 UI Premium atualizada. Status:', this.isPremium);
     }
 
-    async requirePremium(feature = 'Esta funcionalidade') {
-        if (!this.isPremium) {
-            this.showToast(`${feature} está disponível apenas no Premium!`, 'warning');
-            
-            // Mostra opção de upgrade após 2 segundos
-            setTimeout(() => {
-                if (window.premiumManager) {
-                    window.premiumManager.showPremiumScreen();
-                }
-            }, 2000);
-            
-            return false;
-        }
-        return true;
-    }
+    // Função removida - todos os recursos são gratuitos
 
     // Método para obter usuário Google (usado pelo premium)
     async getGoogleUser() {
@@ -144,6 +114,26 @@ class MentalIA {
         if (this.chart) {
             this.updateChart();
         }
+    }
+
+    // ===== STORAGE INITIALIZATION =====
+    async ensureStorageReady() {
+        console.log('🗄️ Verificando storage...');
+        
+        // Wait for storage to be available
+        let attempts = 0;
+        while (!window.mentalStorage && attempts < 50) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+        }
+        
+        if (!window.mentalStorage) {
+            throw new Error('Storage não disponível após aguardar');
+        }
+        
+        // Ensure storage is initialized
+        await window.mentalStorage.ensureInitialized();
+        console.log('✅ Storage pronto e inicializado');
     }
 
     // ===== ADMIN FEATURES =====
@@ -385,17 +375,6 @@ class MentalIA {
         advancedAnalysisBtn?.addEventListener('click', async () => {
             console.log('🧠 Análise avançada clicada!');
             
-            // Verificar se é premium/admin
-            if (!this.isPremium && !this.checkAdminStatus()) {
-                this.showToast('Análise avançada disponível apenas no Premium!', 'warning');
-                setTimeout(() => {
-                    if (window.premiumManager) {
-                        window.premiumManager.showPremiumScreen();
-                    }
-                }, 1500);
-                return;
-            }
-            
             try {
                 this.showToast('🤖 Gerando análise avançada...', 'info');
                 
@@ -414,17 +393,6 @@ class MentalIA {
         
         exportPdfBtn?.addEventListener('click', async () => {
             console.log('📄 Export PDF clicado!');
-            
-            // Verificar se é premium/admin
-            if (!this.isPremium && !this.checkAdminStatus()) {
-                this.showToast('Export PDF disponível apenas no Premium!', 'warning');
-                setTimeout(() => {
-                    if (window.premiumManager) {
-                        window.premiumManager.showPremiumScreen();
-                    }
-                }, 1500);
-                return;
-            }
             
             try {
                 this.showToast('📄 Gerando PDF...', 'info');
@@ -566,7 +534,13 @@ class MentalIA {
                 this.updateMoodValue(currentValue);
             };
 
-            slider.addEventListener('input', this.handleSliderInput);
+            // Event listener principal para input contínuo
+            slider.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                this.updateMoodValue(value);
+                console.log('🎚️ Slider input:', value);
+            });
+            
             slider.addEventListener('change', this.handleSliderChange);
             
             // Touch events with improved handling
@@ -642,16 +616,30 @@ class MentalIA {
     initFeelingsWheel() {
         console.log('🎭 Inicializando feelings wheel...');
 
-        // Primary feeling cards
+        // Primary feeling cards with expand icons
         const primaryCards = document.querySelectorAll('.primary-feeling-card');
         console.log('🎭 Primary feeling cards encontrados:', primaryCards.length);
 
         primaryCards.forEach((card, index) => {
             const header = card.querySelector('.primary-feeling-btn');
-            console.log(`🎭 Card ${index}:`, !!header, header);
+            const expandIcon = card.querySelector('.expand-icon');
+            
+            console.log(`🎭 Card ${index}:`, !!header, !!expandIcon);
+            
             if (header) {
-                header.addEventListener('click', () => {
+                header.addEventListener('click', (e) => {
+                    e.preventDefault();
                     console.log(`🎭 Primary card clicado:`, card);
+                    this.toggleFeelingCategory(card);
+                });
+            }
+            
+            // Event listener específico para a seta de expansão
+            if (expandIcon) {
+                expandIcon.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log(`🎭 Expand icon clicado:`, card);
                     this.toggleFeelingCategory(card);
                 });
             }
@@ -693,14 +681,23 @@ class MentalIA {
     toggleFeelingCategory(card) {
         const wasExpanded = card.classList.contains('expanded');
         const icon = card.querySelector('.expand-icon');
+        const subPanel = card.querySelector('.sub-feelings-panel');
+
+        console.log('🎭 Toggle category:', { wasExpanded, hasIcon: !!icon, hasPanel: !!subPanel });
 
         // Close all other categories
         document.querySelectorAll('.primary-feeling-card').forEach(c => {
-            c.classList.remove('expanded');
-            const otherIcon = c.querySelector('.expand-icon');
-            if (otherIcon) {
-                otherIcon.textContent = '▼';
-                otherIcon.style.transform = 'rotate(0deg)';
+            if (c !== card) {
+                c.classList.remove('expanded');
+                const otherIcon = c.querySelector('.expand-icon');
+                const otherPanel = c.querySelector('.sub-feelings-panel');
+                if (otherIcon) {
+                    otherIcon.textContent = '▼';
+                    otherIcon.style.transform = 'rotate(0deg)';
+                }
+                if (otherPanel) {
+                    otherPanel.style.display = 'none';
+                }
             }
         });
 
@@ -711,13 +708,21 @@ class MentalIA {
                 icon.textContent = '▼';
                 icon.style.transform = 'rotate(0deg)';
             }
+            if (subPanel) {
+                subPanel.style.display = 'none';
+            }
         } else {
             card.classList.add('expanded');
             if (icon) {
                 icon.textContent = '▲';
                 icon.style.transform = 'rotate(180deg)';
             }
+            if (subPanel) {
+                subPanel.style.display = 'block';
+            }
         }
+        
+        console.log('🎭 Category toggled:', card.classList.contains('expanded'));
     }
 
     updateSelectedFeelings() {
@@ -798,17 +803,26 @@ class MentalIA {
     // ===== DIARY TEXTAREA =====
     initDiaryTextarea() {
         const textarea = document.getElementById('diary-entry');
-        if (!textarea) return;
+        if (!textarea) {
+            console.warn('⚠️ Textarea diary-entry não encontrado');
+            return;
+        }
 
-        // Character counter
-        textarea.addEventListener('input', () => {
-            this.updateCharCount(textarea.value.length);
+        console.log('📝 Inicializando diary textarea...');
+
+        // Character counter and auto-resize
+        textarea.addEventListener('input', (e) => {
+            const length = e.target.value.length;
+            this.updateCharCount(length);
             this.autoResizeTextarea(textarea);
+            console.log('📝 Diary input:', length, 'chars');
         });
 
         // Initial setup
-        this.updateCharCount(0);
+        this.updateCharCount(textarea.value.length);
         this.autoResizeTextarea(textarea);
+        
+        console.log('✅ Diary textarea inicializado');
     }
 
     updateCharCount(count) {
@@ -816,12 +830,56 @@ class MentalIA {
         if (!counter) {
             // Create counter if it doesn't exist
             const textarea = document.getElementById('diary-entry');
-            if (textarea) {
+            if (textarea && textarea.parentNode) {
                 counter = document.createElement('div');
                 counter.className = 'char-count';
+                counter.style.cssText = `
+                    font-size: 0.8rem;
+                    color: var(--text-secondary);
+                    text-align: right;
+                    margin-top: 0.5rem;
+                    opacity: 0.7;
+                `;
                 textarea.parentNode.appendChild(counter);
             }
         }
+        
+        if (counter) {
+            const maxChars = 2000;
+            counter.textContent = `${count}/${maxChars} caracteres`;
+            
+            // Color coding based on character count
+            if (count > maxChars * 0.9) {
+                counter.style.color = 'var(--danger)';
+            } else if (count > maxChars * 0.75) {
+                counter.style.color = 'var(--warning)';
+            } else {
+                counter.style.color = 'var(--text-secondary)';
+            }
+        }
+    }
+    
+    autoResizeTextarea(textarea) {
+        if (!textarea) return;
+        
+        // Reset height to auto to get the correct scrollHeight
+        textarea.style.height = 'auto';
+        
+        // Set height based on content, with min and max constraints
+        const minHeight = 120; // minimum height in pixels
+        const maxHeight = 400; // maximum height in pixels
+        const scrollHeight = textarea.scrollHeight;
+        
+        const newHeight = Math.max(minHeight, Math.min(maxHeight, scrollHeight));
+        textarea.style.height = newHeight + 'px';
+        
+        // Add scrollbar if content exceeds max height
+        if (scrollHeight > maxHeight) {
+            textarea.style.overflowY = 'auto';
+        } else {
+            textarea.style.overflowY = 'hidden';
+        }
+    }
 
         if (counter) {
             counter.textContent = `${count} caracteres`;
@@ -841,7 +899,7 @@ class MentalIA {
         try {
             // Validate data
             if (this.currentMood < 1 || this.currentMood > 5) {
-                throw new Error('Humor inválido');
+                throw new Error('Humor inválido: ' + this.currentMood);
             }
 
             // Prepare data
@@ -851,16 +909,25 @@ class MentalIA {
                 feelings: Array.from(this.selectedFeelings),
                 diary: document.getElementById('diary-entry')?.value?.trim() || '',
                 timestamp: new Date().toISOString(),
+                date: new Date().toDateString(),
                 version: '3.1'
             };
 
-            // Save to encrypted storage
-            if (window.mentalStorage) {
-                await window.mentalStorage.saveMoodEntry(moodData);
-                console.log('✅ Dados salvos criptografados');
-            } else {
-                throw new Error('Sistema de armazenamento não disponível');
+            console.log('📊 Dados para salvar:', {
+                id: moodData.id,
+                mood: moodData.mood,
+                feelingsCount: moodData.feelings.length,
+                diaryLength: moodData.diary.length
+            });
+
+            // Ensure storage is ready
+            if (!window.mentalStorage) {
+                await this.ensureStorageReady();
             }
+
+            // Save to encrypted storage
+            const result = await window.mentalStorage.saveMoodEntry(moodData);
+            console.log('✅ Dados salvos criptografados:', result);
 
             // Success feedback
             this.showToast('Humor registrado com sucesso! 🎉', 'success');
@@ -897,17 +964,29 @@ class MentalIA {
         try {
             console.log('📊 Carregando dados do storage...');
 
+            // Ensure storage is ready
             if (!window.mentalStorage) {
-                console.error('❌ Storage não disponível');
-                return;
+                console.log('🔄 Aguardando storage...');
+                await this.ensureStorageReady();
             }
 
+            console.log('📊 Buscando entradas...');
             const entries = await window.mentalStorage.getAllMoodEntries();
+            console.log('📊 Calculando estatísticas...');
             const stats = await window.mentalStorage.getStats();
 
             console.log('📊 Dados carregados:', {
                 entriesCount: entries?.length || 0,
-                stats: stats
+                firstEntry: entries?.[0] ? {
+                    id: entries[0].id,
+                    mood: entries[0].mood,
+                    date: entries[0].date
+                } : null,
+                stats: {
+                    total: stats?.totalEntries || 0,
+                    average: stats?.averageMood || 0,
+                    streak: stats?.streak || 0
+                }
             });
 
             this.updateStats(stats);
@@ -917,11 +996,18 @@ class MentalIA {
             console.log('✅ Dados carregados e exibidos');
         } catch (error) {
             console.error('❌ Erro ao carregar dados:', error);
+            console.error('❌ Stack trace:', error.stack);
             this.showToast('Erro ao carregar dados: ' + error.message, 'error');
+            
+            // Show empty state if no data
+            this.updateStats({ totalEntries: 0, averageMood: 0, streak: 0 });
+            this.updateChart([]);
+            this.updateRecentEntries([]);
         }
     }
 
     updateStats(stats) {
+        console.log('📊 Atualizando estatísticas:', stats);
         const elements = {
             'avg-mood': stats?.averageMood?.toFixed(1) || '0.0',
             'total-entries': stats?.totalEntries || 0,
@@ -930,8 +1016,84 @@ class MentalIA {
 
         Object.entries(elements).forEach(([id, value]) => {
             const el = document.getElementById(id);
-            if (el) el.textContent = value;
+            if (el) {
+                el.textContent = value;
+                console.log(`📊 Atualizado ${id}: ${value}`);
+            } else {
+                console.warn(`⚠️ Elemento não encontrado: ${id}`);
+            }
         });
+    }
+
+    updateChart(entries) {
+        console.log('📈 Atualizando gráfico com', entries?.length || 0, 'entradas');
+        
+        // Se não há entradas, mostrar estado vazio
+        if (!entries || entries.length === 0) {
+            const chartContainer = document.querySelector('.chart-container');
+            if (chartContainer) {
+                chartContainer.innerHTML = '<div class="empty-chart">📊 Nenhum dado para exibir</div>';
+            }
+            return;
+        }
+
+        // Implementação básica do gráfico pode ser adicionada aqui
+        // Por enquanto, apenas log para debug
+        console.log('📈 Primeiras 3 entradas para gráfico:', entries.slice(0, 3));
+    }
+
+    updateRecentEntries(entries) {
+        console.log('📅 Atualizando entradas recentes:', entries?.length || 0);
+        const container = document.getElementById('recent-entries');
+        if (!container) {
+            console.warn('⚠️ Container recent-entries não encontrado');
+            return;
+        }
+
+        // Limpar container
+        container.innerHTML = '';
+
+        // Se não há entradas, mostrar estado vazio
+        if (!entries || entries.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <h3>📝 Nenhum registro ainda</h3>
+                    <p>Registre seu primeiro humor para ver o histórico aqui!</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Mostrar últimas 5 entradas
+        const recentEntries = entries.slice(0, 5);
+        recentEntries.forEach(entry => {
+            const entryEl = document.createElement('div');
+            entryEl.className = 'recent-entry';
+            
+            const moodEmoji = this.getMoodEmoji(entry.mood);
+            const feelingsText = entry.feelings.length > 0 
+                ? entry.feelings.slice(0, 3).join(', ') + (entry.feelings.length > 3 ? '...' : '')
+                : 'Nenhum sentimento selecionado';
+            
+            entryEl.innerHTML = `
+                <div class="entry-date">${new Date(entry.timestamp).toLocaleDateString('pt-BR')}</div>
+                <div class="entry-mood">${moodEmoji} ${entry.mood.toFixed(1)}</div>
+                <div class="entry-feelings">${feelingsText}</div>
+                ${entry.diary ? `<div class="entry-diary">"${entry.diary.substring(0, 100)}${entry.diary.length > 100 ? '...' : ''}"</div>` : ''}
+            `;
+            
+            container.appendChild(entryEl);
+        });
+
+        console.log('✅ Entradas recentes atualizadas');
+    }
+
+    getMoodEmoji(mood) {
+        if (mood <= 1.5) return '😢';
+        if (mood <= 2.5) return '😕';
+        if (mood <= 3.5) return '😐';
+        if (mood <= 4.5) return '😊';
+        return '😁';
     }
 
     initChart() {
@@ -948,12 +1110,14 @@ class MentalIA {
 
         if (!ctx) {
             console.error('❌ Canvas do gráfico não encontrado!');
-            return;
+            this.showChartFallback();
+            return false;
         }
 
         if (typeof Chart === 'undefined') {
             console.error('❌ Chart.js não carregado!');
-            return;
+            this.showChartFallback();
+            return false;
         }
 
         try {
@@ -969,11 +1133,13 @@ class MentalIA {
                         borderWidth: 3,
                         pointBackgroundColor: '#6366f1',
                         pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2,
-                        pointRadius: 6,
-                        pointHoverRadius: 8,
+                        pointBorderWidth: 3,
+                        pointRadius: 7,
+                        pointHoverRadius: 10,
+                        pointHoverBorderWidth: 4,
                         tension: 0.4,
-                        fill: true
+                        fill: true,
+                        cubicInterpolationMode: 'monotone'
                     }]
                 },
                 options: {
@@ -983,18 +1149,31 @@ class MentalIA {
                         intersect: false,
                         mode: 'index'
                     },
+                    elements: {
+                        point: {
+                            hoverBorderWidth: 4
+                        }
+                    },
                     plugins: {
-                        legend: { display: false },
+                        legend: { 
+                            display: false 
+                        },
                         tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            backgroundColor: 'rgba(26, 26, 46, 0.95)',
                             titleColor: '#ffffff',
                             bodyColor: '#ffffff',
+                            borderColor: '#6366f1',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            displayColors: false,
                             callbacks: {
                                 title: function(context) {
-                                    return 'Data: ' + context[0].label;
+                                    return '📅 ' + context[0].label;
                                 },
                                 label: function(context) {
-                                    return 'Humor: ' + context.parsed.y + '/5';
+                                    const value = context.parsed.y;
+                                    const emoji = value <= 1.5 ? '😢' : value <= 2.5 ? '😕' : value <= 3.5 ? '😐' : value <= 4.5 ? '😊' : '😁';
+                                    return `${emoji} Humor: ${value.toFixed(1)}/5`;
                                 }
                             }
                         }
@@ -1032,58 +1211,82 @@ class MentalIA {
                         if (chart.data.datasets[0].data.length === 0) {
                             const { ctx, chartArea: { left, top, right, bottom, width, height } } = chart;
 
-                            // Draw demo line with sample points
+                            // Draw background gradient
                             ctx.save();
-                            ctx.strokeStyle = 'rgba(99, 102, 241, 0.4)';
+                            const gradient = ctx.createLinearGradient(left, top, left, bottom);
+                            gradient.addColorStop(0, 'rgba(99, 102, 241, 0.05)');
+                            gradient.addColorStop(1, 'rgba(99, 102, 241, 0.02)');
+                            ctx.fillStyle = gradient;
+                            ctx.fillRect(left, top, width, height);
+
+                            // Draw demo line with sample points
+                            ctx.strokeStyle = 'rgba(99, 102, 241, 0.3)';
                             ctx.lineWidth = 3;
-                            ctx.setLineDash([8, 4]);
+                            ctx.setLineDash([10, 5]);
                             
-                            // Create a curved demo line
+                            // Create a more realistic mood curve
                             const points = [
-                                { x: left + width * 0.1, y: top + height * 0.7 },
-                                { x: left + width * 0.3, y: top + height * 0.5 },
-                                { x: left + width * 0.5, y: top + height * 0.3 },
-                                { x: left + width * 0.7, y: top + height * 0.4 },
-                                { x: left + width * 0.9, y: top + height * 0.2 }
+                                { x: left + width * 0.1, y: top + height * 0.8 },  // Low mood
+                                { x: left + width * 0.25, y: top + height * 0.6 }, // Improving
+                                { x: left + width * 0.4, y: top + height * 0.3 },  // Good mood
+                                { x: left + width * 0.55, y: top + height * 0.4 }, // Slight dip
+                                { x: left + width * 0.7, y: top + height * 0.25 }, // Very good
+                                { x: left + width * 0.85, y: top + height * 0.35 } // Stable
                             ];
                             
                             ctx.beginPath();
                             ctx.moveTo(points[0].x, points[0].y);
                             for (let i = 1; i < points.length; i++) {
-                                const cp1x = points[i-1].x + (points[i].x - points[i-1].x) * 0.3;
+                                const cp1x = points[i-1].x + (points[i].x - points[i-1].x) * 0.4;
                                 const cp1y = points[i-1].y;
-                                const cp2x = points[i].x - (points[i].x - points[i-1].x) * 0.3;
+                                const cp2x = points[i].x - (points[i].x - points[i-1].x) * 0.4;
                                 const cp2y = points[i].y;
                                 ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, points[i].x, points[i].y);
                             }
                             ctx.stroke();
                             
-                            // Draw sample points
-                            ctx.fillStyle = 'rgba(99, 102, 241, 0.6)';
-                            points.forEach(point => {
+                            // Draw sample points with gradient
+                            points.forEach((point, index) => {
+                                const pointGradient = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, 6);
+                                pointGradient.addColorStop(0, '#6366f1');
+                                pointGradient.addColorStop(1, 'rgba(99, 102, 241, 0.6)');
+                                ctx.fillStyle = pointGradient;
                                 ctx.beginPath();
-                                ctx.arc(point.x, point.y, 4, 0, 2 * Math.PI);
+                                ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI);
                                 ctx.fill();
+                                
+                                // Add white border
+                                ctx.strokeStyle = '#ffffff';
+                                ctx.lineWidth = 2;
+                                ctx.setLineDash([]);
+                                ctx.stroke();
                             });
+                            
                             ctx.restore();
 
-                            // Draw main placeholder text
+                            // Draw main placeholder text with better styling
                             ctx.save();
-                            ctx.fillStyle = 'rgba(99, 102, 241, 0.8)';
-                            ctx.font = 'bold 18px Arial, sans-serif';
+                            ctx.fillStyle = '#6366f1';
+                            ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
                             ctx.textAlign = 'center';
                             ctx.textBaseline = 'middle';
-                            ctx.fillText('📊 Registre seu primeiro humor', left + width / 2, top + height / 2 - 40);
+                            ctx.fillText('📊 Registre seu primeiro humor', left + width / 2, top + height / 2 - 35);
                             
                             // Draw subtitle
-                            ctx.fillStyle = 'rgba(107, 114, 128, 0.8)';
-                            ctx.font = '14px Arial, sans-serif';
-                            ctx.fillText('Seu gráfico de progresso emocional aparecerá aqui', left + width / 2, top + height / 2 - 15);
+                            ctx.fillStyle = 'rgba(107, 114, 128, 0.9)';
+                            ctx.font = '15px system-ui, -apple-system, sans-serif';
+                            ctx.fillText('Seu gráfico de progresso emocional aparecerá aqui', left + width / 2, top + height / 2 - 8);
                             
                             // Draw call to action
-                            ctx.fillStyle = 'rgba(99, 102, 241, 0.6)';
-                            ctx.font = '12px Arial, sans-serif';
-                            ctx.fillText('👆 Clique em "Humor" para começar', left + width / 2, top + height / 2 + 10);
+                            ctx.fillStyle = 'rgba(99, 102, 241, 0.7)';
+                            ctx.font = '13px system-ui, -apple-system, sans-serif';
+                            ctx.fillText('👆 Clique em "Registrar Humor" para começar', left + width / 2, top + height / 2 + 18);
+                            
+                            // Draw small help text
+                            ctx.fillStyle = 'rgba(107, 114, 128, 0.6)';
+                            ctx.font = '11px system-ui, -apple-system, sans-serif';
+                            ctx.fillText('Os últimos 30 registros aparecerão neste gráfico', left + width / 2, top + height / 2 + 38);
+                            
                             ctx.restore();
                         }
                     }
@@ -1110,46 +1313,119 @@ class MentalIA {
         }
 
         if (!entries || !Array.isArray(entries) || entries.length === 0) {
-            console.log('📊 Nenhum dado para exibir no gráfico');
+            console.log('📊 Nenhum dado para exibir no gráfico - mostrando fallback');
             this.chart.data.labels = [];
             this.chart.data.datasets[0].data = [];
-            this.chart.update('none');
+            this.chart.update('none'); // No animation for empty state
             return;
         }
 
         try {
             // Sort entries by date (oldest first for chart)
-            const sortedEntries = entries.sort((a, b) =>
-                new Date(a.timestamp) - new Date(b.timestamp)
-            );
-
-            // Take last 30 days or all if less
-            const recentEntries = sortedEntries.slice(-30);
-
-            // Create labels and data
-            const labels = recentEntries.map(entry => {
-                const date = new Date(entry.timestamp);
-                return date.toLocaleDateString('pt-BR', {
-                    month: 'short',
-                    day: 'numeric'
-                });
+            const sortedEntries = entries.sort((a, b) => {
+                const dateA = new Date(a.timestamp || a.date);
+                const dateB = new Date(b.timestamp || b.date);
+                return dateA - dateB;
             });
 
-            const data = recentEntries.map(entry => parseFloat(entry.mood) || 0);
+            // Take last 30 entries or all if less
+            const recentEntries = sortedEntries.slice(-30);
 
-            console.log('📊 Labels:', labels);
-            console.log('📊 Data:', data);
+            // Create labels with better date formatting
+            const labels = recentEntries.map(entry => {
+                const date = new Date(entry.timestamp || entry.date);
+                
+                // Handle invalid dates
+                if (isNaN(date.getTime())) {
+                    console.warn('⚠️ Data inválida encontrada:', entry);
+                    return 'Data inválida';
+                }
+                
+                const now = new Date();
+                const diffTime = Math.abs(now - date);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                // Show different formats based on how recent the date is
+                if (diffDays === 0) {
+                    return 'Hoje';
+                } else if (diffDays === 1) {
+                    return 'Ontem';
+                } else if (diffDays <= 7) {
+                    return date.toLocaleDateString('pt-BR', { weekday: 'short' });
+                } else {
+                    return date.toLocaleDateString('pt-BR', {
+                        month: 'short',
+                        day: 'numeric'
+                    });
+                }
+            });
+
+            // Process mood data with validation
+            const data = recentEntries.map(entry => {
+                const mood = parseFloat(entry.mood);
+                if (isNaN(mood) || mood < 1 || mood > 5) {
+                    console.warn('⚠️ Valor de humor inválido:', entry.mood, 'na entrada:', entry);
+                    return 3; // Default to neutral mood
+                }
+                return Math.round(mood * 10) / 10; // Round to 1 decimal place
+            });
+
+            console.log('📊 Labels:', labels.slice(0, 5), '... (total:', labels.length, ')');
+            console.log('📊 Data:', data.slice(0, 5), '... (total:', data.length, ')');
 
             // Update chart data
             this.chart.data.labels = labels;
             this.chart.data.datasets[0].data = data;
 
-            // Update chart
-            this.chart.update();
+            // Update chart with smooth animation
+            this.chart.update('active');
 
-            console.log('✅ Gráfico atualizado com sucesso');
+            console.log('✅ Gráfico atualizado com', data.length, 'pontos de dados');
+            
+            // Show success toast for significant updates
+            if (data.length >= 5 && data.length % 5 === 0) {
+                this.showToast(`📊 Gráfico atualizado com ${data.length} registros!`, 'success', 3000);
+            }
+            
         } catch (error) {
             console.error('❌ Erro ao atualizar gráfico:', error);
+            this.showToast('Erro ao atualizar gráfico: ' + error.message, 'error');
+        }
+    }
+    
+    // Helper function for when chart canvas is not available
+    showChartFallback() {
+        const chartContainer = document.querySelector('.chart-container') || 
+                              document.querySelector('#mood-chart')?.parentElement;
+        
+        if (chartContainer) {
+            chartContainer.innerHTML = `
+                <div class="chart-fallback" style="
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    height: 300px;
+                    background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(99, 102, 241, 0.02));
+                    border-radius: 12px;
+                    border: 2px dashed rgba(99, 102, 241, 0.2);
+                    text-align: center;
+                    padding: 20px;
+                ">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
+                    <h3 style="color: #6366f1; margin-bottom: 0.5rem;">Gráfico Não Disponível</h3>
+                    <p style="color: rgba(107, 114, 128, 0.9); margin-bottom: 1rem;">Chart.js não foi carregado ou canvas não encontrado</p>
+                    <button onclick="location.reload()" style="
+                        background: #6366f1;
+                        color: white;
+                        border: none;
+                        padding: 8px 16px;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 0.9rem;
+                    ">Recarregar Página</button>
+                </div>
+            `;
         }
     }
 
@@ -1198,7 +1474,7 @@ class MentalIA {
             // 🔥 CORREÇÃO: Tratar caso sem dados de forma amigável
             if (!entries?.length) {
                 this.displayEmptyReport();
-                this.showToast('📝 Adicione alguns registros de humor para gerar um relatório completo!', 'info');
+                this.showToast('📝 Adicione alguns registros de humor para gerar um relatório completo!', 'info', 6000);
                 return;
             }
 
@@ -1445,7 +1721,7 @@ class MentalIA {
     }
 
     // ===== UTILITIES =====
-    showToast(message, type = 'info') {
+    showToast(message, type = 'info', duration = 5000) {
         // Create toast container if it doesn't exist
         let container = document.getElementById('toast-container');
         if (!container) {
@@ -1458,41 +1734,205 @@ class MentalIA {
         // Create toast element
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
+        
+        // Unique ID for each toast
+        const toastId = 'toast-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        toast.id = toastId;
 
         // Add icon based on type
         const iconMap = {
             success: '✅',
             error: '❌',
             warning: '⚠️',
-            info: 'ℹ️'
+            info: '💬'
         };
 
         toast.innerHTML = `
             <div class="toast-content">
                 <span class="toast-icon">${iconMap[type] || iconMap.info}</span>
                 <span class="toast-message">${message}</span>
-                <button class="toast-close" onclick="this.parentElement.parentElement.remove()">×</button>
+                <button class="toast-close" aria-label="Fechar mensagem">×</button>
+                <div class="toast-progress"></div>
             </div>
+            <div class="toast-swipe-indicator">← Arraste para dispensar</div>
         `;
 
-        // Add to container
-        container.appendChild(toast);
+        // Add to container (newest on top)
+        container.insertBefore(toast, container.firstChild);
 
-        // Trigger animation
-        setTimeout(() => toast.classList.add('toast-show'), 10);
+        // Setup drag functionality and other interactions
+        this.setupToastInteractions(toast, duration);
 
-        // Auto remove after 4 seconds
-        setTimeout(() => {
-            toast.classList.remove('toast-show');
-            setTimeout(() => {
-                if (toast.parentElement) {
-                    toast.remove();
-                }
-            }, 300); // Wait for fade out animation
-        }, 4000);
+        // Trigger show animation
+        requestAnimationFrame(() => {
+            toast.classList.add('toast-show');
+        });
 
-        // Return toast element for manual control if needed
+        console.log('💬 Toast exibido:', { message, type, id: toastId });
         return toast;
+    }
+
+    setupToastInteractions(toast, duration) {
+        let startX = 0;
+        let currentX = 0;
+        let isDragging = false;
+        let autoRemoveTimer = null;
+        let progressTimer = null;
+        
+        const progressBar = toast.querySelector('.toast-progress');
+        const closeBtn = toast.querySelector('.toast-close');
+        const swipeIndicator = toast.querySelector('.toast-swipe-indicator');
+        
+        // Progress bar animation
+        if (progressBar && duration > 0) {
+            progressBar.style.animationDuration = duration + 'ms';
+        }
+        
+        // Auto remove timer
+        if (duration > 0) {
+            autoRemoveTimer = setTimeout(() => {
+                this.removeToast(toast);
+            }, duration);
+        }
+        
+        // Close button
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (autoRemoveTimer) clearTimeout(autoRemoveTimer);
+            this.removeToast(toast);
+        });
+        
+        // Touch/Mouse drag events
+        const startDrag = (e) => {
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            startX = clientX;
+            currentX = clientX;
+            isDragging = true;
+            
+            toast.classList.add('toast-dragging');
+            swipeIndicator.style.opacity = '1';
+            
+            // Pause auto-remove while dragging
+            if (autoRemoveTimer) {
+                clearTimeout(autoRemoveTimer);
+                autoRemoveTimer = null;
+            }
+            
+            e.preventDefault();
+        };
+        
+        const doDrag = (e) => {
+            if (!isDragging) return;
+            
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            currentX = clientX;
+            const deltaX = currentX - startX;
+            
+            // Only allow left swipe (negative delta)
+            if (deltaX <= 0) {
+                const opacity = Math.max(0.3, 1 + deltaX / 200);
+                toast.style.transform = `translateX(${deltaX}px)`;
+                toast.style.opacity = opacity;
+                
+                // Show swipe progress
+                const swipeProgress = Math.min(100, Math.abs(deltaX) / 2);
+                swipeIndicator.style.background = `linear-gradient(90deg, 
+                    rgba(255,0,0,0.3) 0%, 
+                    rgba(255,0,0,0.3) ${swipeProgress}%, 
+                    transparent ${swipeProgress}%)`;
+            }
+        };
+        
+        const endDrag = (e) => {
+            if (!isDragging) return;
+            
+            const deltaX = currentX - startX;
+            isDragging = false;
+            
+            toast.classList.remove('toast-dragging');
+            swipeIndicator.style.opacity = '0';
+            
+            // If swiped far enough (more than 100px), remove
+            if (deltaX < -100) {
+                toast.style.transform = 'translateX(-100%)';
+                toast.style.opacity = '0';
+                setTimeout(() => this.removeToast(toast), 200);
+            } else {
+                // Snap back
+                toast.style.transform = 'translateX(0)';
+                toast.style.opacity = '1';
+                
+                // Resume auto-remove timer if duration was set
+                if (duration > 0) {
+                    const remainingTime = duration * 0.7; // Give some extra time
+                    autoRemoveTimer = setTimeout(() => {
+                        this.removeToast(toast);
+                    }, remainingTime);
+                }
+            }
+            
+            swipeIndicator.style.background = '';
+        };
+        
+        // Mouse events
+        toast.addEventListener('mousedown', startDrag);
+        document.addEventListener('mousemove', doDrag);
+        document.addEventListener('mouseup', endDrag);
+        
+        // Touch events
+        toast.addEventListener('touchstart', startDrag, { passive: false });
+        toast.addEventListener('touchmove', doDrag, { passive: false });
+        toast.addEventListener('touchend', endDrag);
+        
+        // Hover pause
+        toast.addEventListener('mouseenter', () => {
+            if (autoRemoveTimer) {
+                clearTimeout(autoRemoveTimer);
+                autoRemoveTimer = null;
+            }
+            progressBar?.style.setProperty('animation-play-state', 'paused');
+        });
+        
+        toast.addEventListener('mouseleave', () => {
+            if (duration > 0 && !isDragging) {
+                const remainingTime = duration * 0.5;
+                autoRemoveTimer = setTimeout(() => {
+                    this.removeToast(toast);
+                }, remainingTime);
+            }
+            progressBar?.style.setProperty('animation-play-state', 'running');
+        });
+        
+        // Clean up function
+        toast._cleanup = () => {
+            if (autoRemoveTimer) clearTimeout(autoRemoveTimer);
+            if (progressTimer) clearTimeout(progressTimer);
+            
+            // Remove event listeners
+            document.removeEventListener('mousemove', doDrag);
+            document.removeEventListener('mouseup', endDrag);
+        };
+    }
+    
+    removeToast(toast) {
+        if (!toast || !toast.parentElement) return;
+        
+        // Clean up timers and events
+        if (toast._cleanup) {
+            toast._cleanup();
+        }
+        
+        // Animate out
+        toast.classList.remove('toast-show');
+        toast.classList.add('toast-hide');
+        
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.remove();
+            }
+        }, 300);
+        
+        console.log('💬 Toast removido:', toast.id);
     }
 
     // 🔥 CORREÇÃO: Função para exibir relatório quando não há dados

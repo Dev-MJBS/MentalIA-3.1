@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - Gráficos MentalIA 3.1</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Teste dos Gráficos</h1>
+        
+        <div class="chart-container">
+            <h3>Gráfico Vazio (deve mostrar fallback)</h3>
+            <canvas id="chart-empty" width="400" height="200"></canvas>
+        </div>
+        
+        <div class="chart-container">
+            <h3>Gráfico com Dados</h3>
+            <canvas id="chart-data" width="400" height="200"></canvas>
+        </div>
+        
+        <div class="controls">
+            <button onclick="clearData()">🗑️ Limpar Dados</button>
+            <button onclick="addSampleData()">➕ Adicionar Dados</button>
+            <button onclick="updateCharts()">🔄 Atualizar Gráficos</button>
+        </div>
+        
+        <div class="status-panel">
+            <h3>Status dos Gráficos</h3>
+            <div id="status"></div>
+        </div>
+    </div>
+
+    <script src="js/storage.js"></script>
+    <script>
+        let charts = {};
+        
+        // Função para criar gráfico vazio
+        function createEmptyChart() {
+            const ctx = document.getElementById('chart-empty').getContext('2d');
+            
+            // Configuração para gráfico vazio
+            charts.empty = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Humor',
+                        data: [],
+                        borderColor: 'rgba(99, 102, 241, 1)',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 5,
+                            display: false
+                        },
+                        x: {
+                            display: false
+                        }
+                    },
+                    // Plugin personalizado para fallback
+                    plugins: [{
+                        beforeDraw: function(chart) {
+                            if (chart.data.datasets[0].data.length === 0) {
+                                const ctx = chart.ctx;
+                                const width = chart.width;
+                                const height = chart.height;
+                                
+                                ctx.save();
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'middle';
+                                ctx.fillStyle = 'rgba(99, 102, 241, 0.6)';
+                                ctx.font = '16px Arial';
+                                ctx.fillText('📈 Registre seu primeiro humor', width / 2, height / 2 - 10);
+                                ctx.font = '12px Arial';
+                                ctx.fillStyle = 'rgba(99, 102, 241, 0.4)';
+                                ctx.fillText('Seus dados aparecerão aqui', width / 2, height / 2 + 20);
+                                ctx.restore();
+                            }
+                        }
+                    }]
+                }
+            });
+        }
+        
+        // Função para criar gráfico com dados
+        function createDataChart() {
+            const ctx = document.getElementById('chart-data').getContext('2d');
+            
+            // Dados de exemplo
+            const sampleData = [
+                { date: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000), mood: 3 },
+                { date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), mood: 4 },
+                { date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), mood: 2 },
+                { date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), mood: 5 },
+                { date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), mood: 3 },
+                { date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), mood: 4 },
+                { date: new Date(), mood: 4 }
+            ];
+            
+            charts.data = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sampleData.map(entry => 
+                        entry.date.toLocaleDateString('pt-BR', { 
+                            month: 'short', 
+                            day: '2-digit' 
+                        })
+                    ),
+                    datasets: [{
+                        label: 'Humor',
+                        data: sampleData.map(entry => entry.mood),
+                        borderColor: 'rgba(99, 102, 241, 1)',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        tension: 0.4,
+                        borderWidth: 3,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        pointBackgroundColor: 'rgba(99, 102, 241, 1)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: {
+                                color: 'rgba(99, 102, 241, 0.8)',
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            borderColor: 'rgba(99, 102, 241, 1)',
+                            borderWidth: 1,
+                            displayColors: false,
+                            callbacks: {
+                                title: function(context) {
+                                    return `📅 ${context[0].label}`;
+                                },
+                                label: function(context) {
+                                    const moodLabels = ['😰', '😔', '😐', '😊', '😄'];
+                                    const mood = context.parsed.y;
+                                    return `${moodLabels[mood - 1]} Humor: ${mood}/5`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 5,
+                            min: 1,
+                            ticks: {
+                                stepSize: 1,
+                                color: 'rgba(99, 102, 241, 0.6)',
+                                callback: function(value) {
+                                    const moodLabels = ['😰', '😔', '😐', '😊', '😄'];
+                                    return moodLabels[value - 1];
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(99, 102, 241, 0.1)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: 'rgba(99, 102, 241, 0.6)',
+                                font: {
+                                    size: 10
+                                }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Funções de controle
+        function clearData() {
+            if (charts.data) {
+                charts.data.data.labels = [];
+                charts.data.data.datasets[0].data = [];
+                charts.data.update();
+            }
+            updateStatus();
+        }
+        
+        function addSampleData() {
+            if (charts.data) {
+                const now = new Date();
+                const label = now.toLocaleDateString('pt-BR', { 
+                    month: 'short', 
+                    day: '2-digit' 
+                });
+                const mood = Math.floor(Math.random() * 5) + 1;
+                
+                charts.data.data.labels.push(label);
+                charts.data.data.datasets[0].data.push(mood);
+                charts.data.update();
+            }
+            updateStatus();
+        }
+        
+        function updateCharts() {
+            if (charts.empty) charts.empty.update();
+            if (charts.data) charts.data.update();
+            updateStatus();
+        }
+        
+        function updateStatus() {
+            const status = document.getElementById('status');
+            const emptyCount = charts.empty ? charts.empty.data.datasets[0].data.length : 0;
+            const dataCount = charts.data ? charts.data.data.datasets[0].data.length : 0;
+            
+            status.innerHTML = `
+                <p>📊 <strong>Gráfico Vazio:</strong> ${emptyCount} registros</p>
+                <p>📈 <strong>Gráfico com Dados:</strong> ${dataCount} registros</p>
+                <p>⏰ <strong>Última atualização:</strong> ${new Date().toLocaleTimeString('pt-BR')}</p>
+            `;
+        }
+        
+        // Inicializar quando a página carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Inicializando teste de gráficos...');
+            
+            setTimeout(() => {
+                createEmptyChart();
+                createDataChart();
+                updateStatus();
+                console.log('✅ Gráficos inicializados com sucesso!');
+            }, 100);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Mensagens - MentalIA</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background: var(--bg-primary, #f8f9fa);
+            color: var(--text-primary, #333);
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: white;
+        }
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+        }
+        button:hover { 
+            background: #0056b3; 
+            transform: translateY(-1px);
+        }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-warning { background: #ffc107; color: #212529; }
+        .btn-warning:hover { background: #e0a800; }
+        .instructions {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #007bff;
+        }
+        .custom-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Teste de Sistema de Mensagens MentalIA</h1>
+    
+    <div class="instructions">
+        <h3>📱 Como usar:</h3>
+        <ul>
+            <li><strong>Clique nos botões</strong> para gerar diferentes tipos de mensagem</li>
+            <li><strong>Arraste para a esquerda</strong> qualquer mensagem para dispensá-la</li>
+            <li><strong>Passe o mouse</strong> sobre uma mensagem para pausar o timer</li>
+            <li><strong>Clique no ×</strong> para fechar manualmente</li>
+            <li>As mensagens <strong>desaparecem automaticamente</strong> após alguns segundos</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>🎯 Mensagens Pré-definidas</h2>
+        <div class="button-grid">
+            <button class="btn-success" onclick="testToast('success')">✅ Sucesso</button>
+            <button class="btn-danger" onclick="testToast('error')">❌ Erro</button>
+            <button class="btn-warning" onclick="testToast('warning')">⚠️ Aviso</button>
+            <button onclick="testToast('info')">💬 Informação</button>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📝 Mensagem Personalizada</h2>
+        <input type="text" id="customMessage" class="custom-input" placeholder="Digite sua mensagem aqui..." value="Esta é uma mensagem de teste personalizada!">
+        <div class="button-grid">
+            <button class="btn-success" onclick="testCustomToast('success')">✅ Sucesso Custom</button>
+            <button class="btn-danger" onclick="testCustomToast('error')">❌ Erro Custom</button>
+            <button class="btn-warning" onclick="testCustomToast('warning')">⚠️ Aviso Custom</button>
+            <button onclick="testCustomToast('info')">💬 Info Custom</button>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🚀 Testes Especiais</h2>
+        <div class="button-grid">
+            <button onclick="testMultipleToasts()">📱 Múltiplas Mensagens</button>
+            <button onclick="testLongMessage()">📄 Mensagem Longa</button>
+            <button onclick="testPersistentToast()">⏳ Mensagem Persistente</button>
+            <button onclick="clearAllToasts()">🗑️ Limpar Todas</button>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Simulação MentalIA</h2>
+        <div class="button-grid">
+            <button onclick="simulateSaveSuccess()">💾 Salvar Humor</button>
+            <button onclick="simulateLoadError()">📊 Erro Carregamento</button>
+            <button onclick="simulatePremiumWarning()">👑 Aviso Premium</button>
+            <button onclick="simulateBackupInfo()">☁️ Info Backup</button>
+        </div>
+    </div>
+
+    <!-- Include storage and app scripts for toast functionality -->
+    <script src="js/storage.js"></script>
+    <script src="js/app.js"></script>
+
+    <script>
+        // Initialize a minimal app instance for toast functionality
+        const testApp = new MentalIA();
+
+        // Test predefined toasts
+        function testToast(type) {
+            const messages = {
+                success: 'Operação realizada com sucesso! 🎉',
+                error: 'Ops! Algo deu errado. Tente novamente.',
+                warning: 'Atenção: Esta ação requer confirmação.',
+                info: 'Informação importante para você saber.'
+            };
+            
+            testApp.showToast(messages[type], type);
+        }
+
+        // Test custom message
+        function testCustomToast(type) {
+            const message = document.getElementById('customMessage').value.trim();
+            if (!message) {
+                testApp.showToast('Digite uma mensagem primeiro!', 'warning');
+                return;
+            }
+            testApp.showToast(message, type);
+        }
+
+        // Test multiple toasts
+        function testMultipleToasts() {
+            testApp.showToast('Primeira mensagem', 'info');
+            setTimeout(() => testApp.showToast('Segunda mensagem', 'success'), 500);
+            setTimeout(() => testApp.showToast('Terceira mensagem', 'warning'), 1000);
+            setTimeout(() => testApp.showToast('Quarta mensagem', 'error'), 1500);
+        }
+
+        // Test long message
+        function testLongMessage() {
+            const longMessage = 'Esta é uma mensagem muito longa para testar como o sistema de toast lida com textos extensos. Ela deve quebrar corretamente e manter a legibilidade, além de ser totalmente funcional com arrastar para dispensar e todas as outras funcionalidades.';
+            testApp.showToast(longMessage, 'info');
+        }
+
+        // Test persistent toast (no auto-remove)
+        function testPersistentToast() {
+            testApp.showToast('Esta mensagem não desaparece automaticamente. Arraste ou clique no × para remover.', 'warning', 0);
+        }
+
+        // Clear all toasts
+        function clearAllToasts() {
+            const container = document.getElementById('toast-container');
+            if (container) {
+                const toasts = container.querySelectorAll('.toast');
+                toasts.forEach(toast => {
+                    testApp.removeToast(toast);
+                });
+            }
+        }
+
+        // Simulate MentalIA scenarios
+        function simulateSaveSuccess() {
+            testApp.showToast('Humor registrado com sucesso! 🎉', 'success');
+        }
+
+        function simulateLoadError() {
+            testApp.showToast('Erro ao carregar dados: Falha na conexão', 'error');
+        }
+
+        function simulatePremiumWarning() {
+            testApp.showToast('Análise avançada disponível apenas no Premium!', 'warning');
+        }
+
+        function simulateBackupInfo() {
+            testApp.showToast('🤖 Gerando análise avançada...', 'info');
+        }
+
+        // Show welcome message
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                testApp.showToast('Sistema de mensagens carregado! Teste as funcionalidades abaixo. 👋', 'success');
+            }, 1000);
+        });
+
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case '1':
+                        e.preventDefault();
+                        testToast('success');
+                        break;
+                    case '2':
+                        e.preventDefault();
+                        testToast('error');
+                        break;
+                    case '3':
+                        e.preventDefault();
+                        testToast('warning');
+                        break;
+                    case '4':
+                        e.preventDefault();
+                        testToast('info');
+                        break;
+                    case 'Escape':
+                        clearAllToasts();
+                        break;
+                }
+            }
+        });
+
+        // Show keyboard shortcuts info
+        setTimeout(() => {
+            testApp.showToast('💡 Dica: Use Ctrl+1/2/3/4 para mensagens rápidas, ESC para limpar todas', 'info', 8000);
+        }, 3000);
+    </script>
+</body>
+</html>

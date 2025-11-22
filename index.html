@@ -94,13 +94,6 @@
                         <span id="user-plan" class="plan-badge">Gratuito</span>
                     </div>
                     <div class="user-actions">
-                        <!-- Botão Premium/Gerenciar -->
-                        <button id="premium-btn" class="btn-premium" data-show-premium>
-                            ✨ Premium
-                        </button>
-                        <button id="manage-subscription-btn" class="btn-manage hidden" data-manage-subscription>
-                            ⚙️ Gerenciar
-                        </button>
                         <button id="logout-btn" class="btn-logout">Sair</button>
                     </div>
                 </div>
@@ -198,21 +191,6 @@
                     </div>
                 </form>
 
-                <div class="premium-preview">
-                    <h3>🌟 Versão Premium</h3>
-                    <div class="premium-features">
-                        <div class="feature">✅ Backup no Google Drive</div>
-                        <div class="feature">✅ Histórico ilimitado</div>
-                        <div class="feature">✅ IA MedGemma local</div>
-                        <div class="feature">✅ Modo rápido avançado</div>
-                        <div class="feature">✅ Relatórios em PDF</div>
-                    </div>
-                    <div class="premium-price">
-                        <span class="price">R$ 19,90</span>
-                        <span class="price-note">Pagamento único, para sempre</span>
-                    </div>
-                </div>
-
                 <div class="auth-footer">
                     <p class="privacy-note">🔒 <strong>Privacidade total:</strong> Apenas email + senha ficam no servidor. Todos os seus registros emocionais permanecem 100% locais no seu dispositivo.</p>
                 </div>
@@ -251,25 +229,6 @@
                     <button class="btn-secondary" data-screen="history">
                         Ver Histórico
                     </button>
-                </div>
-
-                <!-- Premium Upgrade Section (shown only for free users) -->
-                <div id="premium-section" class="premium-section hidden">
-                    <div class="premium-card">
-                        <h3>🌟 Torne-se Premium</h3>
-                        <p>Desbloqueie todo o potencial do MentalIA</p>
-                        <div class="premium-benefits">
-                            <div>✅ Backup Google Drive</div>
-                            <div>✅ Histórico ilimitado</div>
-                            <div>✅ IA avançada local</div>
-                            <div>✅ Relatórios em PDF</div>
-                        </div>
-                        <div class="premium-pricing">
-                            <span class="price">R$ 19,90</span>
-                            <span class="price-subtitle">Pagamento único</span>
-                        </div>
-                        <button id="upgrade-btn" class="btn-premium btn-full">🚀 Adquirir Premium</button>
-                    </div>
                 </div>
             </div>
 
@@ -796,31 +755,8 @@
                 📄 Baixar Relatório em PDF
             </button>
 
-            <!-- Premium Features -->
-            <div class="premium-features" data-free-only>
-                <div class="premium-prompt">
-                    <div class="premium-icon">✨</div>
-                    <div class="premium-text">
-                        <h4>Recursos Premium</h4>
-                        <ul>
-                            <li>🤖 IA Avançada (Claude, Gemini, MedGemma)</li>
-                            <li>📊 Relatórios em PDF profissionais</li>
-                            <li>☁️ Backup criptografado no Google Drive</li>
-                            <li>🎨 Temas exclusivos</li>
-                        </ul>
-                        <button class="btn-premium-upgrade" data-show-premium>
-                            Fazer Upgrade - R$ 5,90/mês
-                        </button>
-                        <!-- Botão de teste apenas em desenvolvimento -->
-                        <button class="btn-secondary mock-premium-btn" onclick="activateMockPremium()">
-                            🧪 Testar Premium (Dev)
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Premium Report Actions -->
-            <div class="premium-actions" data-premium-only>
+            <!-- Recursos Avançados (Gratuitos) -->
+            <div class="advanced-actions">
                 <div class="action-group">
                     <button id="export-pdf" class="btn-secondary">
                         📄 Exportar PDF
@@ -933,8 +869,6 @@
     <script src="js/storage.js?v=1141"></script>                 <!-- 1º -->
     <script src="js/auth.js?v=1141"></script>
     <script src="js/mock-api.js?v=1150"></script>                <!-- Mock API para desenvolvimento -->
-    <script src="js/premium.js?v=1150"></script>                 <!-- Premium system -->
-    <script src="js/checkout.js?v=1149"></script>                <!-- Checkout functions -->
     <script src="js/ai_analysis.js?v=1148"></script>             <!-- 2º -->
     <script src="js/google_drive_backup.js?v=1141"></script>     <!-- 3º -->
     <script src="js/app.js?v=1149"></script>                     <!-- 4º e último -->

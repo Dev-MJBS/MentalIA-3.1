@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Salvamento - MentalIA</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        .mood-input {
+            width: 100%;
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .mood-range {
+            width: 100%;
+            margin: 10px 0;
+        }
+        .storage-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Teste de Salvamento MentalIA 3.1</h1>
+    
+    <div class="test-section">
+        <h2>🔍 Diagnóstico do Storage</h2>
+        <button onclick="testStorageAvailability()">Verificar Storage</button>
+        <div id="storage-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>💾 Teste de Salvamento</h2>
+        <div>
+            <label>Humor (1-5): </label>
+            <input type="range" id="test-mood" class="mood-range" min="1" max="5" step="0.5" value="3">
+            <span id="mood-value">3.0</span>
+        </div>
+        <div>
+            <label>Sentimentos: </label>
+            <input type="text" id="test-feelings" class="mood-input" placeholder="feliz, calmo, motivado (separados por vírgula)">
+        </div>
+        <div>
+            <label>Diário: </label>
+            <textarea id="test-diary" class="mood-input" rows="3" placeholder="Como foi seu dia?"></textarea>
+        </div>
+        <button onclick="testSaveMoodEntry()">Salvar Teste</button>
+        <div id="save-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Teste de Carregamento</h2>
+        <button onclick="testLoadData()">Carregar Dados</button>
+        <button onclick="testGetStats()">Obter Estatísticas</button>
+        <div id="load-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🗑️ Limpeza de Dados</h2>
+        <button onclick="clearAllData()" style="background: #dc3545;">Limpar Todos os Dados</button>
+        <div id="clear-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📋 Informações do Storage</h2>
+        <div id="storage-info" class="storage-info">Carregando...</div>
+        <button onclick="refreshStorageInfo()">Atualizar Info</button>
+    </div>
+
+    <!-- Include the storage script -->
+    <script src="js/storage.js"></script>
+
+    <script>
+        // Update mood value display
+        document.getElementById('test-mood').addEventListener('input', (e) => {
+            document.getElementById('mood-value').textContent = e.target.value;
+        });
+
+        function addResult(containerId, message, type = 'info') {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = message;
+            container.appendChild(div);
+        }
+
+        function clearResults(containerId) {
+            document.getElementById(containerId).innerHTML = '';
+        }
+
+        async function testStorageAvailability() {
+            clearResults('storage-results');
+            
+            try {
+                // Test IndexedDB availability
+                if (!window.indexedDB) {
+                    addResult('storage-results', '❌ IndexedDB não suportado pelo navegador', 'error');
+                    return;
+                }
+                addResult('storage-results', '✅ IndexedDB disponível', 'success');
+
+                // Test crypto API
+                if (!window.crypto || !window.crypto.subtle) {
+                    addResult('storage-results', '❌ Web Crypto API não disponível', 'error');
+                    return;
+                }
+                addResult('storage-results', '✅ Web Crypto API disponível', 'success');
+
+                // Test MentalStorage class
+                if (!window.mentalStorage) {
+                    addResult('storage-results', '❌ MentalStorage não carregado', 'error');
+                    return;
+                }
+                addResult('storage-results', '✅ MentalStorage disponível', 'success');
+
+                // Test initialization
+                await window.mentalStorage.ensureInitialized();
+                addResult('storage-results', '✅ Storage inicializado com sucesso', 'success');
+
+                // Test database connection
+                if (window.mentalStorage.db) {
+                    addResult('storage-results', '✅ Conexão com banco estabelecida', 'success');
+                } else {
+                    addResult('storage-results', '⚠️ Banco não conectado', 'warning');
+                }
+
+                // Test encryption key
+                if (window.mentalStorage.encryptionKey) {
+                    addResult('storage-results', '✅ Chave de criptografia ativa', 'success');
+                } else {
+                    addResult('storage-results', '❌ Chave de criptografia não encontrada', 'error');
+                }
+
+            } catch (error) {
+                addResult('storage-results', `❌ Erro no teste: ${error.message}`, 'error');
+                console.error('Erro no teste de storage:', error);
+            }
+        }
+
+        async function testSaveMoodEntry() {
+            clearResults('save-results');
+            
+            try {
+                const mood = parseFloat(document.getElementById('test-mood').value);
+                const feelingsText = document.getElementById('test-feelings').value.trim();
+                const feelings = feelingsText ? feelingsText.split(',').map(f => f.trim()) : [];
+                const diary = document.getElementById('test-diary').value.trim();
+
+                addResult('save-results', `📝 Preparando dados: Humor=${mood}, Sentimentos=${feelings.length}, Diário=${diary.length} chars`, 'info');
+
+                const moodData = {
+                    mood: mood,
+                    feelings: feelings,
+                    diary: diary,
+                    timestamp: new Date().toISOString(),
+                    date: new Date().toDateString()
+                };
+
+                const result = await window.mentalStorage.saveMoodEntry(moodData);
+                addResult('save-results', `✅ Entrada salva com sucesso! ID: ${result.id}`, 'success');
+
+                // Clear form
+                document.getElementById('test-feelings').value = '';
+                document.getElementById('test-diary').value = '';
+                
+                // Refresh info
+                setTimeout(refreshStorageInfo, 500);
+
+            } catch (error) {
+                addResult('save-results', `❌ Erro ao salvar: ${error.message}`, 'error');
+                console.error('Erro no salvamento:', error);
+            }
+        }
+
+        async function testLoadData() {
+            clearResults('load-results');
+            
+            try {
+                addResult('load-results', '🔄 Carregando dados...', 'info');
+                
+                const entries = await window.mentalStorage.getAllMoodEntries();
+                addResult('load-results', `✅ ${entries.length} entradas carregadas`, 'success');
+
+                if (entries.length > 0) {
+                    const latest = entries[0];
+                    addResult('load-results', `📊 Última entrada: Humor=${latest.mood}, Data=${new Date(latest.timestamp).toLocaleString('pt-BR')}`, 'info');
+                    
+                    if (entries.length > 1) {
+                        addResult('load-results', `📊 Primeira entrada: Humor=${entries[entries.length-1].mood}, Data=${new Date(entries[entries.length-1].timestamp).toLocaleString('pt-BR')}`, 'info');
+                    }
+                }
+
+            } catch (error) {
+                addResult('load-results', `❌ Erro ao carregar: ${error.message}`, 'error');
+                console.error('Erro no carregamento:', error);
+            }
+        }
+
+        async function testGetStats() {
+            clearResults('load-results');
+            
+            try {
+                addResult('load-results', '📊 Calculando estatísticas...', 'info');
+                
+                const stats = await window.mentalStorage.getStats();
+                addResult('load-results', `✅ Estatísticas calculadas`, 'success');
+                addResult('load-results', `📊 Total: ${stats.totalEntries} entradas`, 'info');
+                addResult('load-results', `📊 Humor médio: ${stats.averageMood}`, 'info');
+                addResult('load-results', `📊 Sequência: ${stats.streak} dias`, 'info');
+                addResult('load-results', `📊 Tendência: ${stats.moodTrend}`, 'info');
+
+            } catch (error) {
+                addResult('load-results', `❌ Erro nas estatísticas: ${error.message}`, 'error');
+                console.error('Erro nas estatísticas:', error);
+            }
+        }
+
+        async function clearAllData() {
+            if (!confirm('⚠️ Isso irá remover TODOS os dados salvos. Confirma?')) {
+                return;
+            }
+
+            clearResults('clear-results');
+            
+            try {
+                await window.mentalStorage.clearAllData();
+                addResult('clear-results', '✅ Todos os dados removidos', 'success');
+                
+                // Refresh info
+                setTimeout(refreshStorageInfo, 500);
+
+            } catch (error) {
+                addResult('clear-results', `❌ Erro ao limpar: ${error.message}`, 'error');
+                console.error('Erro na limpeza:', error);
+            }
+        }
+
+        async function refreshStorageInfo() {
+            const infoEl = document.getElementById('storage-info');
+            
+            try {
+                infoEl.textContent = 'Carregando informações...';
+                
+                // Get basic info
+                const entries = await window.mentalStorage.getAllMoodEntries();
+                const stats = await window.mentalStorage.getStats();
+                
+                // Database info
+                const dbInfo = {
+                    'Nome do Banco': window.mentalStorage.dbName,
+                    'Versão': window.mentalStorage.dbVersion,
+                    'Status': window.mentalStorage.initialized ? 'Inicializado' : 'Não inicializado',
+                    'Total de Entradas': entries.length,
+                    'Primeira Entrada': entries.length > 0 ? new Date(entries[entries.length-1].timestamp).toLocaleString('pt-BR') : 'N/A',
+                    'Última Entrada': entries.length > 0 ? new Date(entries[0].timestamp).toLocaleString('pt-BR') : 'N/A',
+                    'Humor Médio': stats.averageMood,
+                    'Sequência Atual': stats.streak + ' dias',
+                    'Tendência': stats.moodTrend
+                };
+
+                let infoText = '';
+                Object.entries(dbInfo).forEach(([key, value]) => {
+                    infoText += `${key}: ${value}\n`;
+                });
+
+                infoEl.textContent = infoText;
+
+            } catch (error) {
+                infoEl.textContent = `Erro ao carregar informações: ${error.message}`;
+            }
+        }
+
+        // Auto-refresh info on page load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                testStorageAvailability();
+                refreshStorageInfo();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
