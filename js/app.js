@@ -8,7 +8,8 @@ class MentalIA {
     this.currentMood = 5.0;
     this.selectedFeelings = new Set();
     this.pendingDelete = null;
-    this.chart = null;
+    this.chart = null; // report chart
+    this.historyChart = null; // small chart used on history screen
   }
 
   async init() {
@@ -75,36 +76,8 @@ class MentalIA {
     });
 
     // Toggle sub-feelings panel when clicking the primary feeling button
-    // Clicking the whole button or the arrow should open/close the panel by toggling the
-    // `expanded` class on the `.primary-feeling-card`. CSS handles the visual transition
-    // (panel max-height and icon rotation) based on that class.
-    document.querySelectorAll('.primary-feeling-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const card = btn.closest('.primary-feeling-card');
-        if (!card) return;
-        // Toggle class - CSS will rotate the arrow and expand the panel
-        const expanded = card.classList.toggle('expanded');
-        // Ensure the expand-icon reflects the state (only via class, avoid inline styles)
-        const icon = btn.querySelector('.expand-icon');
-        if (icon) {
-          if (expanded) icon.classList.add('rotated'); else icon.classList.remove('rotated');
-        }
-      });
-    });
-
-    // Also allow clicking the arrow itself (if it's tapped directly). Stop propagation
-    // so the handler above doesn't double-toggle.
-    document.querySelectorAll('.expand-icon').forEach(ic => {
-      ic.addEventListener('click', (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        const card = ic.closest('.primary-feeling-card');
-        if (!card) return;
-        const expanded = card.classList.toggle('expanded');
-        if (expanded) ic.classList.add('rotated'); else ic.classList.remove('rotated');
-      });
-    });
+    // Initialize feelings wheel (accordion) with delegated handlers
+    this.initFeelingsWheel();
 
     // Clear selected feelings button
     document.getElementById('clear-feelings')?.addEventListener('click', (e) => {
@@ -118,20 +91,99 @@ class MentalIA {
     document.getElementById('mood-form')?.addEventListener('submit', (e) => this.handleMoodSubmit(e));
     document.getElementById('generate-report')?.addEventListener('click', (e) => { e.preventDefault(); this.generateReport(); });
     document.getElementById('export-report')?.addEventListener('click', (e) => { e.preventDefault(); this.exportReportAsPDF(); });
+    document.getElementById('export-therapist-pdf')?.addEventListener('click', (e) => { e.preventDefault(); this.exportReportAsPDF(); });
     document.getElementById('share-report')?.addEventListener('click', (e) => { e.preventDefault(); this.shareReport(); });
     document.getElementById('generate-pdf-report')?.addEventListener('click', (e) => { e.preventDefault(); window.aiAnalysis.downloadReport(); });
     document.getElementById('delete-all-data')?.addEventListener('click', (e) => { e.preventDefault(); this.showDeleteModal(null, true); });
     document.getElementById('backup-data')?.addEventListener('click', (e) => { e.preventDefault(); this.backupData(); });
   }
 
-  // Initialize Chart.js for the report screen (canvas id: report-chart)
-  initChart() {
+  // Initialize feelings accordion behavior using delegation for better mobile/touch support
+  initFeelingsWheel() {
+    const container = document.body;
+    // Delegate click/touchend to primary feeling buttons and expand icons
+    const handler = (e) => {
+      const btn = e.target.closest ? e.target.closest('.primary-feeling-btn') : null;
+      const icon = e.target.closest ? e.target.closest('.expand-icon') : null;
+      if (!btn && !icon) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const card = (btn || icon).closest('.primary-feeling-card');
+      if (!card) return;
+      // Toggle this card and collapse siblings
+      this.toggleFeelingCategory(card);
+    };
+    // Use both click and touchend for responsiveness on mobile
+    container.removeEventListener('click', container._feelingsHandler);
+    container.removeEventListener('touchend', container._feelingsHandler);
+    container._feelingsHandler = handler;
+    container.addEventListener('click', handler, { passive: false });
+    container.addEventListener('touchend', handler, { passive: false });
+    // Keyboard accessibility: allow Enter/Space to toggle when focused
+    document.querySelectorAll('.primary-feeling-btn').forEach(btn => {
+      btn.setAttribute('tabindex', '0');
+      btn.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); btn.click(); }
+      });
+    });
+  }
+
+  // Toggle a single category card: expand it, rotate icon, and collapse others
+  toggleFeelingCategory(card) {
     try {
+      const isExpanded = card.classList.contains('expanded');
+      // Collapse all first
+      document.querySelectorAll('.primary-feeling-card.expanded').forEach(c => {
+        if (c === card && !isExpanded) return; // keep open target if toggling open
+        c.classList.remove('expanded');
+        const ic = c.querySelector('.expand-icon'); if (ic) ic.classList.remove('rotated');
+      });
+      // Toggle target
+      if (isExpanded) {
+        card.classList.remove('expanded');
+        const ic = card.querySelector('.expand-icon'); if (ic) ic.classList.remove('rotated');
+      } else {
+        card.classList.add('expanded');
+        const ic = card.querySelector('.expand-icon'); if (ic) ic.classList.add('rotated');
+        // ensure the inner panel scrolls into view on mobile
+        const panel = card.querySelector('.sub-feelings-panel'); if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    } catch (err) {
+      console.warn('toggleFeelingCategory error:', err);
+    }
+  }
+
+  // Initialize Chart.js for the report screen (canvas id: report-chart)
+  // force: if true, destroy existing chart and recreate
+  initChart(force = false) {
+    try {
+      if (typeof Chart === 'undefined') { console.warn('Chart.js não carregado'); return; }
       const canvas = document.getElementById('report-chart');
-      if (!canvas || typeof Chart === 'undefined') return;
+      if (!canvas) { console.warn('Canvas do relatório (#report-chart) não encontrado'); return; }
+
+      // If chart exists and force requested or canvas was replaced, destroy it first
+      if (this.chart && (force || !this.chart.ctx || !this.chart.ctx.canvas.isConnected)) {
+        try { this.chart.destroy(); } catch(e){}
+        this.chart = null;
+      }
+
+      // If chart already exists after potential destroy, reuse it
+      if (this.chart) return;
+
+      // Measure and set canvas backing store size for crisp rendering
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const width = Math.max(300, Math.floor(rect.width));
+      const height = Math.max(120, Math.floor(rect.height || 220));
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
       const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
       // create gradient (left red -> right blue)
-      const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+      const grad = ctx.createLinearGradient(0, 0, canvas.width || canvas.clientWidth, 0);
       grad.addColorStop(0, '#d32f2f');
       grad.addColorStop(1, '#06b6d4');
 
@@ -161,6 +213,8 @@ class MentalIA {
           }
         }
       });
+      // small debug
+      console.debug('Chart initialized', { width: canvas.width, height: canvas.height, dpr });
     } catch (err) {
       console.warn('Erro ao inicializar gráfico:', err);
     }
@@ -169,26 +223,80 @@ class MentalIA {
   // Update the report chart with entries: expects array of entries with timestamp and mood
   async updateChart(entries) {
     try {
-      if (!this.chart) this.initChart();
+      if (!this.chart) this.initChart(true);
+      // If chart still not created, try again after a frame
+      if (!this.chart) { await new Promise(r=>requestAnimationFrame(r)); this.initChart(true); }
       const data = entries && Array.isArray(entries) ? entries.slice().sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp)) : [];
       const labels = data.map(e => new Date(e.timestamp).toLocaleDateString('pt-BR'));
       const values = data.map(e => Number(e.mood));
       if (!this.chart) return;
+      console.debug('Updating chart with', labels.length, 'points');
+      // update dataset and labels
       this.chart.data.labels = labels;
       this.chart.data.datasets[0].data = values;
       // update gradient in case canvas resized
       try {
         const canvas = this.chart.ctx.canvas;
         const ctx = this.chart.ctx;
-        const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+        const grad = ctx.createLinearGradient(0, 0, canvas.width || canvas.clientWidth, 0);
         grad.addColorStop(0, '#d32f2f');
         grad.addColorStop(1, '#06b6d4');
         this.chart.data.datasets[0].borderColor = grad;
-      } catch(e) {}
-      this.chart.update();
+      } catch(e) { console.warn('gradient update failed', e); }
+      // ensure chart respects current container sizing
+      try { this.chart.resize(); } catch(e){}
+      this.chart.update('active');
     } catch (err) {
       console.warn('Erro ao atualizar gráfico:', err);
     }
+  }
+
+  // Initialize and update a smaller chart for the History screen (canvas id: mood-chart)
+  initHistoryChart(force = false) {
+    try {
+      if (typeof Chart === 'undefined') { console.warn('Chart.js não carregado (history)'); return; }
+      const canvas = document.getElementById('mood-chart');
+      if (!canvas) { console.warn('Canvas mood-chart não encontrado'); return; }
+      if (this.historyChart && (force || !this.historyChart.ctx || !this.historyChart.ctx.canvas.isConnected)) {
+        try { this.historyChart.destroy(); } catch(e){}
+        this.historyChart = null;
+      }
+      if (this.historyChart) return;
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const width = Math.max(300, Math.floor(rect.width));
+      const height = Math.max(120, Math.floor(rect.height || 140));
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      const grad = ctx.createLinearGradient(0,0,canvas.width,0);
+      grad.addColorStop(0,'#7c3aed');
+      grad.addColorStop(1,'#06b6d4');
+      this.historyChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: [], datasets: [{ label: 'Humor', data: [], borderColor: grad, backgroundColor: 'transparent', tension:0.35, pointRadius:2, fill:false }] },
+        options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales: { x:{ display:false }, y:{ min:1, max:10, ticks:{ stepSize:1 } } } }
+      });
+    } catch(err) { console.warn('initHistoryChart error:', err); }
+  }
+
+  async updateHistoryChart(entries) {
+    try {
+      if (!this.historyChart) this.initHistoryChart(true);
+      if (!this.historyChart) { await new Promise(r=>requestAnimationFrame(r)); this.initHistoryChart(true); }
+      const data = entries && Array.isArray(entries) ? entries.slice().sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp)) : [];
+      const labels = data.map(e=>new Date(e.timestamp).toLocaleDateString('pt-BR'));
+      const values = data.map(e=>Number(e.mood));
+      if (!this.historyChart) return;
+      this.historyChart.data.labels = labels;
+      this.historyChart.data.datasets[0].data = values;
+      try { const canvas = this.historyChart.ctx.canvas; const ctx=this.historyChart.ctx; const grad = ctx.createLinearGradient(0,0,canvas.width||canvas.clientWidth,0); grad.addColorStop(0,'#7c3aed'); grad.addColorStop(1,'#06b6d4'); this.historyChart.data.datasets[0].borderColor = grad; } catch(e){}
+      try { this.historyChart.resize(); } catch(e){}
+      this.historyChart.update();
+    } catch(err) { console.warn('updateHistoryChart error:', err); }
   }
 
   initTheme() { const t = localStorage.getItem('mental-ia-theme') || 'dark'; document.documentElement.setAttribute('data-theme', t); }
@@ -256,6 +364,13 @@ class MentalIA {
 
   async handleMoodSubmit(e) {
     e.preventDefault();
+    if (this._isSaving) {
+      this.showToast('Salvamento em andamento, por favor aguarde...', 'info');
+      return;
+    }
+    this._isSaving = true;
+    const submitBtn = document.querySelector('#mood-form button[type="submit"]') || document.querySelector('.mood-continue-btn');
+    if (submitBtn) submitBtn.disabled = true;
     try {
       // Build the diary and feelings payload for storage
       const diary = document.getElementById('diary-entry')?.value?.trim() || '';
@@ -285,6 +400,10 @@ class MentalIA {
       console.error('Erro ao salvar:', err);
       this.showToast('Erro ao salvar: ' + (err.message || err), 'error');
     }
+    finally {
+      this._isSaving = false;
+      if (submitBtn) setTimeout(()=>submitBtn.disabled = false, 250);
+    }
   }
 
   resetMoodForm() { this.currentMood = 5.0; this.updateMoodDisplay(5.0); this.clearAllFeelings(); const ta = document.getElementById('diary-entry'); if (ta) ta.value = ''; }
@@ -296,6 +415,8 @@ class MentalIA {
       const stats = await window.mentalStorage.getStats?.() || {};
       this.updateStats(stats);
       this.updateRecentEntries(entries || []);
+      // Update small history chart as well
+      try { await this.updateHistoryChart(entries || []); } catch(e) { console.warn('Erro ao atualizar history chart:', e); }
     } catch (err) { console.error('Erro ao carregar dados:', err); }
   }
 
@@ -340,7 +461,8 @@ class MentalIA {
     const msg = document.getElementById('modal-message');
     if (!modal) return;
     title.textContent = isAll ? 'Apagar Todos os Dados' : 'Excluir Registro';
-    msg.textContent = isAll ? 'Isso vai apagar TODOS os seus registros permanentemente. Tem certeza?' : 'Tem certeza que quer excluir este registro? Isso é permanente.';
+    // For bulk delete show the requested confirmation message in PT-BR
+    msg.textContent = isAll ? 'Tem certeza? Isso não dá pra reverter' : 'Tem certeza que quer excluir este registro? Isso é permanente.';
     modal.classList.remove('hidden');
   }
 
@@ -385,46 +507,65 @@ class MentalIA {
     const content = document.getElementById('report-content'); if (!content) return;
     content.classList.remove('hidden');
 
-    const title = report.title || 'Relatório';
-    const subtitle = report.subtitle || '';
+    // Parse the analysis content and split into sections
     const analysisMd = String(report.analysis || '');
     const analysisHtml = this.markdownToHtml(analysisMd);
     const recommendations = Array.isArray(report.recommendations) ? report.recommendations : [];
     const insights = Array.isArray(report.insights) ? report.insights : [];
 
-    content.innerHTML = `
-      <div class="report-card" id="report-card">
-        <div class="report-card-header">
-          <h3>${this.escapeHtml(title)}</h3>
-          <div class="report-subtitle">${this.escapeHtml(subtitle)}</div>
-        </div>
+    // Extract sections from the analysis HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = analysisHtml;
+    const sections = {
+      general: '',
+      patterns: '',
+      triggers: '',
+      recommendations: ''
+    };
 
-        <div class="report-chart-container" style="height:220px; margin:12px 0;">
-          <canvas id="report-chart"></canvas>
-        </div>
+    // Try to extract sections from the content
+    const h3Elements = tempDiv.querySelectorAll('h3, h4');
+    let currentSection = 'general';
+    let sectionContent = [];
 
-        <div class="report-section analysis-section">
-          ${analysisHtml}
-        </div>
+    for (const element of tempDiv.children) {
+      const text = element.textContent?.toLowerCase() || '';
+      if (text.includes('padrão') || text.includes('pattern')) {
+        if (sectionContent.length > 0) sections[currentSection] = sectionContent.join('');
+        currentSection = 'patterns';
+        sectionContent = [element.outerHTML];
+      } else if (text.includes('gatilh') || text.includes('trigger')) {
+        if (sectionContent.length > 0) sections[currentSection] = sectionContent.join('');
+        currentSection = 'triggers';
+        sectionContent = [element.outerHTML];
+      } else if (text.includes('recomend') || text.includes('recommend')) {
+        if (sectionContent.length > 0) sections[currentSection] = sectionContent.join('');
+        currentSection = 'recommendations';
+        sectionContent = [element.outerHTML];
+      } else {
+        sectionContent.push(element.outerHTML);
+      }
+    }
+    if (sectionContent.length > 0) sections[currentSection] = sectionContent.join('');
 
-        <div class="report-section">
-          <h4>💡 Recomendações</h4>
-          <ul>${recommendations.map(r=>`<li>${this.escapeHtml(String(r))}</li>`).join('')}</ul>
-        </div>
+    // If no sections were found, put everything in general
+    if (!sections.general && !sections.patterns && !sections.triggers && !sections.recommendations) {
+      sections.general = analysisHtml;
+    }
 
-        <div class="report-section">
-          <h4>🌟 Insights</h4>
-          <ul>${insights.map(i=>`<li>${this.escapeHtml(String(i))}</li>`).join('')}</ul>
-        </div>
+    // Update the specific sections
+    const generalEl = document.getElementById('general-analysis');
+    const patternsEl = document.getElementById('patterns-analysis');
+    const triggersEl = document.getElementById('triggers-analysis');
+    const recommendationsEl = document.getElementById('recommendations');
 
-        <div class="report-actions">
-          <button id="download-pdf" class="btn-secondary btn-full">📄 Baixar Relatório em PDF</button>
-        </div>
-      </div>
-    `;
-
-    // Wire internal download to aiAnalysis.downloadReport if available
-    document.getElementById('download-pdf')?.addEventListener('click', () => { window.aiAnalysis.downloadReport(report).catch(err=>this.showToast('Erro ao gerar PDF: '+err.message,'error')); });
+    if (generalEl) generalEl.innerHTML = sections.general || 'Análise geral não disponível.';
+    if (patternsEl) patternsEl.innerHTML = sections.patterns || 'Padrões não identificados.';
+    if (triggersEl) triggersEl.innerHTML = sections.triggers || 'Gatilhos não identificados.';
+    if (recommendationsEl) {
+      recommendationsEl.innerHTML = sections.recommendations ||
+        (recommendations.length > 0 ? recommendations.map(r => `<p>${this.escapeHtml(String(r))}</p>`).join('') : 'Recomendações não disponíveis.');
+    }
 
     // Initialize / update chart with provided entries
     try {
@@ -473,35 +614,144 @@ class MentalIA {
   // Export the rendered report area as PDF using html2canvas + jsPDF
   async exportReportAsPDF() {
     try {
-      const el = document.getElementById('report-card') || document.getElementById('report-content');
+      const el = document.getElementById('report-screen');
       if (!el) { this.showToast('Área de relatório não encontrada', 'error'); return; }
-      this.showToast('Gerando PDF do relatório...', 'info');
-      const canvas = await html2canvas(el, { scale: 2, useCORS: true });
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      const pdf = (window.jspdf && window.jspdf.jsPDF) ? new window.jspdf.jsPDF('p','mm','a4') : (typeof jsPDF !== 'undefined' ? new jsPDF('p','mm','a4') : null);
-      if (!pdf) { this.showToast('Biblioteca de PDF não disponível', 'error'); return; }
+      this.showToast('Gerando PDF profissional do relatório...', 'info');
+
+      // Create professional PDF for therapists
+      const jspdfFactory = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : (typeof jsPDF !== 'undefined' ? jsPDF : null);
+      if (!jspdfFactory) { this.showToast('Biblioteca de PDF não disponível', 'error'); return; }
+
+      const pdf = new jspdfFactory('p', 'mm', 'a4');
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pageWidth - 20;
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      let position = 10;
-      pdf.addImage(imgData, 'JPEG', 10, position, pdfWidth, pdfHeight);
-      let remainingHeight = pdfHeight - (pageHeight - 20);
-      let offset = pageHeight - 20;
-      while (remainingHeight > 0) {
-        pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', 10, -offset, pdfWidth, pdfHeight);
-        remainingHeight -= (pageHeight - 20);
-        offset += (pageHeight - 20);
-      }
+      const margin = 20;
+      let yPosition = margin;
+
+      // Add header for therapists
+      pdf.setFontSize(20);
+      pdf.setTextColor(99, 102, 241); // Accent color
+      pdf.text('Relatório de Bem-Estar Mental', margin, yPosition);
+      yPosition += 10;
+
+      pdf.setFontSize(12);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('MentalIA - Análise Personalizada para Profissionais de Saúde', margin, yPosition);
+      yPosition += 5;
+
+      // Add date and patient info
       const now = new Date();
-      const filename = `Relatorio_MentalIA_${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}.pdf`;
+      const dateStr = now.toLocaleDateString('pt-BR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      pdf.setFontSize(10);
+      pdf.text(`Gerado em: ${dateStr}`, margin, yPosition);
+      yPosition += 10;
+
+      // Try HTML-based export for better text rendering
+      if (typeof pdf.html === 'function') {
+        try {
+          // Clone the report content and prepare for PDF
+          const reportContent = el.querySelector('#report-content');
+          if (!reportContent) {
+            throw new Error('Conteúdo do relatório não encontrado');
+          }
+
+          const clonedContent = reportContent.cloneNode(true);
+
+          // Remove interactive elements and styling not suitable for PDF
+          clonedContent.querySelectorAll('button, .report-sticky-bar, .report-controls').forEach(el => el.remove());
+
+          // Add custom CSS for PDF rendering
+          const style = document.createElement('style');
+          style.textContent = `
+            body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
+            .report-section-card { margin-bottom: 20px; border: 1px solid #ddd; padding: 15px; border-radius: 8px; }
+            .section-header { display: flex; align-items: center; margin-bottom: 10px; }
+            .section-icon { margin-right: 10px; font-size: 18px; }
+            .section-title { font-size: 16px; font-weight: bold; color: #6366f1; margin: 0; }
+            .section-content { line-height: 1.6; }
+            .section-content p { margin-bottom: 10px; }
+            .section-content ul { padding-left: 20px; }
+            .section-content li { margin-bottom: 5px; }
+            .report-disclaimer { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 8px; margin-top: 20px; }
+            .report-disclaimer strong { color: #856404; }
+            canvas { max-width: 100%; height: auto; }
+          `;
+          clonedContent.insertBefore(style, clonedContent.firstChild);
+
+          await new Promise((resolve, reject) => {
+            pdf.html(clonedContent, {
+              callback: function(doc) {
+                try {
+                  // Add footer with disclaimer
+                  const pageCount = doc.internal.getNumberOfPages();
+                  for (let i = 1; i <= pageCount; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(8);
+                    doc.setTextColor(150, 150, 150);
+                    doc.text('MentalIA - Relatório confidencial para uso profissional', margin, pageHeight - 10);
+                    doc.text(`Página ${i} de ${pageCount}`, pageWidth - 40, pageHeight - 10);
+                  }
+
+                  const filename = `Relatorio_MentalIA_Profissional_${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}.pdf`;
+                  doc.save(filename);
+                  resolve();
+                } catch(e) { reject(e); }
+              },
+              x: margin,
+              y: yPosition,
+              width: pageWidth - (2 * margin),
+              windowWidth: 800,
+              html2canvas: {
+                scale: 1.5,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#ffffff'
+              }
+            });
+          });
+
+          this.showToast('PDF profissional exportado com sucesso!', 'success');
+          return;
+        } catch (htmlError) {
+          console.warn('HTML-based PDF failed, falling back to image-based:', htmlError);
+        }
+      }
+
+      // Fallback: Image-based export
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        width: el.scrollWidth,
+        height: el.scrollHeight
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pageWidth - (2 * margin);
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      pdf.addImage(imgData, 'JPEG', margin, yPosition, pdfWidth, pdfHeight);
+
+      // Add footer
+      pdf.setFontSize(8);
+      pdf.setTextColor(150, 150, 150);
+      pdf.text('MentalIA - Relatório confidencial para uso profissional', margin, pageHeight - 15);
+      pdf.text(`Página 1 de 1`, pageWidth - 40, pageHeight - 15);
+
+      const filename = `Relatorio_MentalIA_Profissional_${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}.pdf`;
       pdf.save(filename);
-      this.showToast('PDF exportado com sucesso!', 'success');
+      this.showToast('PDF profissional exportado com sucesso!', 'success');
+
     } catch (err) {
       console.error('Erro ao exportar PDF:', err);
-      this.showToast('Erro ao exportar PDF', 'error');
+      this.showToast('Erro ao exportar PDF profissional', 'error');
     }
   }
 

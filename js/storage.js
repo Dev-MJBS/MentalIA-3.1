@@ -162,9 +162,30 @@ class MentalStorage {
             version: '3.1'
         };
 
-        console.log('💾 Salvando entrada de humor:', { id: entry.id, mood: entry.mood });
+            console.log('💾 Salvando entrada de humor:', { id: entry.id, mood: entry.mood });
 
-        const encryptedData = await this.encrypt(entry);
+            // Deduplicate: check if an identical (or same-timestamp) entry already exists.
+            try {
+                const existing = await this.getAllMoodEntries();
+                const found = existing.find(e => {
+                    // same timestamp OR (same mood + same diary content within a few seconds)
+                    if (e.timestamp === entry.timestamp) return true;
+                    try {
+                        const t1 = new Date(e.timestamp).getTime();
+                        const t2 = new Date(entry.timestamp).getTime();
+                        if (Math.abs(t1 - t2) <= 5000 && Number(e.mood) === Number(entry.mood) && (e.diary || '') === (entry.diary || '')) return true;
+                    } catch (err) {}
+                    return false;
+                });
+                if (found) {
+                    console.log('⚠️ Entrada duplicada detectada — ignorando novo insert', { existingId: found.id });
+                    return found; // return existing entry object
+                }
+            } catch (err) {
+                console.warn('Erro ao checar duplicados (seguindo com insert):', err);
+            }
+
+            const encryptedData = await this.encrypt(entry);
 
         const dbEntry = {
             id: entry.id,

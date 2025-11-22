@@ -736,59 +736,78 @@
         </section>
 
         <!-- Report Screen -->
-        <section id="report-screen" class="screen">
-            <div class="screen-inner">
-                <div class="report-header">
-                    <h2>Relatório</h2>
-                    <p class="report-subtitle">Análise clínica resumida do seu período selecionado</p>
+        <section id="report-screen" class="screen report-screen-fade-in">
+            <div class="report-hero">
+                <div class="report-hero-icon">📊</div>
+                <h1 class="report-hero-title">Relatório de Bem-Estar</h1>
+                <p class="report-hero-subtitle">Análise personalizada do seu humor e emoções</p>
+            </div>
+
+            <div class="report-controls">
+                <button id="generate-report" class="btn-primary btn-large">🧠 Gerar Relatório</button>
+            </div>
+
+            <div id="report-content" class="report-content hidden">
+                <div class="report-sections">
+                    <div class="report-section-card">
+                        <div class="section-header">
+                            <span class="section-icon">🎯</span>
+                            <h3>Avaliação Geral</h3>
+                        </div>
+                        <div id="general-analysis" class="section-content">Carregando análise...</div>
+                    </div>
+
+                    <div class="report-section-card">
+                        <div class="section-header">
+                            <span class="section-icon">📈</span>
+                            <h3>Gráfico de Humor</h3>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="report-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="report-section-card">
+                        <div class="section-header">
+                            <span class="section-icon">🔍</span>
+                            <h3>Padrões Identificados</h3>
+                        </div>
+                        <div id="patterns-analysis" class="section-content">—</div>
+                    </div>
+
+                    <div class="report-section-card">
+                        <div class="section-header">
+                            <span class="section-icon">⚡</span>
+                            <h3>Gatilhos</h3>
+                        </div>
+                        <div id="triggers-analysis" class="section-content">—</div>
+                    </div>
+
+                    <div class="report-section-card">
+                        <div class="section-header">
+                            <span class="section-icon">💡</span>
+                            <h3>Recomendações</h3>
+                        </div>
+                        <div id="recommendations" class="section-content">—</div>
+                    </div>
                 </div>
 
-                <div class="report-body">
-                    <div class="report-controls">
-                        <div class="mode-select">
-                            <label><input type="radio" name="ai-mode" value="private" checked> Modo Privado (local)</label>
-                            <label><input type="radio" name="ai-mode" value="fast"> Modo Rápido (externo)</label>
-                        </div>
-                        <div class="report-actions-top">
-                            <button id="generate-report" class="btn-primary">🧠 Gerar Relatório</button>
-                            <button id="generate-pdf-report" class="btn-secondary">📄 Baixar PDF</button>
-                        </div>
-                    </div>
-
-                    <div id="report-content" class="report-content hidden">
-                        <div class="report-card" id="report-card">
-                            <div class="report-card-header">
-                                <h3>📋 Relatório Gerado</h3>
-                                <span id="report-date" class="report-date"></span>
-                            </div>
-
-                            <div class="report-section">
-                                <h4>🎯 Análise Geral</h4>
-                                <div id="general-analysis" class="analysis-content">Carregando...</div>
-                            </div>
-
-                            <div class="report-section">
-                                <h4>📊 Padrões Identificados</h4>
-                                <div id="patterns-analysis" class="analysis-content">—</div>
-                            </div>
-
-                            <div class="report-section">
-                                <h4>💡 Recomendações</h4>
-                                <div id="recommendations" class="analysis-content">—</div>
-                            </div>
-
-                            <div class="report-disclaimer">
-                                <strong>⚠️ Importante:</strong>
-                                <p>Este relatório é informativo e não substitui avaliação profissional.</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="report-bottom-bar">
-                        <button id="export-report" class="btn">Exportar</button>
-                        <button id="share-report" class="btn">Compartilhar</button>
-                    </div>
+                <div class="report-disclaimer">
+                    <p><strong>⚠️ Importante:</strong> Este relatório é uma ferramenta de apoio e não substitui avaliação profissional. Em caso de crise, ligue 188 (CVV) ou procure um psicólogo/psiquiatra.</p>
                 </div>
+            </div>
+
+            <div id="report-placeholder" class="report-placeholder">
+                <div class="placeholder-icon">📋</div>
+                <h3>Nenhum relatório gerado ainda</h3>
+                <p>Registre seu humor diariamente para receber análises personalizadas e insights sobre seu bem-estar.</p>
+                <button class="btn-primary" data-screen="mood">Registrar Primeiro Humor</button>
+            </div>
+
+            <!-- Sticky Bottom Bar -->
+            <div class="sticky-bar">
+                <button id="export-therapist-pdf" class="btn-secondary">📄 Exportar PDF</button>
+                <button id="share-report" class="btn-share">📤 Compartilhar</button>
             </div>
         </section>
     </main>
@@ -823,6 +842,7 @@
     <script src="js/ai_analysis.js?v=1148"></script>             <!-- 2º -->
     <script src="js/google_drive_backup.js?v=1141"></script>     <!-- 3º -->
     <script src="js/app.js?v=1149"></script>                     <!-- 4º e último -->
+    <script src="js/auto_test_runner.js?v=1"></script>
 
     <!-- Service Worker + Inicialização Segura -->
     <script>
