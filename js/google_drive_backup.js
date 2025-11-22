@@ -12,94 +12,69 @@ class GoogleDriveBackup {
         this.oneTapInitialized = false;
 
         console.log('☁️ [BACKUP] Inicializando sistema de backup Google Drive...');
-        // Inicializar com status claro
-        this.updateBackupStatus(false, 'Clique em "Backup Seguro" para conectar ao Google Drive');
-        this.updateConnectButtonVisibility();
+        this.initializeGoogleOneTap();
+        this.updateBackupStatus(false, 'Inicializando...');
     }
 
-    async showGoogleOneTap() {
+    async initializeGoogleOneTap() {
         try {
-            console.log('🚪 [ONE TAP] Mostrando Google One Tap...');
-
-            // Check if we're in a secure context (HTTPS or localhost)
-            const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost';
-            console.log('🚪 [ONE TAP] Contexto seguro:', isSecure);
+            console.log('🚪 [ONE TAP] Inicializando Google One Tap...');
 
             // Wait for Google Identity Services to load
             await this.waitForGoogleIdentityServices();
 
-            console.log('🚪 [ONE TAP] Google Identity Services carregado!');
-
-            // Initialize One Tap if not already done
-            if (!this.oneTapInitialized) {
-                console.log('🚪 [ONE TAP] Inicializando One Tap...');
-                google.accounts.id.initialize({
-                    client_id: this.clientId,
-                    callback: this.handleGoogleCredential.bind(this),
-                    auto_select: false,
-                    cancel_on_tap_outside: true,
-                    context: 'signin',
-                    state: 'google_drive_backup_' + Date.now() // Add unique state
-                });
-                this.oneTapInitialized = true;
-                console.log('🚪 [ONE TAP] One Tap inicializado!');
-            }
-
-            // Cancel any existing prompt first
-            try {
-                google.accounts.id.cancel();
-                console.log('🚪 [ONE TAP] Prompt anterior cancelado');
-            } catch (e) {
-                console.log('🚪 [ONE TAP] Nenhum prompt anterior para cancelar');
-            }
-
-            // Small delay before showing new prompt
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            // Show One Tap prompt
-            console.log('🚪 [ONE TAP] Chamando google.accounts.id.prompt()...');
-            google.accounts.id.prompt();
-                console.log('🚪 [ONE TAP] Notificação do prompt:', notification);
-
-                if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                    console.log('🚪 [ONE TAP] Prompt não exibido ou pulado, tentando popup alternativo...');
-                    // Fallback to popup authentication
-                    this.showGooglePopupAuth();
-                }
+            // Initialize One Tap
+            google.accounts.id.initialize({
+                client_id: this.clientId,
+                callback: this.handleGoogleCredential.bind(this),
+                auto_select: false,
+                cancel_on_tap_outside: true,
+                context: 'signin'
             });
 
-            this.updateBackupStatus(false, '🔄 Conectando ao Google... Procure a janela de login');
+            this.oneTapInitialized = true;
+            console.log('✅ [ONE TAP] Google One Tap inicializado');
+
+            // Render One Tap button
+            this.renderOneTapButton();
+
+            this.updateBackupStatus(false, 'Pronto para login');
 
         } catch (error) {
-            console.error('❌ [ONE TAP] Erro ao mostrar One Tap:', error);
-            console.log('🚪 [ONE TAP] Tentando método alternativo...');
-            // Fallback to popup authentication
-            this.showGooglePopupAuth();
+            console.error('❌ [ONE TAP] Erro ao inicializar:', error);
+            this.updateBackupStatus(false, 'Erro na inicialização');
         }
     }
 
     async waitForGoogleIdentityServices() {
         return new Promise((resolve, reject) => {
             let attempts = 0;
-            const maxAttempts = 100; // Aumentado para 100 tentativas
-            const checkInterval = 200; // Aumentado para 200ms entre tentativas
+            const maxAttempts = 50;
 
             const checkServices = () => {
                 attempts++;
-                console.log(`🔄 [WAIT] Tentativa ${attempts}/${maxAttempts} - Verificando Google Identity Services...`);
-
                 if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-                    console.log('✅ [WAIT] Google Identity Services encontrado!');
                     resolve();
                 } else if (attempts >= maxAttempts) {
-                    console.error('❌ [WAIT] Google Identity Services não carregou após', maxAttempts, 'tentativas');
                     reject(new Error('Google Identity Services não carregou'));
                 } else {
-                    setTimeout(checkServices, checkInterval);
+                    setTimeout(checkServices, 100);
                 }
             };
             checkServices();
         });
+    }
+
+    renderOneTapButton() {
+        const buttonContainer = document.getElementById('google-backup-btn');
+        if (buttonContainer) {
+            google.accounts.id.renderButton(buttonContainer, {
+                theme: 'outline',
+                size: 'large',
+                text: 'signin_with',
+                shape: 'rectangular'
+            });
+        }
     }
 
     async handleGoogleCredential(response) {
@@ -115,8 +90,7 @@ class GoogleDriveBackup {
 
             if (this.accessToken) {
                 this.isSignedIn = true;
-                this.updateBackupStatus(true, `🟢 Conectado: ${payload.email}`);
-                this.updateConnectButtonVisibility();
+                this.updateBackupStatus(true, `Conectado: ${payload.email}`);
                 console.log('✅ [BACKUP] Acesso ao Google Drive autorizado');
             } else {
                 throw new Error('Falha ao obter token de acesso');
@@ -170,111 +144,55 @@ class GoogleDriveBackup {
         return JSON.parse(jsonPayload);
     }
 
-    async handleBackupClick() {
-        console.log('☁️ [BACKUP] Botão backup clicado');
-
-        if (!this.isSignedIn) {
-            console.log('🔐 [BACKUP] Usuário não logado, mostrando One Tap...');
-            await this.showGoogleOneTap();
-            return;
-        }
-
-        // User is signed in, proceed with backup
-        await this.backupToDrive();
-    }
-
     async backupToDrive() {
         try {
-            console.log('☁️ [BACKUP] Iniciando backup...');
+            console.log('📤 [BACKUP] Iniciando backup...');
 
-            // Get data from mentalStorage
-            const data = window.mentalStorage ? await window.mentalStorage.exportAllData() : { test: 'data' };
-            console.log('📦 [BACKUP] Dados obtidos:', Object.keys(data).length, 'registros');
+            if (!this.isSignedIn || !this.accessToken) {
+                throw new Error('Usuário não autenticado');
+            }
+
+            this.updateBackupStatus(true, 'Preparando dados...');
+
+            // Get data from storage
+            const entries = await window.mentalStorage.getAllMoodEntries();
+            if (!entries || entries.length === 0) {
+                throw new Error('Nenhum dado para backup');
+            }
+
+            // Prepare backup data
+            const backupData = {
+                version: '3.1',
+                timestamp: new Date().toISOString(),
+                entries: entries,
+                totalEntries: entries.length
+            };
+
+            this.updateBackupStatus(true, 'Criptografando...');
 
             // Encrypt data
-            const encryptedData = await this.encryptData(JSON.stringify(data));
-            console.log('🔒 [BACKUP] Dados criptografados');
+            const encryptedData = await this.encryptData(JSON.stringify(backupData));
 
-            // Upload to Google Drive
+            this.updateBackupStatus(true, 'Enviando para Drive...');
+
+            // Upload to Drive
             const success = await this.uploadEncryptedFile(encryptedData);
 
             if (success) {
-                this.showToast('Backup realizado com sucesso!', 'success');
-                console.log('✅ [BACKUP] Backup concluído');
+                this.updateBackupStatus(true, 'Backup concluído!');
+                this.showToast('Backup realizado com sucesso! ☁️', 'success');
             } else {
                 throw new Error('Falha no upload');
             }
 
         } catch (error) {
             console.error('❌ [BACKUP] Erro no backup:', error);
+            this.updateBackupStatus(false, 'Erro no backup');
             this.showToast('Erro no backup: ' + error.message, 'error');
         }
     }
 
-    async showGooglePopupAuth() {
-        try {
-            console.log('🔐 [POPUP] Iniciando autenticação popup...');
-
-            // Create OAuth URL
-            const redirectUri = window.location.origin + window.location.pathname;
-            const scope = encodeURIComponent('https://www.googleapis.com/auth/drive.appdata');
-            const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-                `client_id=${this.clientId}&` +
-                `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-                `scope=${scope}&` +
-                `response_type=code&` +
-                `access_type=offline&` +
-                `prompt=consent`;
-
-            console.log('🔐 [POPUP] URL de autenticação:', authUrl);
-
-            // Open popup
-            const popup = window.open(
-                authUrl,
-                'google-auth',
-                'width=500,height=600,scrollbars=yes,resizable=yes'
-            );
-
-            if (!popup) {
-                throw new Error('Popup bloqueado pelo navegador');
-            }
-
-            // Listen for messages from popup
-            return new Promise((resolve, reject) => {
-                const messageListener = (event) => {
-                    if (event.origin !== window.location.origin) return;
-
-                    if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
-                        console.log('🔐 [POPUP] Autenticação bem-sucedida!');
-                        window.removeEventListener('message', messageListener);
-                        popup.close();
-                        resolve(event.data.code);
-                    } else if (event.data.type === 'GOOGLE_AUTH_ERROR') {
-                        console.error('🔐 [POPUP] Erro na autenticação:', event.data.error);
-                        window.removeEventListener('message', messageListener);
-                        popup.close();
-                        reject(new Error(event.data.error));
-                    }
-                };
-
-                window.addEventListener('message', messageListener);
-
-                // Check if popup was closed
-                const checkClosed = setInterval(() => {
-                    if (popup.closed) {
-                        clearInterval(checkClosed);
-                        window.removeEventListener('message', messageListener);
-                        reject(new Error('Popup fechado pelo usuário'));
-                    }
-                }, 1000);
-            });
-
-        } catch (error) {
-            console.error('❌ [POPUP] Erro na autenticação popup:', error);
-            this.showToast('Erro na autenticação: ' + error.message, 'error');
-            throw error;
-        }
-    }
+    async encryptData(data) {
         try {
             // Generate key from device fingerprint
             const key = await this.generateEncryptionKey();
@@ -375,14 +293,6 @@ class GoogleDriveBackup {
             statusElement.className = `backup-status ${connected ? 'connected' : 'error'}`;
             statusElement.textContent = connected ? `🟢 ${statusText}` : `🔴 ${statusText}`;
         }
-        this.updateConnectButtonVisibility();
-    }
-
-    updateConnectButtonVisibility() {
-        const connectBtn = document.getElementById('connect-google-drive');
-        if (connectBtn) {
-            connectBtn.style.display = this.isSignedIn ? 'none' : 'block';
-        }
     }
 
     showToast(message, type = 'info') {
@@ -403,119 +313,6 @@ class GoogleDriveBackup {
             setTimeout(() => toast.remove(), 300);
         }, 4000);
     }
-
-    // ===== BACKUP AUTOMÁTICO =====
-
-    // Habilita backup automático
-    async enableAutoBackup() {
-        console.log('☁️ [AUTO-BACKUP] Habilitando backup automático...');
-
-        if (!this.isSignedIn) {
-            this.showToast('Conecte-se ao Google Drive primeiro', 'error');
-            return false;
-        }
-
-        try {
-            // Envia mensagem para o service worker
-            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                navigator.serviceWorker.controller.postMessage({
-                    type: 'ENABLE_AUTO_BACKUP'
-                });
-            }
-
-            // Salva configuração local
-            localStorage.setItem('autoBackupEnabled', 'true');
-
-            this.showToast('Backup automático habilitado! Executará todos os dias às 7:00', 'success');
-            return true;
-
-        } catch (error) {
-            console.error('❌ [AUTO-BACKUP] Erro ao habilitar backup automático:', error);
-            this.showToast('Erro ao habilitar backup automático', 'error');
-            return false;
-        }
-    }
-
-    // Desabilita backup automático
-    async disableAutoBackup() {
-        console.log('☁️ [AUTO-BACKUP] Desabilitando backup automático...');
-
-        try {
-            // Envia mensagem para o service worker
-            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                navigator.serviceWorker.controller.postMessage({
-                    type: 'DISABLE_AUTO_BACKUP'
-                });
-            }
-
-            // Remove configuração local
-            localStorage.removeItem('autoBackupEnabled');
-
-            this.showToast('Backup automático desabilitado', 'info');
-            return true;
-
-        } catch (error) {
-            console.error('❌ [AUTO-BACKUP] Erro ao desabilitar backup automático:', error);
-            this.showToast('Erro ao desabilitar backup automático', 'error');
-            return false;
-        }
-    }
-
-    // Verifica se backup automático está habilitado
-    isAutoBackupEnabled() {
-        return localStorage.getItem('autoBackupEnabled') === 'true';
-    }
-
-    // Executa backup automático (chamado pelo service worker)
-    async performAutoBackup() {
-        console.log('☁️ [AUTO-BACKUP] Executando backup automático...');
-
-        try {
-            if (!this.isSignedIn) {
-                console.log('🔐 [AUTO-BACKUP] Usuário não logado, pulando backup automático');
-                return false;
-            }
-
-            // Executa backup normalmente
-            const success = await this.backupToDrive();
-
-            if (success) {
-                console.log('✅ [AUTO-BACKUP] Backup automático concluído com sucesso');
-                // Notificação já é mostrada pelo service worker
-            } else {
-                console.log('❌ [AUTO-BACKUP] Backup automático falhou');
-            }
-
-            return success;
-
-        } catch (error) {
-            console.error('❌ [AUTO-BACKUP] Erro no backup automático:', error);
-            return false;
-        }
-    }
-
-    // Listener para mensagens do service worker
-    setupServiceWorkerListener() {
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.addEventListener('message', (event) => {
-                if (event.data && event.data.type === 'AUTO_BACKUP_REQUEST') {
-                    console.log('📨 [AUTO-BACKUP] Recebida solicitação de backup automático');
-
-                    // Executa backup e responde
-                    this.performAutoBackup().then(success => {
-                        // Responde para o service worker
-                        if (navigator.serviceWorker.controller) {
-                            navigator.serviceWorker.controller.postMessage({
-                                type: 'AUTO_BACKUP_RESPONSE',
-                                success: success,
-                                timestamp: event.data.timestamp
-                            });
-                        }
-                    });
-                }
-            });
-        }
-    }
 }
 
 // Initialize when page loads
@@ -526,10 +323,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const backupBtn = document.getElementById('backup-data');
     if (backupBtn) {
         backupBtn.addEventListener('click', () => {
-            window.googleDriveBackup.handleBackupClick();
+            window.googleDriveBackup.backupToDrive();
         });
     }
-
-    // Setup service worker listener for auto backup
-    window.googleDriveBackup.setupServiceWorkerListener();
 });

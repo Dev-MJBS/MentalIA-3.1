@@ -37,27 +37,14 @@ class MentalIA {
         this.selectedFeelings = new Set();
         this.currentUser = null;
         this.isPremium = true; // Todos os recursos gratuitos
-        this.moodFormInitialized = false; // Flag to prevent double initialization
         // setupEventListeners() will be called in init() after DOM is ready
     }
 
     async init() {
         console.log('🧠 MentalIA 3.1 inicializando...');
 
-        // Check admin status and setup admin features
-        this.initAdminFeatures();
-
         // Initialize premium system
         await this.initPremium();
-
-        // Initialize AI Analysis system
-        if (window.aiAnalysis && typeof window.aiAnalysis.init === 'function') {
-            console.log('🤖 Inicializando sistema de análise IA...');
-            await window.aiAnalysis.init();
-            console.log('✅ Sistema de análise IA inicializado');
-        } else {
-            console.warn('⚠️ Sistema de análise IA não disponível');
-        }
 
         // Setup all event listeners AFTER DOM is ready
         this.setupEventListeners();
@@ -66,9 +53,6 @@ class MentalIA {
         this.initTheme();
         this.initChart();
         this.initPWA();
-
-        // Update auto backup status
-        this.updateAutoBackupStatus();
 
         // Load data
         await this.loadData();
@@ -120,589 +104,342 @@ class MentalIA {
         console.log('💎 UI Premium atualizada. Status:', this.isPremium);
     }
 
-    // ===== STORAGE INITIALIZATION =====
-    async ensureStorageReady() {
-        console.log('🗄️ Verificando storage...');
-
-        // Wait for storage to be available
-        let attempts = 0;
-        while (!window.mentalStorage && attempts < 50) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-        }
-
-        if (!window.mentalStorage) {
-            throw new Error('Storage não disponível após aguardar');
-        }
-
-        // Ensure storage is initialized
-        await window.mentalStorage.ensureInitialized();
-        console.log('✅ Storage pronto e inicializado');
-    }
-
-    // ===== ADMIN FEATURES =====
-    initAdminFeatures() {
-        console.log('👑 Verificando status de administrador...');
-
-        // Simple admin detection - can be improved later
-        const isAdmin = this.checkAdminStatus();
-
-        if (isAdmin) {
-            console.log('👑 Usuário administrador detectado - mostrando funcionalidades admin');
-            this.showAdminElements();
-        } else {
-            console.log('👤 Usuário normal - escondendo funcionalidades admin');
-            this.hideAdminElements();
-        }
-    }
-
-    checkAdminStatus() {
-        // Method 1: Check URL parameter
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('admin') === 'true') {
-            console.log('👑 Admin mode ativado via URL parameter');
-            return true;
-        }
-
-        // Method 2: Check localStorage
-        if (localStorage.getItem('mentalIA_admin') === 'true') {
-            console.log('👑 Admin mode ativado via localStorage');
-            return true;
-        }
-
-        // Method 3: Check for special key combination (Ctrl+Shift+A+D+M)
-        // This will be set up in setupEventListeners
-
-        // Method 4: Check if running on localhost/development
-        if (window.location.hostname === 'localhost' ||
-            window.location.hostname === '127.0.0.1' ||
-            window.location.hostname.includes('dev-mjbs.github.io')) {
-            console.log('👑 Admin mode ativado - desenvolvimento/GitHub Pages');
-            return true;
-        }
-
-        return false;
-    }
-
-    showAdminElements() {
-        const adminElements = document.querySelectorAll('.admin-only');
-        console.log('👑 Mostrando elementos admin:', adminElements.length);
-
-        adminElements.forEach(element => {
-            element.classList.remove('hidden');
-            element.classList.add('admin-visible');
-        });
-    }
-
-    hideAdminElements() {
-        const adminElements = document.querySelectorAll('.admin-only');
-        console.log('👤 Escondendo elementos admin:', adminElements.length);
-
-        adminElements.forEach(element => {
-            element.classList.add('hidden');
-            element.classList.remove('admin-visible');
-        });
-    }
-
-    // Toggle admin mode (for testing)
-    toggleAdminMode() {
-        const isCurrentlyAdmin = localStorage.getItem('mentalIA_admin') === 'true';
-
-        if (isCurrentlyAdmin) {
-            localStorage.removeItem('mentalIA_admin');
-            this.hideAdminElements();
-            this.showToast('👤 Modo usuário ativado', 'info');
-            console.log('👤 Modo admin desativado');
-        } else {
-            localStorage.setItem('mentalIA_admin', 'true');
-            this.showAdminElements();
-            this.showToast('👑 Modo admin ativado', 'success');
-            console.log('👑 Modo admin ativado');
-        }
-    }
-
     setupEventListeners() {
         try {
             console.log('🔧 setupEventListeners() INICIADO - Timestamp:', Date.now());
             console.log('🔧 DOM readyState:', document.readyState);
             console.log('🔧 Window loaded:', window.mentalIA ? 'Sim' : 'Não');
 
-            // 🔥 CORREÇÃO: Remover listeners duplicados primeiro
-            this.removeExistingListeners();
+        // Admin key combination (Ctrl+Shift+D+E+V)
+        this.setupAdminKeyListener();
 
-            // Admin key combination (Ctrl+Shift+D+E+V)
-            this.setupAdminKeyListener();
+        // Theme toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        console.log('🎨 Theme toggle encontrado:', !!themeToggle);
+        themeToggle?.addEventListener('click', () => this.toggleTheme());
 
-            // Theme toggle
-            const themeToggle = document.getElementById('theme-toggle');
-            console.log('🎨 Theme toggle encontrado:', !!themeToggle);
-            themeToggle?.addEventListener('click', () => this.toggleTheme());
+        // All screen navigation buttons
+        const screenBtns = document.querySelectorAll('[data-screen]');
+        console.log('🧭 Botões de navegação encontrados:', screenBtns.length, screenBtns);
+        screenBtns.forEach(btn => {
+            console.log('🧭 Configurando event listener para botão:', btn.dataset.screen, btn);
+            console.log('🧭 Botão tem pointer-events:', window.getComputedStyle(btn).pointerEvents);
+            console.log('🧭 Botão tem touch-action:', window.getComputedStyle(btn).touchAction);
 
-            // ===== 1. BOTÃO PRINCIPAL - .btn-primary 'click' → showScreen('mood') =====
-            console.log('🔍 Procurando botões .btn-primary...');
-            const btnPrimaryElements = document.querySelectorAll('.btn-primary');
-            console.log('🔍 Encontrados .btn-primary:', btnPrimaryElements.length);
+            // Remove existing listeners to avoid duplicates
+            btn.removeEventListener('click', btn._screenClickHandler);
+            btn.removeEventListener('touchend', btn._screenTouchHandler);
 
-            btnPrimaryElements.forEach((btn, index) => {
-                console.log(`🔍 Configurando .btn-primary #${index}:`, btn);
-                btn.addEventListener('click', (e) => {
-                    console.log('🎯 .btn-primary clicado! Navegando para mood...');
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.showScreen('mood');
+            // Create handlers
+            btn._screenClickHandler = (e) => {
+                console.log('🖱️ CLICK EVENT disparado no botão:', e.currentTarget.dataset.screen);
+                console.log('🖱️ Event details:', {
+                    type: e.type,
+                    target: e.target,
+                    currentTarget: e.currentTarget,
+                    screen: e.currentTarget.dataset.screen
                 });
-                btn.addEventListener('touchend', (e) => {
-                    console.log('🎯 .btn-primary touch! Navegando para mood...');
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.showScreen('mood');
+                e.preventDefault();
+                e.stopPropagation();
+                const screen = e.currentTarget.dataset.screen;
+                console.log('🧭 Navegando para (click):', screen);
+                this.showScreen(screen);
+            };
+
+            btn._screenTouchHandler = (e) => {
+                console.log('👆 TOUCH EVENT disparado no botão:', e.currentTarget.dataset.screen);
+                console.log('👆 Touch event details:', {
+                    type: e.type,
+                    target: e.target,
+                    currentTarget: e.currentTarget,
+                    touches: e.touches?.length,
+                    changedTouches: e.changedTouches?.length
                 });
+                e.preventDefault();
+                e.stopPropagation();
+                const screen = e.currentTarget.dataset.screen;
+                console.log('🧭 Navegando para (touch):', screen);
+                this.showScreen(screen);
+            };
+
+            // Add listeners
+            btn.addEventListener('click', btn._screenClickHandler);
+            btn.addEventListener('touchend', btn._screenTouchHandler);
+
+            console.log('✅ Event listeners anexados ao botão:', btn.dataset.screen);
+        });
+
+        // 🔥 TESTE: Adicionar botão de debug para testar navegação
+        const debugBtn = document.createElement('button');
+        debugBtn.id = 'debug-navigation-btn';
+        debugBtn.textContent = '🧪 Testar Navegação';
+        debugBtn.style.cssText = `
+            position: fixed;
+            bottom: 120px;
+            right: 20px;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            z-index: 9999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        debugBtn.addEventListener('click', () => {
+            console.log('🧪 BOTÃO DE DEBUG CLICADO!');
+            console.log('🧪 Testando navegação para mood screen...');
+            this.showScreen('mood');
+            this.showToast('🧪 Navegação testada!', 'info');
+        });
+        document.body.appendChild(debugBtn);
+        console.log('🧪 Botão de debug adicionado ao DOM');
+
+        // Mood form submission
+        const moodForm = document.getElementById('mood-form');
+        console.log('📝 Formulário de humor encontrado:', !!moodForm);
+        moodForm?.addEventListener('submit', (e) => this.handleMoodSubmit(e));
+
+        // Report generation with mobile optimization
+        const reportBtn = document.getElementById('generate-report');
+        console.log('📊 Botão relatório encontrado:', !!reportBtn);
+
+        if (reportBtn) {
+            // 🔥 CORREÇÃO: Múltiplos event listeners para melhor compatibilidade mobile
+            const generateReportHandler = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('📊 Gerando relatório...');
+                this.generateReport();
+            };
+
+            // Event listeners para diferentes tipos de interação
+            reportBtn.addEventListener('click', generateReportHandler);
+            reportBtn.addEventListener('touchend', generateReportHandler);
+
+            // Prevenção de double-tap zoom no iOS
+            reportBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
             });
 
-            // All screen navigation buttons (data-screen)
-            const screenBtns = document.querySelectorAll('[data-screen]');
-            console.log('🧭 Botões de navegação encontrados:', screenBtns.length, screenBtns);
-            screenBtns.forEach(btn => {
-                console.log('🧭 Configurando event listener para botão:', btn.dataset.screen, btn);
-                console.log('🧭 Botão tem pointer-events:', window.getComputedStyle(btn).pointerEvents);
-                console.log('🧭 Botão tem touch-action:', window.getComputedStyle(btn).touchAction);
-
-                // Remove existing listeners to avoid duplicates
-                btn.removeEventListener('click', btn._screenClickHandler);
-                btn.removeEventListener('touchend', btn._screenTouchHandler);
-
-                // Create handlers
-                btn._screenClickHandler = (e) => {
-                    console.log('🖱️ CLICK EVENT disparado no botão:', e.currentTarget.dataset.screen);
-                    console.log('🖱️ Event details:', {
-                        type: e.type,
-                        target: e.target,
-                        currentTarget: e.currentTarget,
-                        screen: e.currentTarget.dataset.screen
-                    });
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const screen = e.currentTarget.dataset.screen;
-                    console.log('🧭 Navegando para (click):', screen);
-                    this.showScreen(screen);
-                };
-
-                btn._screenTouchHandler = (e) => {
-                    console.log('👆 TOUCH EVENT disparado no botão:', e.currentTarget.dataset.screen);
-                    console.log('👆 Touch event details:', {
-                        type: e.type,
-                        target: e.target,
-                        currentTarget: e.currentTarget,
-                        touches: e.touches?.length,
-                        changedTouches: e.changedTouches?.length
-                    });
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const screen = e.currentTarget.dataset.screen;
-                    console.log('🧭 Navegando para (touch):', screen);
-                    this.showScreen(screen);
-                };
-
-                // Add listeners
-                btn.addEventListener('click', btn._screenClickHandler);
-                btn.addEventListener('touchend', btn._screenTouchHandler);
-
-                console.log('✅ Event listeners anexados ao botão:', btn.dataset.screen);
+            // Feedback visual para touch
+            reportBtn.addEventListener('touchstart', () => {
+                reportBtn.style.transform = 'scale(0.98)';
+                reportBtn.style.opacity = '0.8';
             });
 
-            // ===== 4. MOOD CONTINUE BUTTON - #mood-continue-btn 'click' → handleMoodSubmit() =====
-            const moodContinueBtn = document.getElementById('mood-continue-btn');
-            console.log('📝 Botão mood-continue encontrado:', !!moodContinueBtn);
-            if (moodContinueBtn) {
-                moodContinueBtn.addEventListener('click', (e) => {
-                    console.log('📝 mood-continue-btn clicado! Chamando handleMoodSubmit...');
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.handleMoodSubmit(e);
-                });
-                moodContinueBtn.addEventListener('touchend', (e) => {
-                    console.log('📝 mood-continue-btn touch! Chamando handleMoodSubmit...');
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.handleMoodSubmit(e);
-                });
-            }
-
-            // Mood form submission
-            const moodForm = document.getElementById('mood-form');
-            console.log('📝 Formulário de humor encontrado:', !!moodForm);
-            moodForm?.addEventListener('submit', (e) => {
-                console.log('📝 Mood form submit event triggered');
-                this.handleMoodSubmit(e);
-            });
-
-            // ===== 5. GENERATE REPORT BUTTON - #generate-report 'click' → generateReport(entries) =====
-            const reportBtn = document.getElementById('generate-report');
-            console.log('📊 Botão relatório encontrado:', !!reportBtn);
-
-            if (reportBtn) {
-                // 🔥 CORREÇÃO: Múltiplos event listeners para melhor compatibilidade mobile
-                const generateReportHandler = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('📊 generate-report clicado! Gerando relatório...');
-                    this.generateReport();
-                };
-
-                // Event listeners para diferentes tipos de interação
-                reportBtn.addEventListener('click', generateReportHandler);
-                reportBtn.addEventListener('touchend', generateReportHandler);
-
-                // Prevenção de double-tap zoom no iOS
-                reportBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                });
-
-                // Feedback visual para touch
-                reportBtn.addEventListener('touchstart', () => {
-                    reportBtn.style.transform = 'scale(0.98)';
-                    reportBtn.style.opacity = '0.8';
-                });
-
-                reportBtn.addEventListener('touchend', () => {
-                    setTimeout(() => {
-                        reportBtn.style.transform = 'scale(1)';
-                        reportBtn.style.opacity = '1';
-                    }, 150);
-                });
-
-                reportBtn.addEventListener('touchcancel', () => {
+            reportBtn.addEventListener('touchend', () => {
+                setTimeout(() => {
                     reportBtn.style.transform = 'scale(1)';
                     reportBtn.style.opacity = '1';
-                });
-            }
+                }, 150);
+            });
 
-            // PDF generation button
-            const pdfBtn = document.getElementById('generate-pdf-report');
-            console.log('📄 Botão PDF encontrado:', !!pdfBtn);
+            reportBtn.addEventListener('touchcancel', () => {
+                reportBtn.style.transform = 'scale(1)';
+                reportBtn.style.opacity = '1';
+            });
+        }
 
-            if (pdfBtn) {
-                const generatePDFHandler = async (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('📄 generate-pdf-report clicado! Gerando PDF...');
+        // PDF generation button
+        const pdfBtn = document.getElementById('generate-pdf-report');
+        console.log('📄 Botão PDF encontrado:', !!pdfBtn);
 
-                    try {
-                        // Disable button during generation
-                        pdfBtn.disabled = true;
-                        pdfBtn.textContent = '📄 Gerando PDF...';
+        if (pdfBtn) {
+            const generatePDFHandler = async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('📄 Gerando PDF...');
 
-                        await window.aiAnalysis.downloadReportPDF();
+                try {
+                    // Disable button during generation
+                    pdfBtn.disabled = true;
+                    pdfBtn.textContent = '📄 Gerando PDF...';
 
-                    } catch (error) {
-                        console.error('Erro ao gerar PDF:', error);
-                        this.showToast('Erro ao gerar PDF: ' + error.message, 'error');
-                    } finally {
-                        // Re-enable button
-                        pdfBtn.disabled = false;
-                        pdfBtn.textContent = '📄 Baixar Relatório em PDF';
-                    }
-                };
+                    await window.aiAnalysis.downloadReportPDF();
 
-                // Event listeners for PDF button
-                pdfBtn.addEventListener('click', generatePDFHandler);
-                pdfBtn.addEventListener('touchend', generatePDFHandler);
+                } catch (error) {
+                    console.error('Erro ao gerar PDF:', error);
+                    this.showToast('Erro ao gerar PDF: ' + error.message, 'error');
+                } finally {
+                    // Re-enable button
+                    pdfBtn.disabled = false;
+                    pdfBtn.textContent = '📄 Baixar Relatório em PDF';
+                }
+            };
 
-                // Touch feedback for PDF button
-                pdfBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    pdfBtn.style.transform = 'scale(0.98)';
-                    pdfBtn.style.opacity = '0.8';
-                });
+            // Event listeners for PDF button
+            pdfBtn.addEventListener('click', generatePDFHandler);
+            pdfBtn.addEventListener('touchend', generatePDFHandler);
 
-                pdfBtn.addEventListener('touchend', () => {
-                    setTimeout(() => {
-                        pdfBtn.style.transform = 'scale(1)';
-                        pdfBtn.style.opacity = '1';
-                    }, 150);
-                });
+            // Touch feedback for PDF button
+            pdfBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                pdfBtn.style.transform = 'scale(0.98)';
+                pdfBtn.style.opacity = '0.8';
+            });
 
-                pdfBtn.addEventListener('touchcancel', () => {
+            pdfBtn.addEventListener('touchend', () => {
+                setTimeout(() => {
                     pdfBtn.style.transform = 'scale(1)';
                     pdfBtn.style.opacity = '1';
-                });
-            }
+                }, 150);
+            });
 
-            // ===== 6. BACKUP DATA BUTTON - #backup-now-btn 'click' → backupData() com One Tap =====
-            const backupBtn = document.getElementById('backup-now-btn');
-            console.log('💾 Botão backup encontrado:', !!backupBtn);
-            if (backupBtn) {
-                backupBtn.addEventListener('click', () => {
-                    console.log('💾 backup-now-btn clicado! Fazendo backup...');
-                    this.backupData();
-                });
-                backupBtn.addEventListener('touchend', (e) => {
-                    console.log('💾 backup-now-btn touch! Fazendo backup...');
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.backupData();
-                });
-            }
+            pdfBtn.addEventListener('touchcancel', () => {
+                pdfBtn.style.transform = 'scale(1)';
+                pdfBtn.style.opacity = '1';
+            });
+        }
 
-            // Connect Google Drive button
-            const connectBtn = document.getElementById('connect-google-drive');
-            console.log('🔗 Botão conectar Google Drive encontrado:', !!connectBtn);
-            connectBtn?.addEventListener('click', () => {
-                console.log('🔗 [BOTÃO] Botão "Conectar Google Drive" clicado!');
-                if (window.googleDriveBackup) {
-                    console.log('🔗 [BOTÃO] Chamando showGoogleOneTap...');
-                    window.googleDriveBackup.showGoogleOneTap();
+        // Backup
+        const backupBtn = document.getElementById('backup-data');
+        console.log('💾 Botão backup encontrado:', !!backupBtn);
+        backupBtn?.addEventListener('click', () => {
+            console.log('💾 Fazendo backup...');
+            this.backupData();
+        });
+
+        // AI mode toggle
+        const modeLabels = document.querySelectorAll('.mode-label');
+        console.log('🤖 Labels de modo AI encontrados:', modeLabels.length);
+        modeLabels.forEach(label => {
+            label.addEventListener('click', (e) => {
+                console.log('🤖 Label clicado:', label);
+                const forAttr = label.getAttribute('for');
+                console.log('🤖 For attribute:', forAttr);
+                const radio = document.getElementById(forAttr);
+                if (radio) {
+                    radio.checked = true;
+                    console.log('🤖 Modo AI alterado para:', radio.value);
+                }
+            });
+        });
+
+        // 🔥 CORREÇÃO: Premium Actions - Análise Avançada e Export PDF
+        const advancedAnalysisBtn = document.getElementById('advanced-analysis');
+        const exportPdfBtn = document.getElementById('export-pdf');
+
+        console.log('🧠 Botão análise avançada encontrado:', !!advancedAnalysisBtn);
+        console.log('📄 Botão export PDF encontrado:', !!exportPdfBtn);
+
+        advancedAnalysisBtn?.addEventListener('click', async () => {
+            console.log('🧠 Análise avançada clicada!');
+
+            try {
+                this.showToast('🤖 Gerando análise avançada...', 'info');
+
+                // Usar o sistema de análise IA
+                if (window.aiAnalysis) {
+                    const analysis = await window.aiAnalysis.generateFullAnalysis(this.data);
+                    this.displayAdvancedAnalysis(analysis);
                 } else {
-                    console.error('🔗 [BOTÃO] Sistema de backup não disponível');
-                    this.showToast('Sistema de backup não disponível', 'error');
+                    throw new Error('Sistema de IA não disponível');
                 }
-            });
+            } catch (error) {
+                console.error('Erro na análise avançada:', error);
+                this.showToast('Erro ao gerar análise. Tente novamente.', 'error');
+            }
+        });
 
-            // Auto backup toggle
-            const autoBackupToggle = document.getElementById('auto-backup-toggle');
-            console.log('🔄 Toggle backup automático encontrado:', !!autoBackupToggle);
-            autoBackupToggle?.addEventListener('change', async (e) => {
-                console.log('🔄 Toggle backup automático alterado:', e.target.checked);
-                const enabled = e.target.checked;
+        exportPdfBtn?.addEventListener('click', async () => {
+            console.log('📄 Export PDF clicado!');
 
-                if (enabled) {
-                    // Verificar se está conectado ao Google Drive
-                    if (!window.googleDriveBackup?.isSignedIn) {
-                        this.showToast('Conecte-se ao Google Drive primeiro', 'warning');
-                        e.target.checked = false;
-                        return;
-                    }
+            try {
+                this.showToast('📄 Gerando PDF...', 'info');
 
-                    const success = await window.googleDriveBackup.enableAutoBackup();
-                    if (!success) {
-                        e.target.checked = false;
-                    }
+                // Usar o sistema de análise IA para PDF
+                if (window.aiAnalysis) {
+                    await window.aiAnalysis.downloadReportPDF();
                 } else {
-                    await window.googleDriveBackup.disableAutoBackup();
+                    throw new Error('Sistema de PDF não disponível');
                 }
+            } catch (error) {
+                console.error('Erro no export PDF:', error);
+                this.showToast('Erro ao gerar PDF. Tente novamente.', 'error');
+            }
+        });
 
-                // Atualizar status na UI
-                this.updateAutoBackupStatus();
-            });
+        // Delete entry buttons (dynamic, added after entries are loaded)
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-entry-btn')) {
+                e.preventDefault();
+                const entryId = parseInt(e.target.dataset.entryId);
+                this.showDeleteModal(entryId, false);
+            }
+        });
 
-            // Manual backup button
-            const manualBackupBtn = document.getElementById('backup-now-btn');
-            console.log('💾 Botão backup manual encontrado:', !!manualBackupBtn);
-            manualBackupBtn?.addEventListener('click', async () => {
-                console.log('💾 Botão backup manual clicado');
+        // Delete all data button
+        const deleteAllBtn = document.getElementById('delete-all-data');
+        console.log('🗑️ Botão apagar todos encontrado:', !!deleteAllBtn);
+        deleteAllBtn?.addEventListener('click', () => {
+            console.log('🗑️ Botão apagar todos clicado');
+            this.showDeleteModal(null, true);
+        });
 
-                // Verificar se o sistema de backup está disponível
-                if (!window.googleDriveBackup) {
-                    this.showToast('Sistema de backup não disponível', 'error');
-                    return;
-                }
+        // Delete modal buttons
+        const confirmDeleteBtn = document.getElementById('confirm-delete');
+        const cancelDeleteBtn = document.getElementById('cancel-delete');
 
-                // Verificar se o usuário está conectado ao Google Drive
-                if (!window.googleDriveBackup.isSignedIn) {
-                    this.showToast('🔗 Conecte-se ao Google Drive primeiro usando o botão "Conectar Google Drive"', 'warning');
-                    return;
-                }
+        confirmDeleteBtn?.addEventListener('click', () => {
+            this.confirmDelete();
+        });
 
-                // Mostrar feedback visual - botão em loading
-                const btn = document.getElementById('backup-now-btn');
-                const btnText = btn.querySelector('.btn-text');
-                const btnLoading = btn.querySelector('.btn-loading');
+        cancelDeleteBtn?.addEventListener('click', () => {
+            this.hideDeleteModal();
+        });
 
-                if (btn && btnText && btnLoading) {
-                    btn.classList.add('loading');
-                    btn.disabled = true;
-                }
-
-                try {
-                    // Mostrar feedback
-                    this.showToast('🔄 Fazendo backup manual...', 'info');
-
-                    // Executar backup
-                    await window.googleDriveBackup.backupToDrive();
-
-                    // Feedback de sucesso
-                    this.showToast('✅ Backup manual realizado com sucesso!', 'success');
-
-                    // Atualizar status do último backup
-                    this.updateAutoBackupStatus();
-
-                } catch (error) {
-                    console.error('❌ Erro no backup manual:', error);
-                    this.showToast('❌ Erro no backup manual: ' + error.message, 'error');
-                } finally {
-                    // Restaurar botão
-                    if (btn && btnText && btnLoading) {
-                        btn.classList.remove('loading');
-                        btn.disabled = false;
-                    }
-                }
-            });
-
-            // AI mode toggle
-            const modeLabels = document.querySelectorAll('.mode-label');
-            console.log('🤖 Labels de modo AI encontrados:', modeLabels.length);
-            modeLabels.forEach(label => {
-                label.addEventListener('click', (e) => {
-                    console.log('🤖 Label clicado:', label);
-                    const forAttr = label.getAttribute('for');
-                    console.log('🤖 For attribute:', forAttr);
-                    const radio = document.getElementById(forAttr);
-                    if (radio) {
-                        radio.checked = true;
-                        console.log('🤖 Modo AI alterado para:', radio.value);
-                    }
-                });
-            });
-
-            // 🔥 CORREÇÃO: Premium Actions - Análise Avançada e Export PDF
-            const advancedAnalysisBtn = document.getElementById('advanced-analysis');
-            const exportPdfBtn = document.getElementById('export-pdf');
-
-            console.log('🧠 Botão análise avançada encontrado:', !!advancedAnalysisBtn);
-            console.log('📄 Botão export PDF encontrado:', !!exportPdfBtn);
-
-            advancedAnalysisBtn?.addEventListener('click', async () => {
-                console.log('🧠 Análise avançada clicada!');
-
-                try {
-                    this.showToast('🤖 Gerando análise avançada...', 'info');
-
-                    // Usar o sistema de análise IA
-                    if (window.aiAnalysis) {
-                        const analysis = await window.aiAnalysis.generateFullAnalysis(this.data);
-                        this.displayAdvancedAnalysis(analysis);
-                    } else {
-                        throw new Error('Sistema de IA não disponível');
-                    }
-                } catch (error) {
-                    console.error('Erro na análise avançada:', error);
-                    this.showToast('Erro ao gerar análise. Tente novamente.', 'error');
-                }
-            });
-
-            exportPdfBtn?.addEventListener('click', async () => {
-                console.log('📄 Export PDF clicado!');
-
-                try {
-                    this.showToast('📄 Gerando PDF...', 'info');
-
-                    // Usar o sistema de análise IA para PDF
-                    if (window.aiAnalysis) {
-                        await window.aiAnalysis.downloadReportPDF();
-                    } else {
-                        throw new Error('Sistema de PDF não disponível');
-                    }
-                } catch (error) {
-                    console.error('Erro no export PDF:', error);
-                    this.showToast('Erro ao gerar PDF. Tente novamente.', 'error');
-                }
-            });
-
-            // Delete buttons
-            const deleteAllBtn = document.getElementById('delete-all-data');
-            const confirmDeleteEntryBtn = document.getElementById('confirm-delete-entry');
-            const cancelDeleteEntryBtn = document.getElementById('cancel-delete-entry');
-            const confirmDeleteAllBtn = document.getElementById('confirm-delete-all');
-            const cancelDeleteAllBtn = document.getElementById('cancel-delete-all');
-
-            deleteAllBtn?.addEventListener('click', () => {
-                console.log('🗑️ Botão "Apagar Todos os Dados" clicado');
-                this.showDeleteAllDataModal();
-            });
-
-            confirmDeleteEntryBtn?.addEventListener('click', async () => {
-                const modal = document.getElementById('delete-entry-modal');
-                const entryId = modal?._entryId;
-                if (entryId) {
-                    await this.deleteEntry(entryId);
-                    this.hideDeleteModals();
-                }
-            });
-
-            cancelDeleteEntryBtn?.addEventListener('click', () => {
-                this.hideDeleteModals();
-            });
-
-            confirmDeleteAllBtn?.addEventListener('click', async () => {
-                await this.deleteAllData();
-                this.hideDeleteModals();
-            });
-
-            cancelDeleteAllBtn?.addEventListener('click', () => {
-                this.hideDeleteModals();
-            });
-
-            console.log('✅ Todos os event listeners configurados com sucesso!');
+        console.log('✅ Event listeners configurados');
         } catch (error) {
             console.error('❌ Erro ao configurar event listeners:', error);
         }
-    }
-
-    removeExistingListeners() {
-        console.log('🧹 Removendo listeners duplicados...');
-
-        // Remove any existing listeners from common buttons
-        const buttonsToClean = [
-            'btn-primary', 'mood-continue-btn', 'generate-report',
-            'backup-data', 'connect-google-drive', 'backup-now-btn'
-        ];
-
-        buttonsToClean.forEach(id => {
-            const btn = document.getElementById(id);
-            if (btn) {
-                // Clone and replace to remove all listeners
-                const clone = btn.cloneNode(true);
-                btn.parentNode.replaceChild(clone, btn);
-                console.log(`🧹 Limpo listeners de #${id}`);
-            }
-        });
-
-        // Clean class-based buttons
-        const classButtons = ['btn-primary', 'primary-feeling-btn'];
-        classButtons.forEach(className => {
-            const buttons = document.querySelectorAll(`.${className}`);
-            buttons.forEach(btn => {
-                const clone = btn.cloneNode(true);
-                btn.parentNode.replaceChild(clone, btn);
-            });
-            console.log(`🧹 Limpo listeners de .${className}`);
-        });
-
-        console.log('✅ Listeners duplicados removidos');
-    }
-
-    setupAdminKeyListener() {
-        let keySequence = [];
-        const adminSequence = ['Control', 'Shift', 'd', 'e', 'v'];
+    }    showAdminElements() {
+        console.log('👑 Mostrando elementos administrativos...');
         
-        document.addEventListener('keydown', (e) => {
-            // Add current key to sequence
-            keySequence.push(e.key);
-            
-            // Keep only last 5 keys
-            if (keySequence.length > adminSequence.length) {
-                keySequence.shift();
-            }
-            
-            // Check if sequence matches admin pattern
-            const sequenceString = keySequence.join(',').toLowerCase();
-            const adminString = adminSequence.join(',').toLowerCase();
-            
-            if (sequenceString === adminString) {
-                console.log('👑 Sequência admin detectada! Ativando modo desenvolvedor...');
-                localStorage.setItem('mentalIA_admin', 'true');
-                this.showAdminElements();
-                this.showToast('🚀 Modo Desenvolvedor Ativado!', 'success');
-                keySequence = []; // Reset sequence
-            }
-        });
+        // Create admin panel if it doesn't exist
+        let adminPanel = document.getElementById('admin-panel');
+        if (!adminPanel) {
+            adminPanel = document.createElement('div');
+            adminPanel.id = 'admin-panel';
+            adminPanel.innerHTML = `
+                <div style="
+                    position: fixed;
+                    top: 10px;
+                    right: 10px;
+                    background: rgba(255, 0, 0, 0.9);
+                    color: white;
+                    padding: 10px;
+                    border-radius: 8px;
+                    z-index: 10000;
+                    font-size: 12px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                ">
+                    <div><strong>🚀 MODO DESENVOLVEDOR</strong></div>
+                    <div>Versão: MentalIA 3.1</div>
+                    <div>Timestamp: ${Date.now()}</div>
+                    <button onclick="this.parentElement.parentElement.remove()" style="
+                        margin-top: 5px;
+                        background: white;
+                        color: red;
+                        border: none;
+                        padding: 2px 6px;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-size: 10px;
+                    ">Fechar</button>
+                </div>
+            `;
+            document.body.appendChild(adminPanel);
+        }
+        
+        // Show debug elements
+        const debugElements = document.querySelectorAll('[data-debug-only]');
+        debugElements.forEach(el => el.style.display = 'block');
+        
+        console.log('👑 Elementos administrativos exibidos');
     }
-
-    // ===== MOOD SLIDER =====
     initMoodForm() {
-        if (this.moodFormInitialized) return;
-        this.moodFormInitialized = true;
-
         console.log('🎚️ Inicializando slider de humor...');
 
         // Setup mood slider with input listener and color gradient
@@ -916,7 +653,6 @@ class MentalIA {
                 if (checkbox) {
                     console.log('🎭 Checkbox encontrado, toggling:', checkbox.checked);
                     checkbox.checked = !checkbox.checked;
-                    item.classList.toggle('selected', checkbox.checked);
                     console.log('🎭 Checkbox novo estado:', checkbox.checked);
                     this.updateSelectedFeelings();
                 } else {
@@ -1142,27 +878,28 @@ class MentalIA {
     }
 
     // ===== SAVE MOOD =====
-    async saveMoodEntry(mood, feelings, diary) {
-        console.log('💾 [APP] saveMoodEntry called with:', { mood, feelingsCount: feelings?.size || 0, diaryLength: diary?.length || 0 });
+    async handleMoodSubmit(e) {
+        e.preventDefault();
+        console.log('💾 Salvando registro...');
 
         try {
             // Validate data
-            if (mood < 1 || mood > 5) {
-                throw new Error('Humor inválido: ' + mood);
+            if (this.currentMood < 1 || this.currentMood > 5) {
+                throw new Error('Humor inválido: ' + this.currentMood);
             }
 
             // Prepare data
             const moodData = {
                 id: Date.now(),
-                mood: Math.round(mood * 10) / 10,
-                feelings: Array.from(feelings || []),
-                diary: diary?.trim() || '',
+                mood: Math.round(this.currentMood * 10) / 10,
+                feelings: Array.from(this.selectedFeelings),
+                diary: document.getElementById('diary-entry')?.value?.trim() || '',
                 timestamp: new Date().toISOString(),
                 date: new Date().toDateString(),
                 version: '3.1'
             };
 
-            console.log('📊 [APP] Prepared moodData:', {
+            console.log('📊 Dados para salvar:', {
                 id: moodData.id,
                 mood: moodData.mood,
                 feelingsCount: moodData.feelings.length,
@@ -1171,76 +908,22 @@ class MentalIA {
 
             // Ensure storage is ready
             if (!window.mentalStorage) {
-                console.log('🔄 [APP] Storage not ready, initializing...');
                 await this.ensureStorageReady();
             }
 
             // Save to encrypted storage
-            console.log('💾 [APP] Calling window.mentalStorage.saveMoodEntry...');
             const result = await window.mentalStorage.saveMoodEntry(moodData);
-            console.log('✅ [APP] Save result:', result);
-
-            return result;
-        } catch (error) {
-            console.error('❌ [APP] saveMoodEntry failed:', error);
-            console.error('❌ [APP] Error details:', {
-                name: error.name,
-                message: error.message,
-                stack: error.stack
-            });
-            throw error;
-        }
-    }
-
-    async handleMoodSubmit(e) {
-        console.log('💾 [APP] handleMoodSubmit triggered');
-        e.preventDefault();
-        console.log('💾 [APP] Form submission prevented, processing...');
-
-        try {
-            // Get form data
-            const mood = this.currentMood;
-            const feelings = this.selectedFeelings;
-            const diary = document.getElementById('diary-entry')?.value?.trim() || '';
-
-            console.log('📝 [APP] Form data collected:', {
-                mood: mood,
-                feelingsCount: feelings?.size || 0,
-                diaryLength: diary?.length || 0
-            });
-
-            // Validate data
-            if (!mood || mood < 1 || mood > 5) {
-                throw new Error('Por favor, selecione um nível de humor válido (1-5)');
-            }
-
-            // Save using the extracted function
-            console.log('💾 [APP] Calling saveMoodEntry...');
-            await this.saveMoodEntry(mood, feelings, diary);
+            console.log('✅ Dados salvos criptografados:', result);
 
             // Success feedback
-            console.log('✅ [APP] Save successful, showing success toast');
             this.showToast('Humor registrado com sucesso! 🎉', 'success');
 
-            // Reload data to update stats and chart
-            console.log('🔄 [APP] Reloading data to update UI...');
-            await this.loadData();
-
             // Reset form and go to history
-            console.log('🔄 [APP] Resetting form and navigating to history...');
             this.resetMoodForm();
-            setTimeout(() => {
-                console.log('🧭 [APP] Navigating to history screen');
-                this.showScreen('history');
-            }, 1000);
+            setTimeout(() => this.showScreen('history'), 1000);
 
         } catch (error) {
-            console.error('❌ [APP] handleMoodSubmit failed:', error);
-            console.error('❌ [APP] Error details:', {
-                name: error.name,
-                message: error.message,
-                stack: error.stack
-            });
+            console.error('❌ Erro ao salvar:', error);
             this.showToast('Erro ao salvar: ' + error.message, 'error');
         }
     }
@@ -1265,55 +948,20 @@ class MentalIA {
     // ===== HISTORY =====
     async loadData() {
         try {
-            console.log('📊 [APP] loadData() iniciado - Carregando dados do storage...');
+            console.log('📊 Carregando dados do storage...');
 
-            // 🔥 CORREÇÃO: Aguardar storage estar completamente pronto
+            // Ensure storage is ready
             if (!window.mentalStorage) {
-                console.error('❌ [APP] Sistema de armazenamento não encontrado!');
-                throw new Error('Sistema de armazenamento não disponível');
+                console.log('🔄 Aguardando storage...');
+                await this.ensureStorageReady();
             }
 
-            // Aguardar inicialização com timeout
-            let initAttempts = 0;
-            const maxInitAttempts = 10;
+            console.log('📊 Buscando entradas...');
+            const entries = await window.mentalStorage.getAllMoodEntries();
+            console.log('📊 Calculando estatísticas...');
+            const stats = await window.mentalStorage.getStats();
 
-            while (!window.mentalStorage.initialized && initAttempts < maxInitAttempts) {
-                console.log(`🔄 [APP] Aguardando inicialização do storage (tentativa ${initAttempts + 1}/${maxInitAttempts})...`);
-                try {
-                    await window.mentalStorage.ensureInitialized();
-                    break;
-                } catch (initError) {
-                    console.warn(`⚠️ [APP] Tentativa ${initAttempts + 1} falhou:`, initError);
-                    initAttempts++;
-                    if (initAttempts < maxInitAttempts) {
-                        await new Promise(resolve => setTimeout(resolve, 500));
-                    }
-                }
-            }
-
-            if (!window.mentalStorage.initialized) {
-                throw new Error('Falha ao inicializar sistema de armazenamento após múltiplas tentativas');
-            }
-
-            console.log('📊 [APP] Storage pronto, buscando entradas...');
-
-            // 🔥 CORREÇÃO: Timeout para getAllMoodEntries
-            const entriesPromise = window.mentalStorage.getAllMoodEntries();
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Timeout ao carregar dados')), 10000)
-            );
-
-            const entries = await Promise.race([entriesPromise, timeoutPromise]);
-            console.log('📊 [APP] Calculando estatísticas...');
-
-            const statsPromise = window.mentalStorage.getStats();
-            const statsTimeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Timeout ao calcular estatísticas')), 5000)
-            );
-
-            const stats = await Promise.race([statsPromise, statsTimeoutPromise]);
-
-            console.log('📊 [APP] Dados carregados:', {
+            console.log('📊 Dados carregados:', {
                 entriesCount: entries?.length || 0,
                 firstEntry: entries?.[0] ? {
                     id: entries[0].id,
@@ -1331,60 +979,16 @@ class MentalIA {
             this.updateChart(entries);
             this.updateRecentEntries(entries);
 
-            console.log('✅ [APP] Dados carregados e exibidos com sucesso');
-
-            // 🔥 CORREÇÃO: Verificar integridade dos dados periodicamente
-            if (entries && entries.length > 0) {
-                setTimeout(async () => {
-                    try {
-                        const integrity = await window.mentalStorage.verifyDataIntegrity();
-                        if (integrity.corruptedEntries > 0) {
-                            console.warn(`⚠️ [APP] ${integrity.corruptedEntries} entradas corrompidas encontradas`);
-                            this.showToast(`${integrity.corruptedEntries} entrada(s) corrompida(s) encontrada(s) e removida(s)`, 'warning', 5000);
-                        }
-                    } catch (error) {
-                        console.warn('⚠️ [APP] Erro ao verificar integridade:', error);
-                    }
-                }, 2000);
-            }
-
+            console.log('✅ Dados carregados e exibidos');
         } catch (error) {
-            console.error('❌ [APP] Erro ao carregar dados:', error);
-            console.error('❌ [APP] Stack trace:', error.stack);
-            console.error('❌ [APP] Error details:', {
-                name: error.name,
-                message: error.message,
-                cause: error.cause
-            });
-
-            // 🔥 CORREÇÃO: Tratamento mais específico de erros
-            let errorMessage = 'Erro ao carregar dados';
-            let errorType = 'error';
-
-            if (error.message.includes('Timeout')) {
-                errorMessage = 'Timeout ao carregar dados. Verifique sua conexão.';
-            } else if (error.message.includes('armazenamento')) {
-                errorMessage = 'Erro no sistema de armazenamento. Tente recarregar a página.';
-                errorType = 'warning';
-            } else if (error.message.includes('criptografar') || error.message.includes('decrypt')) {
-                errorMessage = 'Erro de criptografia. Seus dados podem estar corrompidos.';
-            }
-
-            // Show error toast
-            this.showToast(errorMessage, errorType);
-
+            console.error('❌ Erro ao carregar dados:', error);
+            console.error('❌ Stack trace:', error.stack);
+            this.showToast('Erro ao carregar dados: ' + error.message, 'error');
+            
             // Show empty state if no data
             this.updateStats({ totalEntries: 0, averageMood: 0, streak: 0 });
             this.updateChart([]);
             this.updateRecentEntries([]);
-
-            // 🔥 CORREÇÃO: Tentar recarregar dados após erro
-            if (!error.message.includes('Timeout')) {
-                setTimeout(() => {
-                    console.log('🔄 [APP] Tentando recarregar dados após erro...');
-                    this.loadData();
-                }, 3000);
-            }
         }
     }
 
@@ -1407,9 +1011,73 @@ class MentalIA {
         });
     }
 
+    updateChart(entries) {
+        console.log('📈 Atualizando gráfico com', entries?.length || 0, 'entradas');
+        
+        // Se não há entradas, mostrar estado vazio
+        if (!entries || entries.length === 0) {
+            const chartContainer = document.querySelector('.chart-container');
+            if (chartContainer) {
+                chartContainer.innerHTML = '<div class="empty-chart">📊 Nenhum dado para exibir</div>';
+            }
+            return;
+        }
 
+        // Implementação básica do gráfico pode ser adicionada aqui
+        // Por enquanto, apenas log para debug
+        console.log('📈 Primeiras 3 entradas para gráfico:', entries.slice(0, 3));
+    }
 
+    updateRecentEntries(entries) {
+        console.log('📅 Atualizando entradas recentes:', entries?.length || 0);
+        const container = document.getElementById('recent-entries');
+        if (!container) {
+            console.warn('⚠️ Container recent-entries não encontrado');
+            return;
+        }
 
+        // Limpar container
+        container.innerHTML = '';
+
+        // Se não há entradas, mostrar estado vazio
+        if (!entries || entries.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <h3>📝 Nenhum registro ainda</h3>
+                    <p>Registre seu primeiro humor para ver o histórico aqui!</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Mostrar últimas 5 entradas
+        const recentEntries = entries.slice(0, 5);
+        recentEntries.forEach(entry => {
+            const entryEl = document.createElement('div');
+            entryEl.className = 'recent-entry';
+            
+            const moodEmoji = this.getMoodEmoji(entry.mood);
+            const feelingsText = entry.feelings.length > 0 
+                ? entry.feelings.slice(0, 3).join(', ') + (entry.feelings.length > 3 ? '...' : '')
+                : 'Nenhum sentimento selecionado';
+            
+            entryEl.innerHTML = `
+                <div class="entry-content">
+                    <div class="entry-date">${new Date(entry.timestamp).toLocaleDateString('pt-BR')}</div>
+                    <div class="entry-mood">${moodEmoji} ${entry.mood.toFixed(1)}</div>
+                    <div class="entry-feelings">${feelingsText}</div>
+                    ${entry.diary ? `<div class="entry-diary">"${entry.diary.substring(0, 100)}${entry.diary.length > 100 ? '...' : ''}"</div>` : ''}
+                </div>
+                <button class="delete-entry-btn" data-entry-id="${entry.id}" title="Excluir registro">
+                    🗑️
+                </button>
+            `;
+            
+            container.appendChild(entryEl);
+        });
+
+        console.log('✅ Entradas recentes atualizadas');
+    }
 
     getMoodEmoji(mood) {
         if (mood <= 1.5) return '😢';
@@ -1624,128 +1292,7 @@ class MentalIA {
         }
     }
 
-    updateChart(entries) {
-        console.log('📊 Atualizando gráfico com', entries?.length || 0, 'entradas');
 
-        if (!this.chart) {
-            console.warn('⚠️ Gráfico não inicializado, inicializando...');
-            if (!this.initChart()) {
-                console.error('❌ Falha ao inicializar gráfico');
-                return;
-            }
-        }
-
-        if (!entries || !Array.isArray(entries) || entries.length === 0) {
-            console.log('📊 Nenhum dado para exibir no gráfico - mostrando fallback');
-            this.chart.data.labels = [];
-            this.chart.data.datasets[0].data = [];
-            this.chart.update('none'); // No animation for empty state
-            return;
-        }
-
-        try {
-            // Sort entries by date (oldest first for chart)
-            const sortedEntries = entries.sort((a, b) => {
-                const dateA = new Date(a.timestamp || a.date);
-                const dateB = new Date(b.timestamp || b.date);
-                return dateA - dateB;
-            });
-
-            // Take last 30 entries or all if less
-            const recentEntries = sortedEntries.slice(-30);
-
-            // 🔥 CORREÇÃO: Calcular trend baseado nos últimos 7 dias
-            const last7Days = recentEntries.slice(-7);
-            let trend = 'stable';
-            if (last7Days.length >= 2) {
-                const firstHalf = last7Days.slice(0, Math.floor(last7Days.length / 2));
-                const secondHalf = last7Days.slice(Math.floor(last7Days.length / 2));
-
-                const firstAvg = firstHalf.reduce((sum, e) => sum + e.mood, 0) / firstHalf.length;
-                const secondAvg = secondHalf.reduce((sum, e) => sum + e.mood, 0) / secondHalf.length;
-
-                const diff = secondAvg - firstAvg;
-                if (diff > 0.3) trend = 'improving';
-                else if (diff < -0.3) trend = 'declining';
-                else trend = 'stable';
-            }
-
-            console.log('📊 Trend calculado (últimos 7 dias):', trend);
-
-            // 🔥 CORREÇÃO: Placeholder para poucos dados
-            if (entries.length < 3) {
-                console.log('📊 Poucos dados - mostrando placeholder');
-                this.chart.data.labels = ['Registre mais pra ver padrões'];
-                this.chart.data.datasets[0].data = [3.0]; // Valor neutro
-                this.chart.update('active');
-
-                // Mostrar toast informativo
-                this.showToast('📊 Registre mais alguns humores para ver padrões no gráfico!', 'info', 4000);
-                return;
-            }
-
-            // Create labels with better date formatting (PT-BR)
-            const labels = recentEntries.map(entry => {
-                const date = new Date(entry.timestamp || entry.date);
-
-                // Handle invalid dates
-                if (isNaN(date.getTime())) {
-                    console.warn('⚠️ Data inválida encontrada:', entry);
-                    return 'Data inválida';
-                }
-
-                const now = new Date();
-                const diffTime = Math.abs(now - date);
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                // Show different formats based on how recent the date is
-                if (diffDays === 0) {
-                    return 'Hoje';
-                } else if (diffDays === 1) {
-                    return 'Ontem';
-                } else if (diffDays <= 7) {
-                    return date.toLocaleDateString('pt-BR', { weekday: 'short' });
-                } else {
-                    return date.toLocaleDateString('pt-BR', {
-                        month: 'short',
-                        day: 'numeric'
-                    });
-                }
-            });
-
-            // Process mood data with validation
-            const data = recentEntries.map(entry => {
-                const mood = parseFloat(entry.mood);
-                if (isNaN(mood) || mood < 1 || mood > 5) {
-                    console.warn('⚠️ Valor de humor inválido:', entry.mood, 'na entrada:', entry);
-                    return 3; // Default to neutral mood
-                }
-                return Math.round(mood * 10) / 10; // Round to 1 decimal place
-            });
-
-            console.log('📊 Labels PT-BR:', labels.slice(0, 5), '... (total:', labels.length, ')');
-            console.log('📊 Data:', data.slice(0, 5), '... (total:', data.length, ')');
-
-            // Update chart data
-            this.chart.data.labels = labels;
-            this.chart.data.datasets[0].data = data;
-
-            // Update chart with smooth animation
-            this.chart.update('active');
-
-            console.log('✅ Gráfico atualizado com', data.length, 'pontos de dados');
-            console.log('📈 Tendência identificada:', trend);
-
-            // Show success toast for significant updates
-            if (data.length >= 5 && data.length % 5 === 0) {
-                this.showToast(`📊 Gráfico atualizado com ${data.length} registros!`, 'success', 3000);
-            }
-
-        } catch (error) {
-            console.error('❌ Erro ao atualizar gráfico:', error);
-            this.showToast('Erro ao atualizar gráfico: ' + error.message, 'error');
-        }
-    }
     
     // Helper function for when chart canvas is not available
     showChartFallback() {
@@ -1783,38 +1330,7 @@ class MentalIA {
         }
     }
 
-    updateRecentEntries(entries) {
-        const container = document.getElementById('recent-list');
-        if (!container) return;
 
-        if (!entries?.length) {
-            container.innerHTML = '<p>Nenhum registro encontrado.</p>';
-            return;
-        }
-
-        const recent = entries.slice(-5);
-        container.innerHTML = recent.map(entry => `
-            <div class="entry-item">
-                <div class="entry-header">
-                    <span class="entry-mood">${this.getMoodData(entry.mood).emoji} ${entry.mood}/5</span>
-                    <span class="entry-date">${new Date(entry.timestamp).toLocaleDateString('pt-BR')}</span>
-                    <button class="btn-delete-entry" data-entry-id="${entry.id}" title="Excluir este registro">
-                        🗑️
-                    </button>
-                </div>
-                ${entry.diary ? `<div class="entry-text">${entry.diary.substring(0, 100)}${entry.diary.length > 100 ? '...' : ''}</div>` : ''}
-            </div>
-        `).join('');
-
-        // Adicionar event listeners para os botões de delete
-        container.querySelectorAll('.btn-delete-entry').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const entryId = parseInt(btn.dataset.entryId);
-                this.showDeleteEntryModal(entryId);
-            });
-        });
-    }
 
     // ===== REPORT =====
     async generateReport() {
@@ -1833,17 +1349,6 @@ class MentalIA {
 
             if (!window.aiAnalysis) {
                 throw new Error('Sistema de IA não disponível');
-            }
-
-            // 🔥 CORREÇÃO: Garantir que o storage esteja inicializado
-            if (!window.mentalStorage) {
-                throw new Error('Sistema de armazenamento não disponível');
-            }
-            
-            // Forçar inicialização se necessário
-            if (!window.mentalStorage.initialized) {
-                console.log('🔄 Inicializando storage antes de gerar relatório...');
-                await window.mentalStorage.init();
             }
 
             const entries = await window.mentalStorage.getAllMoodEntries();
@@ -2002,71 +1507,12 @@ class MentalIA {
         }
     }
 
-    // ===== MODALS =====
-    showDeleteEntryModal(entryId) {
-        const modal = document.getElementById('delete-entry-modal');
-        if (!modal) return;
-
-        modal.classList.add('active');
-        modal._entryId = entryId; // Store entry ID for confirmation
-    }
-
-    showDeleteAllDataModal() {
-        const modal = document.getElementById('delete-all-modal');
-        if (!modal) return;
-
-        modal.classList.add('active');
-    }
-
-    hideDeleteModals() {
-        document.querySelectorAll('.delete-modal').forEach(modal => {
-            modal.classList.remove('active');
-        });
-    }
-
-    async deleteEntry(entryId) {
-        try {
-            console.log('🗑️ Deletando entrada:', entryId);
-            await window.mentalStorage.deleteEntry(entryId);
-
-            this.showToast('Dados excluídos com sucesso. Respeitamos seu direito à privacidade.', 'success', 5000);
-
-            // Reload data and update UI
-            await this.loadData();
-
-        } catch (error) {
-            console.error('❌ Erro ao deletar entrada:', error);
-            this.showToast('Erro ao excluir dados. Tente novamente.', 'error');
-        }
-    }
-
-    async deleteAllData() {
-        try {
-            console.log('🗑️ Deletando TODOS os dados...');
-
-            // Show loading state
-            this.showToast('Excluindo todos os dados...', 'info');
-
-            await window.mentalStorage.deleteAllEntries();
-
-            this.showToast('Todos os dados foram excluídos permanentemente. Respeitamos seu direito à privacidade.', 'success', 6000);
-
-            // Clear chart and reload data (will show empty state)
-            if (this.chart) {
-                this.chart.destroy();
-                this.chart = null;
-            }
-
-            await this.loadData();
-
-            // Redirect to welcome screen
-            setTimeout(() => {
-                this.showScreen('welcome');
-            }, 2000);
-
-        } catch (error) {
-            console.error('❌ Erro ao deletar todos os dados:', error);
-            this.showToast('Erro ao excluir dados. Tente novamente.', 'error');
+    // ===== BACKUP =====
+    async backupData() {
+        if (window.googleDriveBackup) {
+            await window.googleDriveBackup.handleBackupClick();
+        } else {
+            this.showToast('Sistema de backup não disponível', 'error');
         }
     }
 
@@ -2101,6 +1547,15 @@ class MentalIA {
             target.classList.add('active');
             this.currentScreen = screenName;
             console.log('✅ Tela ativada:', screenName);
+
+            // Initialize mood form when mood screen is shown
+            if (screenName === 'mood') {
+                console.log('🎭 Tela de humor mostrada, inicializando formulário...');
+                // Use requestAnimationFrame to ensure DOM is fully rendered
+                requestAnimationFrame(() => {
+                    this.initMoodForm();
+                });
+            }
         } else {
             console.error('❌ Tela não encontrada:', `${screenName}-screen`);
             console.log('🧭 Telas disponíveis no DOM:', Array.from(document.querySelectorAll('.screen')).map(s => s.id));
@@ -2160,246 +1615,28 @@ class MentalIA {
     }
 
     // ===== UTILITIES =====
-    showToast(message, type = 'info', duration = 5000) {
-        console.log('🔥 showToast chamado:', { message, type, duration });
+    async ensureStorageReady() {
+        console.log('🔄 Garantindo que storage está pronto...');
         
-        // Create toast container if it doesn't exist
-        let container = document.getElementById('toast-container');
-        if (!container) {
-            console.log('📦 Criando container de toast...');
-            container = document.createElement('div');
-            container.id = 'toast-container';
-            container.className = 'toast-container';
-            document.body.appendChild(container);
-            console.log('✅ Container criado e adicionado ao body');
-        } else {
-            console.log('📦 Container já existe');
-        }
-
-        // Create toast element
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        
-        // Unique ID for each toast
-        const toastId = 'toast-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-        toast.id = toastId;
-
-        // Add icon based on type
-        const iconMap = {
-            success: '✅',
-            error: '❌',
-            warning: '⚠️',
-            info: '💬'
-        };
-
-        toast.innerHTML = `
-            <div class="toast-content">
-                <span class="toast-icon">${iconMap[type] || iconMap.info}</span>
-                <span class="toast-message">${message}</span>
-                <button class="toast-close" aria-label="Fechar mensagem">×</button>
-                <div class="toast-progress"></div>
-            </div>
-            <div class="toast-swipe-indicator">← Arraste para dispensar</div>
-        `;
-
-        // Add to container (newest on top)
-        container.insertBefore(toast, container.firstChild);
-
-        // Setup drag functionality and other interactions
-        this.setupToastInteractions(toast, duration);
-
-        // Trigger show animation
-        requestAnimationFrame(() => {
-            console.log('🎬 Adicionando classe toast-show ao toast:', toastId);
-            toast.classList.add('toast-show');
-            console.log('✅ Classe toast-show adicionada, toast deve estar visível');
+        if (!window.mentalStorage) {
+            console.log('🔄 Storage não encontrado, aguardando inicialização...');
             
-            // Debug: verificar se o toast está visível após adicionar a classe
-            setTimeout(() => {
-                const computedStyle = window.getComputedStyle(toast);
-                console.log('🔍 Debug toast visibility:', {
-                    id: toastId,
-                    display: computedStyle.display,
-                    visibility: computedStyle.visibility,
-                    opacity: computedStyle.opacity,
-                    transform: computedStyle.transform,
-                    classes: toast.className,
-                    containerExists: !!document.getElementById('toast-container')
-                });
-            }, 100);
-        });
-
-        console.log('💬 Toast exibido:', { message, type, id: toastId });
-        return toast;
-    }
-
-    setupToastInteractions(toast, duration) {
-        let startX = 0;
-        let currentX = 0;
-        let isDragging = false;
-        let autoRemoveTimer = null;
-        let progressTimer = null;
-        
-        const progressBar = toast.querySelector('.toast-progress');
-        const closeBtn = toast.querySelector('.toast-close');
-        const swipeIndicator = toast.querySelector('.toast-swipe-indicator');
-        
-        // Progress bar animation
-        if (progressBar && duration > 0) {
-            progressBar.style.animationDuration = duration + 'ms';
+            // Wait for storage to be initialized
+            let attempts = 0;
+            const maxAttempts = 50; // 5 seconds max
+            
+            while (!window.mentalStorage && attempts < maxAttempts) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+            
+            if (!window.mentalStorage) {
+                throw new Error('Storage não pôde ser inicializado');
+            }
         }
         
-        // Auto remove timer
-        if (duration > 0) {
-            autoRemoveTimer = setTimeout(() => {
-                this.removeToast(toast);
-            }, duration);
-        }
-        
-        // Close button
-        closeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (autoRemoveTimer) clearTimeout(autoRemoveTimer);
-            this.removeToast(toast);
-        });
-        
-        // Touch/Mouse drag events
-        const startDrag = (e) => {
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            startX = clientX;
-            currentX = clientX;
-            isDragging = true;
-            
-            toast.classList.add('toast-dragging');
-            swipeIndicator.style.opacity = '1';
-            
-            // Pause auto-remove while dragging
-            if (autoRemoveTimer) {
-                clearTimeout(autoRemoveTimer);
-                autoRemoveTimer = null;
-            }
-            
-            e.preventDefault();
-        };
-        
-        const doDrag = (e) => {
-            if (!isDragging) return;
-            
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            currentX = clientX;
-            const deltaX = currentX - startX;
-            
-            // Only allow left swipe (negative delta)
-            if (deltaX <= 0) {
-                const opacity = Math.max(0.3, 1 + deltaX / 200);
-                toast.style.transform = `translateX(${deltaX}px)`;
-                toast.style.opacity = opacity;
-                
-                // Show swipe progress
-                const swipeProgress = Math.min(100, Math.abs(deltaX) / 2);
-                swipeIndicator.style.background = `linear-gradient(90deg, 
-                    rgba(255,0,0,0.3) 0%, 
-                    rgba(255,0,0,0.3) ${swipeProgress}%, 
-                    transparent ${swipeProgress}%)`;
-            }
-        };
-        
-        const endDrag = (e) => {
-            if (!isDragging) return;
-            
-            const deltaX = currentX - startX;
-            isDragging = false;
-            
-            toast.classList.remove('toast-dragging');
-            swipeIndicator.style.opacity = '0';
-            
-            // If swiped far enough (more than 100px), remove
-            if (deltaX < -100) {
-                toast.style.transform = 'translateX(-100%)';
-                toast.style.opacity = '0';
-                setTimeout(() => this.removeToast(toast), 200);
-            } else {
-                // Snap back
-                toast.style.transform = 'translateX(0)';
-                toast.style.opacity = '1';
-                
-                // Resume auto-remove timer if duration was set
-                if (duration > 0) {
-                    const remainingTime = duration * 0.7; // Give some extra time
-                    autoRemoveTimer = setTimeout(() => {
-                        this.removeToast(toast);
-                    }, remainingTime);
-                }
-            }
-            
-            swipeIndicator.style.background = '';
-        };
-        
-        // Mouse events
-        toast.addEventListener('mousedown', startDrag);
-        document.addEventListener('mousemove', doDrag);
-        document.addEventListener('mouseup', endDrag);
-        
-        // Touch events
-        toast.addEventListener('touchstart', startDrag, { passive: false });
-        toast.addEventListener('touchmove', doDrag, { passive: false });
-        toast.addEventListener('touchend', endDrag);
-        
-        // Hover pause
-        toast.addEventListener('mouseenter', () => {
-            if (autoRemoveTimer) {
-                clearTimeout(autoRemoveTimer);
-                autoRemoveTimer = null;
-            }
-            progressBar?.style.setProperty('animation-play-state', 'paused');
-        });
-        
-        toast.addEventListener('mouseleave', () => {
-            if (duration > 0 && !isDragging) {
-                const remainingTime = duration * 0.5;
-                autoRemoveTimer = setTimeout(() => {
-                    this.removeToast(toast);
-                }, remainingTime);
-            }
-            progressBar?.style.setProperty('animation-play-state', 'running');
-        });
-        
-        // Clean up function
-        toast._cleanup = () => {
-            if (autoRemoveTimer) clearTimeout(autoRemoveTimer);
-            if (progressTimer) clearTimeout(progressTimer);
-            
-            // Remove event listeners
-            document.removeEventListener('mousemove', doDrag);
-            document.removeEventListener('mouseup', endDrag);
-        };
-    }
-    
-    removeToast(toast) {
-        console.log('🗑️ Removendo toast:', toast.id);
-        
-        if (!toast || !toast.parentElement) {
-            console.log('❌ Toast já foi removido ou não existe');
-            return;
-        }
-        
-        // Clean up timers and events
-        if (toast._cleanup) {
-            toast._cleanup();
-        }
-        
-        // Animate out
-        toast.classList.remove('toast-show');
-        toast.classList.add('toast-hide');
-        
-        setTimeout(() => {
-            if (toast.parentElement) {
-                toast.remove();
-                console.log('✅ Toast removido do DOM:', toast.id);
-            }
-        }, 300);
-        
-        console.log('💬 Toast removido:', toast.id);
+        console.log('✅ Storage está pronto');
+        return window.mentalStorage;
     }
 
     // 🔥 CORREÇÃO: Função para exibir relatório quando não há dados
@@ -2591,91 +1828,58 @@ class MentalIA {
         this.showToast('✅ Análise avançada gerada com sucesso!', 'success');
     }
 
-    // ===== BACKUP SYSTEM =====
-    async backupData() {
-        try {
-            console.log('💾 Iniciando backup de dados...');
-
-            // Verificar se o sistema de backup está disponível
-            if (!window.googleDriveBackup) {
-                throw new Error('Sistema de backup não disponível');
-            }
-
-            // Verificar se o usuário está conectado ao Google Drive
-            if (!window.googleDriveBackup.isSignedIn) {
-                this.showToast('🔗 Conecte-se ao Google Drive primeiro usando o botão "Conectar Google Drive"', 'warning');
-                return;
-            }
-
-            // Mostrar feedback visual
-            this.showToast('🔄 Fazendo backup seguro...', 'info');
-
-            // Iniciar backup
-            await window.googleDriveBackup.backupToDrive();
-
-            // Salvar timestamp do backup manual
-            localStorage.setItem('lastManualBackup', new Date().toISOString());
-
-            // Feedback de sucesso
-            this.showToast('✅ Backup realizado com sucesso!', 'success');
-
-        } catch (error) {
-            console.error('❌ Erro no backup:', error);
-
-            // Feedback de erro
-            this.showToast('❌ Erro no backup: ' + error.message, 'error');
+    // ===== DELETE FUNCTIONALITY =====
+    showDeleteModal(entryId, isDeleteAll) {
+        console.log('🗑️ Mostrando modal de exclusão:', { entryId, isDeleteAll });
+        
+        this.pendingDelete = { entryId, isDeleteAll };
+        
+        const modal = document.getElementById('delete-modal');
+        const title = document.getElementById('modal-title');
+        const message = document.getElementById('modal-message');
+        
+        if (isDeleteAll) {
+            title.textContent = 'Apagar Todos os Dados';
+            message.textContent = 'Isso vai apagar TODOS os seus registros permanentemente. Tem certeza?';
+        } else {
+            title.textContent = 'Excluir Registro';
+            message.textContent = 'Tem certeza que quer excluir este registro? Isso é permanente.';
         }
+        
+        modal.classList.remove('hidden');
     }
 
-    // Update auto backup status in UI
-    updateAutoBackupStatus() {
-        if (!window.googleDriveBackup) return;
+    hideDeleteModal() {
+        console.log('🗑️ Escondendo modal de exclusão');
+        const modal = document.getElementById('delete-modal');
+        modal.classList.add('hidden');
+        this.pendingDelete = null;
+    }
 
-        const toggle = document.getElementById('auto-backup-toggle');
-        const lastBackupText = document.getElementById('last-backup-text');
-        const nextBackupText = document.getElementById('next-backup-text');
-        const lastManualBackupInfo = document.getElementById('last-manual-backup-info');
-
-        if (toggle) {
-            toggle.checked = window.googleDriveBackup.isAutoBackupEnabled();
-        }
-
-        // Atualizar informações de backup automático
-        if (lastBackupText) {
-            const lastBackup = localStorage.getItem('lastAutoBackup');
-            if (lastBackup) {
-                const date = new Date(lastBackup);
-                lastBackupText.textContent = `Último backup automático: ${date.toLocaleDateString('pt-BR')} às ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    async confirmDelete() {
+        if (!this.pendingDelete) return;
+        
+        const { entryId, isDeleteAll } = this.pendingDelete;
+        
+        try {
+            if (isDeleteAll) {
+                console.log('🗑️ Confirmando exclusão de todos os dados');
+                await window.mentalStorage.deleteAllEntries();
+                this.showToast('Todos os dados foram excluídos. Respeitamos seu direito à privacidade (LGPD Art. 18)', 'success', 5000);
+                // Go back to welcome screen
+                setTimeout(() => this.showScreen('welcome'), 1000);
             } else {
-                lastBackupText.textContent = 'Último backup automático: Nunca';
+                console.log('🗑️ Confirmando exclusão do registro:', entryId);
+                await window.mentalStorage.deleteEntry(entryId);
+                this.showToast('Registro excluído', 'success');
+                // Reload history
+                await this.loadData();
             }
-        }
-
-        if (nextBackupText) {
-            const nextBackup = new Date();
-            nextBackup.setHours(7, 0, 0, 0);
-            if (nextBackup <= new Date()) {
-                nextBackup.setDate(nextBackup.getDate() + 1);
-            }
-            nextBackupText.textContent = `Próximo backup automático: ${nextBackup.toLocaleDateString('pt-BR')} às 07:00`;
-        }
-
-        // Atualizar informações de backup manual
-        if (lastManualBackupInfo) {
-            const lastManualBackup = localStorage.getItem('lastManualBackup');
-            const infoIcon = lastManualBackupInfo.querySelector('.info-icon');
-            const infoText = lastManualBackupInfo.querySelector('.info-text');
-
-            if (lastManualBackup) {
-                const date = new Date(lastManualBackup);
-                if (infoIcon) infoIcon.textContent = '✅';
-                if (infoText) infoText.textContent = `Último backup manual: ${date.toLocaleDateString('pt-BR')} às ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
-                lastManualBackupInfo.style.display = 'flex';
-            } else {
-                if (infoIcon) infoIcon.textContent = '⏳';
-                if (infoText) infoText.textContent = 'Nenhum backup manual realizado ainda';
-                lastManualBackupInfo.style.display = 'flex';
-            }
+        } catch (error) {
+            console.error('❌ Erro ao excluir:', error);
+            this.showToast('Erro ao excluir: ' + error.message, 'error');
+        } finally {
+            this.hideDeleteModal();
         }
     }
 }
@@ -2767,93 +1971,3 @@ window.addEventListener('unhandledrejection', function(event) {
 window.addEventListener('error', function(event) {
     console.error('❌ Erro não capturado:', event.error);
 });
-
-// ===== INICIALIZAÇÃO DA APLICAÇÃO =====
-console.log('🚀 Inicializando MentalIA 3.1...');
-
-// Inicializar quando DOM estiver pronto
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initApp);
-} else {
-    initApp();
-}
-
-async function initApp() {
-    console.log('📱 DOM pronto, iniciando aplicação...');
-    
-    try {
-        // Criar instância global da aplicação
-        window.mentalIA = new MentalIA();
-        
-        // Aguardar inicialização completa
-        await window.mentalIA.init();
-        
-        console.log('✅ MentalIA 3.1 inicializado com sucesso!');
-        
-    } catch (error) {
-        console.error('❌ Erro fatal na inicialização:', error);
-        console.error('❌ Stack trace:', error.stack);
-        
-        // Mostrar erro na tela para o usuário
-        const errorDiv = document.createElement('div');
-        errorDiv.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.9);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            padding: 20px;
-            text-align: center;
-            font-family: system-ui, -apple-system, sans-serif;
-        `;
-        errorDiv.innerHTML = `
-            <h1 style="color: #ff6b6b; margin-bottom: 20px;">🚨 Erro na Inicialização</h1>
-            <p style="margin-bottom: 20px; max-width: 600px; line-height: 1.6;">
-                Ocorreu um erro ao carregar o MentalIA. Isso pode ser causado por:
-            </p>
-            <ul style="text-align: left; margin-bottom: 30px; max-width: 500px;">
-                <li>• Problemas de conectividade</li>
-                <li>• Dados corrompidos no navegador</li>
-                <li>• Conflito com extensões</li>
-                <li>• Versão desatualizada do navegador</li>
-            </ul>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
-                <button onclick="location.reload()" style="
-                    background: #6366f1;
-                    color: white;
-                    border: none;
-                    padding: 12px 24px;
-                    border-radius: 6px;
-                    cursor: pointer;
-                    font-size: 16px;
-                ">🔄 Recarregar Página</button>
-                <button onclick="localStorage.clear(); location.reload()" style="
-                    background: #ff6b6b;
-                    color: white;
-                    border: none;
-                    padding: 12px 24px;
-                    border-radius: 6px;
-                    cursor: pointer;
-                    font-size: 16px;
-                ">🗑️ Limpar Dados e Recarregar</button>
-            </div>
-            <details style="margin-top: 30px; max-width: 600px;">
-                <summary style="cursor: pointer; color: #888;">Detalhes técnicos (clique para expandir)</summary>
-                <pre style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 6px; margin-top: 10px; text-align: left; font-size: 12px; overflow: auto;">${error.message}\n\n${error.stack}</pre>
-            </details>
-        `;
-        document.body.appendChild(errorDiv);
-    }
-}
-
-// Exportar para uso global
-window.MentalIA = MentalIA;
-
-console.log('🎯 MentalIA 3.1 setup completo!');

@@ -263,15 +263,11 @@ window.mockStripe_status = () => {
     return status;
 };
 
-// Alias para compatibilidade (função chamada incorretamente em alguns lugares)
-window.activateMockPremium = window.mockStripe_activatePremium;
-
 // Log comandos disponíveis
 console.log(`
 🧪 Mock Stripe API Comandos Disponíveis:
 • mockStripe_reset() - Reset completo
 • mockStripe_activatePremium(days) - Ativar premium (com trial opcional)
-• activateMockPremium(days) - Alias para mockStripe_activatePremium
 • mockStripe_deactivatePremium() - Desativar premium
 • mockStripe_status() - Ver status atual
 
