@@ -259,13 +259,46 @@ class MentalIA {
         console.log('📝 Formulário de humor encontrado:', !!moodForm);
         moodForm?.addEventListener('submit', (e) => this.handleMoodSubmit(e));
 
-        // Report generation
+        // Report generation with mobile optimization
         const reportBtn = document.getElementById('generate-report');
         console.log('📊 Botão relatório encontrado:', !!reportBtn);
-        reportBtn?.addEventListener('click', () => {
-            console.log('📊 Gerando relatório...');
-            this.generateReport();
-        });
+        
+        if (reportBtn) {
+            // 🔥 CORREÇÃO: Múltiplos event listeners para melhor compatibilidade mobile
+            const generateReportHandler = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('📊 Gerando relatório...');
+                this.generateReport();
+            };
+            
+            // Event listeners para diferentes tipos de interação
+            reportBtn.addEventListener('click', generateReportHandler);
+            reportBtn.addEventListener('touchend', generateReportHandler);
+            
+            // Prevenção de double-tap zoom no iOS
+            reportBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+            });
+            
+            // Feedback visual para touch
+            reportBtn.addEventListener('touchstart', () => {
+                reportBtn.style.transform = 'scale(0.98)';
+                reportBtn.style.opacity = '0.8';
+            });
+            
+            reportBtn.addEventListener('touchend', () => {
+                setTimeout(() => {
+                    reportBtn.style.transform = 'scale(1)';
+                    reportBtn.style.opacity = '1';
+                }, 150);
+            });
+            
+            reportBtn.addEventListener('touchcancel', () => {
+                reportBtn.style.transform = 'scale(1)';
+                reportBtn.style.opacity = '1';
+            });
+        }
 
         // Backup
         const backupBtn = document.getElementById('backup-data');
@@ -1094,24 +1127,60 @@ class MentalIA {
     async generateReport() {
         try {
             console.log('📊 Gerando relatório...');
+            
+            // 🔥 CORREÇÃO: Feedback visual imediato para mobile
+            const reportBtn = document.getElementById('generate-report');
+            const originalText = reportBtn?.textContent;
+            
+            if (reportBtn) {
+                reportBtn.disabled = true;
+                reportBtn.textContent = '⏳ Gerando...';
+                reportBtn.style.opacity = '0.7';
+            }
 
             if (!window.aiAnalysis) {
                 throw new Error('Sistema de IA não disponível');
             }
 
             const entries = await window.mentalStorage.getAllMoodEntries();
+            
+            // 🔥 CORREÇÃO: Tratar caso sem dados de forma amigável
             if (!entries?.length) {
-                throw new Error('Nenhum dado para analisar');
+                this.displayEmptyReport();
+                this.showToast('📝 Adicione alguns registros de humor para gerar um relatório completo!', 'info');
+                return;
             }
 
-            const report = await window.aiAnalysis.generateLocalReport(entries);
+            const report = await window.aiAnalysis.generateReport(entries);
             this.displayReport(report);
 
             this.showToast('Relatório gerado! 📋', 'success');
+            
+            // Scroll suave para o relatório (melhor no mobile)
+            setTimeout(() => {
+                const reportContent = document.getElementById('report-content');
+                if (reportContent) {
+                    reportContent.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'start',
+                        inline: 'nearest'
+                    });
+                }
+            }, 500);
 
         } catch (error) {
             console.error('Erro no relatório:', error);
             this.showToast('Erro: ' + error.message, 'error');
+        } finally {
+            // 🔥 CORREÇÃO: Restaurar botão sempre
+            const reportBtn = document.getElementById('generate-report');
+            if (reportBtn && originalText) {
+                setTimeout(() => {
+                    reportBtn.disabled = false;
+                    reportBtn.textContent = originalText;
+                    reportBtn.style.opacity = '1';
+                }, 1000);
+            }
         }
     }
 
@@ -1288,6 +1357,147 @@ class MentalIA {
 
         // Return toast element for manual control if needed
         return toast;
+    }
+
+    // 🔥 CORREÇÃO: Função para exibir relatório quando não há dados
+    displayEmptyReport() {
+        console.log('📝 Exibindo relatório vazio...');
+        
+        const reportContent = document.getElementById('report-content');
+        if (!reportContent) {
+            console.error('❌ Container de relatório não encontrado');
+            return;
+        }
+        
+        // Limpar conteúdo anterior
+        reportContent.innerHTML = '';
+        
+        // Criar relatório vazio amigável
+        const emptyReport = document.createElement('div');
+        emptyReport.className = 'empty-report';
+        emptyReport.innerHTML = `
+            <div class="empty-report-header">
+                <h3>📝 Seu Relatório de Bem-Estar</h3>
+                <p class="empty-report-subtitle">Comece registrando seu humor para receber análises personalizadas</p>
+                <span class="empty-report-date">${new Date().toLocaleDateString('pt-BR')}</span>
+            </div>
+            
+            <div class="empty-report-content">
+                <div class="empty-state">
+                    <div class="empty-icon">🌟</div>
+                    <h4>Primeiro passo para uma vida mais equilibrada</h4>
+                    <p>Registre como você está se sentindo hoje para começar a construir seu histórico de bem-estar mental.</p>
+                    
+                    <div class="quick-start-guide">
+                        <h5>Como funciona:</h5>
+                        <ol>
+                            <li><strong>Registre seu humor</strong> - Use a tela inicial para anotar como está se sentindo</li>
+                            <li><strong>Adicione detalhes</strong> - Descreva o que aconteceu no seu dia</li>
+                            <li><strong>Receba análises</strong> - Nossa IA criará relatórios personalizados para você</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="empty-actions">
+                        <button class="btn-primary" onclick="window.mentalIA?.showScreen('welcome')" style="margin: 10px;">
+                            📊 Registrar Primeiro Humor
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="empty-report-footer">
+                <p><small>💡 <strong>Dica:</strong> Registre seu humor regularmente para obter insights mais precisos sobre seus padrões emocionais.</small></p>
+            </div>
+        `;
+        
+        // Adicionar estilos inline para garantir boa aparência
+        const style = document.createElement('style');
+        style.textContent = `
+            .empty-report {
+                padding: 20px;
+                text-align: center;
+                background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+                border-radius: 12px;
+                margin: 10px 0;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            
+            .empty-report-header h3 {
+                color: #2c3e50;
+                margin-bottom: 5px;
+            }
+            
+            .empty-report-subtitle {
+                color: #7f8c8d;
+                margin-bottom: 10px;
+            }
+            
+            .empty-state {
+                background: white;
+                padding: 30px 20px;
+                border-radius: 8px;
+                margin: 20px 0;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            }
+            
+            .empty-icon {
+                font-size: 48px;
+                margin-bottom: 15px;
+            }
+            
+            .quick-start-guide {
+                text-align: left;
+                max-width: 400px;
+                margin: 20px auto;
+                padding: 15px;
+                background: #f8f9fa;
+                border-radius: 6px;
+            }
+            
+            .quick-start-guide ol {
+                margin: 10px 0;
+                padding-left: 20px;
+            }
+            
+            .quick-start-guide li {
+                margin: 8px 0;
+                line-height: 1.4;
+            }
+            
+            .empty-actions {
+                margin: 20px 0;
+            }
+            
+            .empty-report-footer {
+                margin-top: 20px;
+                padding-top: 15px;
+                border-top: 1px solid rgba(0,0,0,0.1);
+            }
+            
+            @media (max-width: 768px) {
+                .empty-report {
+                    padding: 15px;
+                    margin: 5px 0;
+                }
+                
+                .empty-state {
+                    padding: 20px 15px;
+                }
+                
+                .quick-start-guide {
+                    max-width: none;
+                }
+            }
+        `;
+        
+        // Adicionar estilo e conteúdo
+        document.head.appendChild(style);
+        reportContent.appendChild(emptyReport);
+        
+        // Mostrar o container
+        reportContent.classList.remove('hidden');
+        
+        console.log('📝 Relatório vazio exibido com sucesso');
     }
 
     // 🔥 CORREÇÃO: Função para exibir análise avançada

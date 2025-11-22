@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 Teste Correção Relatório</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover { background: #0056b3; }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Teste - Correção do Relatório</h1>
+        <p><strong>Problema:</strong> Erro ao processar feelings com formato de objeto</p>
+        
+        <div id="test-results"></div>
+        
+        <button onclick="testReportGeneration()">🧠 Testar Geração de Relatório</button>
+        <button onclick="testWithRealData()">📊 Testar com Dados Reais</button>
+        
+        <div>
+            <h3>📝 Console Log:</h3>
+            <pre id="console-log"></pre>
+        </div>
+        
+        <div>
+            <h3>📄 Relatório Gerado:</h3>
+            <pre id="report-output"></pre>
+        </div>
+    </div>
+
+    <script src="js/ai_analysis.js"></script>
+    <script>
+        let consoleOutput = [];
+
+        // Override console para capturar logs
+        const originalLog = console.log;
+        const originalError = console.error;
+
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            consoleOutput.push(`[LOG] ${args.join(' ')}`);
+            updateConsoleDisplay();
+        };
+
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            consoleOutput.push(`[ERROR] ${args.join(' ')}`);
+            updateConsoleDisplay();
+        };
+
+        function updateConsoleDisplay() {
+            const consoleDiv = document.getElementById('console-log');
+            consoleDiv.textContent = consoleOutput.slice(-30).join('\n');
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        function addResult(message, success = true) {
+            const resultsDiv = document.getElementById('test-results');
+            const resultClass = success ? 'success' : 'error';
+            resultsDiv.innerHTML += `<div class="test-result ${resultClass}">${message}</div>`;
+        }
+
+        async function testReportGeneration() {
+            addResult('🧪 Iniciando teste de geração de relatório...', true);
+            consoleOutput = []; // Limpar logs
+
+            try {
+                // Dados de teste que simulam o formato real do MentalIA
+                const testEntries = [
+                    {
+                        id: 1763769971818,
+                        mood: 4,
+                        feelings: [
+                            {
+                                value: "feliz",
+                                category: "alegria",
+                                emoji: "😄",
+                                label: "Feliz"
+                            },
+                            {
+                                value: "animado",
+                                category: "alegria",
+                                emoji: "🤩",
+                                label: "Animado"
+                            },
+                            {
+                                value: "esperancoso",
+                                category: "alegria",
+                                emoji: "✨",
+                                label: "Esperançoso"
+                            }
+                        ],
+                        diary: "",
+                        timestamp: "2025-11-22T00:06:11.818Z",
+                        date: "Fri Nov 21 2025",
+                        version: "3.1"
+                    },
+                    {
+                        id: 1763769971819,
+                        mood: 3,
+                        feelings: [
+                            {
+                                value: "ansioso",
+                                category: "ansiedade",
+                                emoji: "😰",
+                                label: "Ansioso"
+                            }
+                        ],
+                        diary: "Um dia mais desafiador",
+                        timestamp: "2025-11-21T00:06:11.818Z",
+                        date: "Thu Nov 20 2025",
+                        version: "3.1"
+                    }
+                ];
+
+                console.log('🧪 Testando com dados que causavam erro:', testEntries);
+
+                const report = await window.aiAnalysis.generateReport(testEntries);
+                
+                if (report && report.title && !report.error) {
+                    addResult('✅ Relatório gerado com sucesso!', true);
+                    addResult(`📄 Título: "${report.title}"`, true);
+                    document.getElementById('report-output').textContent = JSON.stringify(report, null, 2);
+                } else if (report && report.error) {
+                    addResult('⚠️ Relatório gerado em modo seguro (fallback)', true);
+                    document.getElementById('report-output').textContent = JSON.stringify(report, null, 2);
+                } else {
+                    addResult('❌ Falha ao gerar relatório', false);
+                    document.getElementById('report-output').textContent = 'Nenhum relatório retornado';
+                }
+
+            } catch (error) {
+                addResult(`❌ Erro no teste: ${error.message}`, false);
+                console.error('Erro no teste:', error);
+            }
+        }
+
+        async function testWithRealData() {
+            addResult('🧪 Testando com dados do localStorage...', true);
+            consoleOutput = [];
+
+            try {
+                // Tentar pegar dados reais do localStorage
+                const stored = localStorage.getItem('mentalEntries');
+                if (stored) {
+                    const entries = JSON.parse(stored);
+                    console.log('📊 Dados do localStorage:', entries);
+                    
+                    const report = await window.aiAnalysis.generateReport(entries);
+                    
+                    if (report && report.title) {
+                        addResult('✅ Relatório com dados reais gerado!', true);
+                        document.getElementById('report-output').textContent = JSON.stringify(report, null, 2);
+                    } else {
+                        addResult('❌ Falha com dados reais', false);
+                    }
+                } else {
+                    addResult('⚠️ Nenhum dado encontrado no localStorage', true);
+                    // Criar dados de exemplo
+                    const exampleData = [{
+                        mood: 4,
+                        feelings: ["feliz", "otimista"],
+                        timestamp: new Date().toISOString(),
+                        date: new Date().toDateString()
+                    }];
+                    
+                    const report = await window.aiAnalysis.generateReport(exampleData);
+                    if (report && report.title) {
+                        addResult('✅ Relatório com dados de exemplo gerado!', true);
+                        document.getElementById('report-output').textContent = JSON.stringify(report, null, 2);
+                    }
+                }
+            } catch (error) {
+                addResult(`❌ Erro: ${error.message}`, false);
+                console.error('Erro:', error);
+            }
+        }
+
+        // Inicialização
+        window.onload = function() {
+            console.log('🧪 Página de teste carregada');
+            if (window.aiAnalysis) {
+                addResult('✅ AI Analysis carregado com sucesso', true);
+            } else {
+                addResult('❌ AI Analysis não carregado', false);
+            }
+        };
+    </script>
+</body>
+</html>

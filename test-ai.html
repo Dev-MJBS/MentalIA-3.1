@@ -48,7 +48,7 @@
             
             if (window.aiAnalysis) {
                 // Test 2: Check methods
-                const methods = ['generateLocalReport', 'generateFastReport', 'generateSimpleFallbackReport'];
+                const methods = ['generateReport', 'generateFastReport', 'generateSimpleFallbackReport'];
                 methods.forEach(method => {
                     const exists = typeof window.aiAnalysis[method] === 'function';
                     log(`${method}: ${exists ? 'Disponível' : 'Não encontrado'}`, exists ? 'success' : 'error');
@@ -88,10 +88,10 @@
                 log(`❌ Erro no fallback: ${error.message}`, 'error');
             }
             
-            // Test generateLocalReport
+            // Test generateReport
             try {
-                log('🤖 Testando generateLocalReport...', 'info');
-                const localReport = await window.aiAnalysis.generateLocalReport(testEntries);
+                log('🤖 Testando generateReport...', 'info');
+                const localReport = await window.aiAnalysis.generateReport(testEntries);
                 log(`✅ Local Report gerado: ${localReport.length} caracteres`, 'success');
             } catch (error) {
                 log(`❌ Erro no local: ${error.message}`, 'error');

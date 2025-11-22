@@ -106,23 +106,63 @@ class AIAnalysis {
     }
 
     async generateReport(entries) {
-        console.log('Gerando relatório com', entries.length, 'entradas');
+        try {
+            console.log('🧠 [AI] Gerando relatório com', entries.length, 'entradas');
 
-        if (!entries || entries.length === 0) {
-            return this.generateSimpleFallbackReport([]);
+            if (!entries || entries.length === 0) {
+                console.log('📝 [AI] Sem dados - usando relatório básico');
+                return this.generateSimpleFallbackReport([]);
+            }
+
+            // 🔥 CORREÇÃO: Validar formato das entradas
+            const validEntries = entries.filter(entry => 
+                entry && typeof entry.mood === 'number' && !isNaN(entry.mood)
+            );
+
+            if (validEntries.length === 0) {
+                console.warn('⚠️ [AI] Entradas inválidas detectadas, usando fallback');
+                return this.generateSimpleFallbackReport([]);
+            }
+
+            console.log('✅ [AI] Entradas válidas:', validEntries.length);
+
+            // SE TIVER CHAVE DE API → usa Claude/Gemini
+            const hasAPIKey = this.externalAPIs.claude.available || this.externalAPIs.gemini.available;
+            const aiMode = await this.getAIMode();
+
+            if (hasAPIKey && aiMode === 'fast') {
+                console.log('🚀 [AI] Usando API externa (fast mode)');
+                return await this.generateFastReport(validEntries);
+            }
+
+            // SE NÃO TIVER CHAVE → usa o fallback inteligente (que já tá lindo!)
+            console.log('🧠 [AI] Usando análise local inteligente (100% privada)');
+            return this.generateIntelligentFallbackReport(validEntries);
+
+        } catch (error) {
+            console.error('❌ [AI] Erro na geração do relatório:', error);
+            
+            // Fallback final - sempre retorna algo
+            return {
+                title: 'Relatório MentalIA - Modo Seguro',
+                subtitle: 'Análise básica disponível',
+                analysis: '⚠️ Houve um problema técnico ao gerar seu relatório completo, mas não se preocupe! Seus dados estão seguros. Baseado nas informações disponíveis, continue registrando seu humor regularmente para obter insights valiosos sobre seu bem-estar emocional.',
+                recommendations: [
+                    'Continue registrando seu humor diariamente',
+                    'Tente gerar o relatório novamente em alguns minutos',
+                    'Verifique se tem uma conexão estável com a internet'
+                ],
+                insights: [
+                    'Sistema funcionando em modo seguro',
+                    'Seus dados estão protegidos',
+                    'Análise completa será restaurada em breve'
+                ],
+                disclaimer: 'Relatório gerado em modo seguro devido a erro técnico temporário. Seus dados permanecem seguros.',
+                timestamp: new Date().toISOString(),
+                source: 'MentalIA Safe Mode',
+                error: true
+            };
         }
-
-        // SE TIVER CHAVE DE API → usa Claude/Gemini
-        const hasAPIKey = this.externalAPIs.claude.available || this.externalAPIs.gemini.available;
-        const aiMode = await this.getAIMode();
-
-        if (hasAPIKey && aiMode === 'fast') {
-            return await this.generateFastReport(entries);
-        }
-
-        // SE NÃO TIVER CHAVE → usa o fallback inteligente (que já tá lindo!)
-        console.log('Usando análise local inteligente (100% privada)');
-        return this.generateIntelligentFallbackReport(entries);
     }
 
     async getAIMode() {
@@ -375,9 +415,23 @@ ${sections[2] || 'Preparando recomendações personalizadas...'}`;
     }
 
     generateIntelligentFallbackReport(entries) {
-        console.log('🤖 [AI] Gerando relatório inteligente local');
+        try {
+            console.log('🤖 [AI] Gerando relatório inteligente local');
+            console.log('🤖 [AI] Entradas recebidas:', entries.length, entries);
 
-        const summary = this.prepareMoodSummary(entries);
+            if (!entries || entries.length === 0) {
+                console.log('📝 [AI] Sem entradas, usando fallback simples');
+                return this.generateSimpleFallbackReport([]);
+            }
+
+            console.log('🤖 [AI] Preparando summary dos dados...');
+            const summary = this.prepareMoodSummary(entries);
+            console.log('🤖 [AI] Summary preparado:', summary);
+            
+            if (!summary) {
+                console.warn('⚠️ [AI] Erro ao preparar summary, usando fallback básico');
+                return this.generateSimpleFallbackReport(entries);
+            }
 
         let analysis = `## Análise Personalizada do Seu Bem-Estar Emocional
 
@@ -458,6 +512,11 @@ Se precisar conversar ou tiver dúvidas sobre seus registros, estou aqui para aj
             timestamp: new Date().toISOString(),
             source: 'MentalIA Analysis Engine'
         };
+        
+        } catch (error) {
+            console.error('❌ [AI] Erro no relatório inteligente:', error);
+            return this.generateSimpleFallbackReport(entries);
+        }
     }
 
     generateSimpleFallbackReport(entries) {
@@ -500,8 +559,11 @@ Se precisar conversar ou tiver dúvidas sobre seus registros, estou aqui para aj
     }
 
     prepareMoodSummary(entries) {
-        const totalEntries = entries.length;
-        const avgMood = entries.reduce((sum, entry) => sum + entry.mood, 0) / totalEntries;
+        try {
+            console.log('📊 [AI] Preparando summary de', entries.length, 'entradas');
+            const totalEntries = entries.length;
+            const avgMood = entries.reduce((sum, entry) => sum + entry.mood, 0) / totalEntries;
+            console.log('📊 [AI] Humor médio calculado:', avgMood);
 
         // Get mood distribution
         const moodCounts = [0, 0, 0, 0, 0];
@@ -512,9 +574,11 @@ Se precisar conversar ou tiver dúvidas sobre seus registros, estou aqui para aj
         // Get most common feelings
         const feelingCounts = {};
         entries.forEach(entry => {
-            if (entry.feelings) {
+            if (entry.feelings && Array.isArray(entry.feelings)) {
                 entry.feelings.forEach(feeling => {
-                    feelingCounts[feeling] = (feelingCounts[feeling] || 0) + 1;
+                    // Handle both string format and object format
+                    const feelingValue = typeof feeling === 'string' ? feeling : feeling?.label || feeling?.value || 'unknown';
+                    feelingCounts[feelingValue] = (feelingCounts[feelingValue] || 0) + 1;
                 });
             }
         });
@@ -543,19 +607,27 @@ Se precisar conversar ou tiver dúvidas sobre seus registros, estou aqui para aj
         const previousAvg = previous7Days.length > 0 ?
             previous7Days.reduce((sum, entry) => sum + entry.mood, 0) / previous7Days.length : avgMood;
 
-        return {
-            totalEntries,
-            averageMood: avgMood,
-            moodDistribution: moodCounts,
-            topFeelings,
-            recentTrend: recentAvg - previousAvg,
-            recentAvg,
-            previousAvg,
-            daysCovered: Math.ceil((now - new Date(entries[0]?.timestamp || now)) / (1000 * 60 * 60 * 24)),
-            dateRange: entries.length > 0 ?
-                `${new Date(entries[entries.length-1].timestamp).toLocaleDateString('pt-BR')} - ${new Date(entries[0].timestamp).toLocaleDateString('pt-BR')}` :
-                'N/A'
-        };
+            const result = {
+                totalEntries,
+                averageMood: avgMood,
+                moodDistribution: moodCounts,
+                topFeelings,
+                recentTrend: recentAvg - previousAvg,
+                recentAvg,
+                previousAvg,
+                daysCovered: Math.ceil((now - new Date(entries[0]?.timestamp || now)) / (1000 * 60 * 60 * 24)),
+                dateRange: entries.length > 0 ?
+                    `${new Date(entries[entries.length-1].timestamp).toLocaleDateString('pt-BR')} - ${new Date(entries[0].timestamp).toLocaleDateString('pt-BR')}` :
+                    'N/A'
+            };
+            
+            console.log('📊 [AI] Summary finalizado:', result);
+            return result;
+            
+        } catch (error) {
+            console.error('❌ [AI] Erro ao preparar summary:', error);
+            return null;
+        }
     }
 
     createAnalysisPrompt(summary) {

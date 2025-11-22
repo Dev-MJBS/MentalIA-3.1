@@ -36,7 +36,7 @@
             // Test 2: Check AI methods
             if (window.aiAnalysis) {
                 log('🤖 Verificando métodos de IA...');
-                log(`generateLocalReport: ${typeof window.aiAnalysis.generateLocalReport}`, typeof window.aiAnalysis.generateLocalReport === 'function' ? 'success' : 'error');
+                log(`generateReport: ${typeof window.aiAnalysis.generateReport}`, typeof window.aiAnalysis.generateReport === 'function' ? 'success' : 'error');
                 log(`generateFastReport: ${typeof window.aiAnalysis.generateFastReport}`, typeof window.aiAnalysis.generateFastReport === 'function' ? 'success' : 'error');
                 
                 // Test 3: Try generating a simple report
@@ -45,7 +45,7 @@
                     const testEntries = [
                         { mood: 4, feelings: ['feliz'], diary: 'Teste', timestamp: new Date().toISOString() }
                     ];
-                    const report = await window.aiAnalysis.generateLocalReport(testEntries);
+                    const report = await window.aiAnalysis.generateReport(testEntries);
                     log('✅ Relatório gerado com sucesso!', 'success');
                     log(`Tamanho do relatório: ${report.length} caracteres`);
                 } catch (error) {
