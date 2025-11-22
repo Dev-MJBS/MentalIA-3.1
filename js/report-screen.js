@@ -15,6 +15,8 @@ class ReportScreenManager {
     }
 
     setupEventListeners() {
+        console.log('🎯 ReportScreenManager: Configurando event listeners...');
+
         // Generate new report button
         const generateNewBtn = document.getElementById('generate-new-report');
         if (generateNewBtn) {
@@ -36,18 +38,28 @@ class ReportScreenManager {
         // Share report button
         const shareBtn = document.getElementById('share-report');
         if (shareBtn) {
+            console.log('🎯 ReportScreenManager: Botão share-report encontrado, adicionando listener');
             shareBtn.addEventListener('click', () => {
+                console.log('🎯 ReportScreenManager: Botão share-report clicado!');
                 this.shareReport();
             });
+        } else {
+            console.log('❌ ReportScreenManager: Botão share-report NÃO encontrado');
         }
 
         // Export PDF button
         const exportPdfBtn = document.getElementById('export-pdf');
         if (exportPdfBtn) {
+            console.log('🎯 ReportScreenManager: Botão export-pdf encontrado, adicionando listener');
             exportPdfBtn.addEventListener('click', () => {
+                console.log('🎯 ReportScreenManager: Botão export-pdf clicado!');
                 this.exportPdf();
             });
+        } else {
+            console.log('❌ ReportScreenManager: Botão export-pdf NÃO encontrado');
         }
+
+        console.log('✅ ReportScreenManager: Event listeners configurados');
     }
 
     setupAnimations() {
