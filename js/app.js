@@ -50,6 +50,15 @@ class MentalIA {
         // Initialize premium system
         await this.initPremium();
 
+        // Initialize AI Analysis system
+        if (window.aiAnalysis && typeof window.aiAnalysis.init === 'function') {
+            console.log('🤖 Inicializando sistema de análise IA...');
+            await window.aiAnalysis.init();
+            console.log('✅ Sistema de análise IA inicializado');
+        } else {
+            console.warn('⚠️ Sistema de análise IA não disponível');
+        }
+
         // Setup all event listeners AFTER DOM is ready
         this.setupEventListeners();
 
@@ -340,7 +349,10 @@ class MentalIA {
         // Mood form submission
         const moodForm = document.getElementById('mood-form');
         console.log('📝 Formulário de humor encontrado:', !!moodForm);
-        moodForm?.addEventListener('submit', (e) => this.handleMoodSubmit(e));
+        moodForm?.addEventListener('submit', (e) => {
+            console.log('📝 Mood form submit event triggered');
+            this.handleMoodSubmit(e);
+        });
 
         // Report generation with mobile optimization
         const reportBtn = document.getElementById('generate-report');
@@ -981,39 +993,28 @@ class MentalIA {
         }
     }
 
-        if (counter) {
-            counter.textContent = `${count} caracteres`;
-        }
-    }
-
-    autoResizeTextarea(textarea) {
-        textarea.style.height = 'auto';
-        textarea.style.height = textarea.scrollHeight + 'px';
-    }
-
     // ===== SAVE MOOD =====
-    async handleMoodSubmit(e) {
-        e.preventDefault();
-        console.log('💾 Salvando registro...');
+    async saveMoodEntry(mood, feelings, diary) {
+        console.log('💾 [APP] saveMoodEntry called with:', { mood, feelingsCount: feelings?.size || 0, diaryLength: diary?.length || 0 });
 
         try {
             // Validate data
-            if (this.currentMood < 1 || this.currentMood > 5) {
-                throw new Error('Humor inválido: ' + this.currentMood);
+            if (mood < 1 || mood > 5) {
+                throw new Error('Humor inválido: ' + mood);
             }
 
             // Prepare data
             const moodData = {
                 id: Date.now(),
-                mood: Math.round(this.currentMood * 10) / 10,
-                feelings: Array.from(this.selectedFeelings),
-                diary: document.getElementById('diary-entry')?.value?.trim() || '',
+                mood: Math.round(mood * 10) / 10,
+                feelings: Array.from(feelings || []),
+                diary: diary?.trim() || '',
                 timestamp: new Date().toISOString(),
                 date: new Date().toDateString(),
                 version: '3.1'
             };
 
-            console.log('📊 Dados para salvar:', {
+            console.log('📊 [APP] Prepared moodData:', {
                 id: moodData.id,
                 mood: moodData.mood,
                 feelingsCount: moodData.feelings.length,
@@ -1022,22 +1023,72 @@ class MentalIA {
 
             // Ensure storage is ready
             if (!window.mentalStorage) {
+                console.log('🔄 [APP] Storage not ready, initializing...');
                 await this.ensureStorageReady();
             }
 
             // Save to encrypted storage
+            console.log('💾 [APP] Calling window.mentalStorage.saveMoodEntry...');
             const result = await window.mentalStorage.saveMoodEntry(moodData);
-            console.log('✅ Dados salvos criptografados:', result);
+            console.log('✅ [APP] Save result:', result);
+
+            return result;
+        } catch (error) {
+            console.error('❌ [APP] saveMoodEntry failed:', error);
+            console.error('❌ [APP] Error details:', {
+                name: error.name,
+                message: error.message,
+                stack: error.stack
+            });
+            throw error;
+        }
+    }
+
+    async handleMoodSubmit(e) {
+        console.log('💾 [APP] handleMoodSubmit triggered');
+        e.preventDefault();
+        console.log('💾 [APP] Form submission prevented, processing...');
+
+        try {
+            // Get form data
+            const mood = this.currentMood;
+            const feelings = this.selectedFeelings;
+            const diary = document.getElementById('diary-entry')?.value?.trim() || '';
+
+            console.log('📝 [APP] Form data collected:', {
+                mood: mood,
+                feelingsCount: feelings?.size || 0,
+                diaryLength: diary?.length || 0
+            });
+
+            // Validate data
+            if (!mood || mood < 1 || mood > 5) {
+                throw new Error('Por favor, selecione um nível de humor válido (1-5)');
+            }
+
+            // Save using the extracted function
+            console.log('💾 [APP] Calling saveMoodEntry...');
+            await this.saveMoodEntry(mood, feelings, diary);
 
             // Success feedback
+            console.log('✅ [APP] Save successful, showing success toast');
             this.showToast('Humor registrado com sucesso! 🎉', 'success');
 
             // Reset form and go to history
+            console.log('🔄 [APP] Resetting form and navigating to history...');
             this.resetMoodForm();
-            setTimeout(() => this.showScreen('history'), 1000);
+            setTimeout(() => {
+                console.log('🧭 [APP] Navigating to history screen');
+                this.showScreen('history');
+            }, 1000);
 
         } catch (error) {
-            console.error('❌ Erro ao salvar:', error);
+            console.error('❌ [APP] handleMoodSubmit failed:', error);
+            console.error('❌ [APP] Error details:', {
+                name: error.name,
+                message: error.message,
+                stack: error.stack
+            });
             this.showToast('Erro ao salvar: ' + error.message, 'error');
         }
     }
@@ -1062,20 +1113,20 @@ class MentalIA {
     // ===== HISTORY =====
     async loadData() {
         try {
-            console.log('📊 Carregando dados do storage...');
+            console.log('📊 [APP] loadData() iniciado - Carregando dados do storage...');
 
             // Ensure storage is ready
             if (!window.mentalStorage) {
-                console.log('🔄 Aguardando storage...');
+                console.log('🔄 [APP] Aguardando storage...');
                 await this.ensureStorageReady();
             }
 
-            console.log('📊 Buscando entradas...');
+            console.log('📊 [APP] Storage pronto, buscando entradas...');
             const entries = await window.mentalStorage.getAllMoodEntries();
-            console.log('📊 Calculando estatísticas...');
+            console.log('📊 [APP] Calculando estatísticas...');
             const stats = await window.mentalStorage.getStats();
 
-            console.log('📊 Dados carregados:', {
+            console.log('📊 [APP] Dados carregados:', {
                 entriesCount: entries?.length || 0,
                 firstEntry: entries?.[0] ? {
                     id: entries[0].id,
@@ -1093,12 +1144,19 @@ class MentalIA {
             this.updateChart(entries);
             this.updateRecentEntries(entries);
 
-            console.log('✅ Dados carregados e exibidos');
+            console.log('✅ [APP] Dados carregados e exibidos com sucesso');
         } catch (error) {
-            console.error('❌ Erro ao carregar dados:', error);
-            console.error('❌ Stack trace:', error.stack);
+            console.error('❌ [APP] Erro ao carregar dados:', error);
+            console.error('❌ [APP] Stack trace:', error.stack);
+            console.error('❌ [APP] Error details:', {
+                name: error.name,
+                message: error.message,
+                cause: error.cause
+            });
+
+            // Show error toast
             this.showToast('Erro ao carregar dados: ' + error.message, 'error');
-            
+
             // Show empty state if no data
             this.updateStats({ totalEntries: 0, averageMood: 0, streak: 0 });
             this.updateChart([]);
@@ -1569,6 +1627,17 @@ class MentalIA {
                 throw new Error('Sistema de IA não disponível');
             }
 
+            // 🔥 CORREÇÃO: Garantir que o storage esteja inicializado
+            if (!window.mentalStorage) {
+                throw new Error('Sistema de armazenamento não disponível');
+            }
+            
+            // Forçar inicialização se necessário
+            if (!window.mentalStorage.initialized) {
+                console.log('🔄 Inicializando storage antes de gerar relatório...');
+                await window.mentalStorage.init();
+            }
+
             const entries = await window.mentalStorage.getAllMoodEntries();
             
             // 🔥 CORREÇÃO: Tratar caso sem dados de forma amigável
@@ -1771,15 +1840,6 @@ class MentalIA {
             target.classList.add('active');
             this.currentScreen = screenName;
             console.log('✅ Tela ativada:', screenName);
-
-            // Initialize mood form when mood screen is shown
-            if (screenName === 'mood') {
-                console.log('🎭 Tela de humor mostrada, inicializando formulário...');
-                // Use requestAnimationFrame to ensure DOM is fully rendered
-                requestAnimationFrame(() => {
-                    this.initMoodForm();
-                });
-            }
         } else {
             console.error('❌ Tela não encontrada:', `${screenName}-screen`);
             console.log('🧭 Telas disponíveis no DOM:', Array.from(document.querySelectorAll('.screen')).map(s => s.id));

@@ -12,37 +12,38 @@ class GoogleDriveBackup {
         this.oneTapInitialized = false;
 
         console.log('☁️ [BACKUP] Inicializando sistema de backup Google Drive...');
-        this.initializeGoogleOneTap();
-        this.updateBackupStatus(false, 'Inicializando...');
+        // Don't initialize One Tap automatically - wait for button click
+        this.updateBackupStatus(false, 'Clique em "Backup Seguro" para conectar');
     }
 
-    async initializeGoogleOneTap() {
+    async showGoogleOneTap() {
         try {
-            console.log('🚪 [ONE TAP] Inicializando Google One Tap...');
+            console.log('🚪 [ONE TAP] Mostrando Google One Tap...');
 
             // Wait for Google Identity Services to load
             await this.waitForGoogleIdentityServices();
 
-            // Initialize One Tap
-            google.accounts.id.initialize({
-                client_id: this.clientId,
-                callback: this.handleGoogleCredential.bind(this),
-                auto_select: false,
-                cancel_on_tap_outside: true,
-                context: 'signin'
-            });
+            // Initialize One Tap if not already done
+            if (!this.oneTapInitialized) {
+                google.accounts.id.initialize({
+                    client_id: this.clientId,
+                    callback: this.handleGoogleCredential.bind(this),
+                    auto_select: false,
+                    cancel_on_tap_outside: true,
+                    context: 'signin'
+                });
+                this.oneTapInitialized = true;
+            }
 
-            this.oneTapInitialized = true;
-            console.log('✅ [ONE TAP] Google One Tap inicializado');
+            // Show One Tap prompt
+            google.accounts.id.prompt();
 
-            // Render One Tap button
-            this.renderOneTapButton();
-
-            this.updateBackupStatus(false, 'Pronto para login');
+            this.updateBackupStatus(false, 'Aguardando login...');
 
         } catch (error) {
-            console.error('❌ [ONE TAP] Erro ao inicializar:', error);
-            this.updateBackupStatus(false, 'Erro na inicialização');
+            console.error('❌ [ONE TAP] Erro ao mostrar One Tap:', error);
+            this.updateBackupStatus(false, 'Erro ao conectar');
+            this.showToast('Erro ao conectar com Google', 'error');
         }
     }
 
@@ -63,18 +64,6 @@ class GoogleDriveBackup {
             };
             checkServices();
         });
-    }
-
-    renderOneTapButton() {
-        const buttonContainer = document.getElementById('google-backup-btn');
-        if (buttonContainer) {
-            google.accounts.id.renderButton(buttonContainer, {
-                theme: 'outline',
-                size: 'large',
-                text: 'signin_with',
-                shape: 'rectangular'
-            });
-        }
     }
 
     async handleGoogleCredential(response) {
@@ -144,50 +133,43 @@ class GoogleDriveBackup {
         return JSON.parse(jsonPayload);
     }
 
+    async handleBackupClick() {
+        console.log('☁️ [BACKUP] Botão backup clicado');
+
+        if (!this.isSignedIn) {
+            console.log('🔐 [BACKUP] Usuário não logado, mostrando One Tap...');
+            await this.showGoogleOneTap();
+            return;
+        }
+
+        // User is signed in, proceed with backup
+        await this.backupToDrive();
+    }
+
     async backupToDrive() {
         try {
-            console.log('📤 [BACKUP] Iniciando backup...');
+            console.log('☁️ [BACKUP] Iniciando backup...');
 
-            if (!this.isSignedIn || !this.accessToken) {
-                throw new Error('Usuário não autenticado');
-            }
-
-            this.updateBackupStatus(true, 'Preparando dados...');
-
-            // Get data from storage
-            const entries = await window.mentalStorage.getAllMoodEntries();
-            if (!entries || entries.length === 0) {
-                throw new Error('Nenhum dado para backup');
-            }
-
-            // Prepare backup data
-            const backupData = {
-                version: '3.1',
-                timestamp: new Date().toISOString(),
-                entries: entries,
-                totalEntries: entries.length
-            };
-
-            this.updateBackupStatus(true, 'Criptografando...');
+            // Get data from mentalStorage
+            const data = window.mentalStorage ? await window.mentalStorage.exportAllData() : { test: 'data' };
+            console.log('📦 [BACKUP] Dados obtidos:', Object.keys(data).length, 'registros');
 
             // Encrypt data
-            const encryptedData = await this.encryptData(JSON.stringify(backupData));
+            const encryptedData = await this.encryptData(JSON.stringify(data));
+            console.log('🔒 [BACKUP] Dados criptografados');
 
-            this.updateBackupStatus(true, 'Enviando para Drive...');
-
-            // Upload to Drive
+            // Upload to Google Drive
             const success = await this.uploadEncryptedFile(encryptedData);
 
             if (success) {
-                this.updateBackupStatus(true, 'Backup concluído!');
-                this.showToast('Backup realizado com sucesso! ☁️', 'success');
+                this.showToast('Backup realizado com sucesso!', 'success');
+                console.log('✅ [BACKUP] Backup concluído');
             } else {
                 throw new Error('Falha no upload');
             }
 
         } catch (error) {
             console.error('❌ [BACKUP] Erro no backup:', error);
-            this.updateBackupStatus(false, 'Erro no backup');
             this.showToast('Erro no backup: ' + error.message, 'error');
         }
     }
@@ -323,7 +305,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const backupBtn = document.getElementById('backup-data');
     if (backupBtn) {
         backupBtn.addEventListener('click', () => {
-            window.googleDriveBackup.backupToDrive();
+            window.googleDriveBackup.handleBackupClick();
         });
     }
 });

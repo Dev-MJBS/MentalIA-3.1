@@ -114,13 +114,18 @@ class AIAnalysis {
                 return this.generateSimpleFallbackReport([]);
             }
 
-            // 🔥 CORREÇÃO: Validar formato das entradas
-            const validEntries = entries.filter(entry => 
-                entry && typeof entry.mood === 'number' && !isNaN(entry.mood)
-            );
+            // 🔥 CORREÇÃO: Validar formato das entradas (mais permissiva)
+            const validEntries = entries.filter(entry => {
+                if (!entry) return false;
+                
+                // Aceitar tanto number quanto string que pode ser convertida
+                const moodValue = typeof entry.mood === 'number' ? entry.mood : parseFloat(entry.mood);
+                return !isNaN(moodValue) && isFinite(moodValue) && moodValue >= 0 && moodValue <= 5;
+            });
 
             if (validEntries.length === 0) {
-                console.warn('⚠️ [AI] Entradas inválidas detectadas, usando fallback');
+                console.warn('⚠️ [AI] Nenhuma entrada válida encontrada após filtro');
+                console.log('📊 [AI] Entradas originais:', entries);
                 return this.generateSimpleFallbackReport([]);
             }
 
@@ -141,6 +146,9 @@ class AIAnalysis {
 
         } catch (error) {
             console.error('❌ [AI] Erro na geração do relatório:', error);
+            console.error('❌ [AI] Stack trace:', error.stack);
+            console.error('❌ [AI] Tipo do erro:', typeof error);
+            console.error('❌ [AI] Mensagem do erro:', error.message);
             
             // Fallback final - sempre retorna algo
             return {
@@ -561,8 +569,28 @@ Se precisar conversar ou tiver dúvidas sobre seus registros, estou aqui para aj
     prepareMoodSummary(entries) {
         try {
             console.log('📊 [AI] Preparando summary de', entries.length, 'entradas');
+            
+            if (!entries || entries.length === 0) {
+                console.warn('⚠️ [AI] Sem entradas para preparar summary');
+                return {
+                    totalEntries: 0,
+                    averageMood: 3.0,
+                    moodDistribution: [0, 0, 0, 0, 0],
+                    topFeelings: [],
+                    recentTrend: 0,
+                    recentAvg: 3.0,
+                    previousAvg: 3.0,
+                    daysCovered: 0,
+                    dateRange: 'N/A'
+                };
+            }
+            
             const totalEntries = entries.length;
-            const avgMood = entries.reduce((sum, entry) => sum + entry.mood, 0) / totalEntries;
+            const avgMood = entries.reduce((sum, entry) => {
+                const moodValue = typeof entry.mood === 'number' ? entry.mood : parseFloat(entry.mood) || 0;
+                return sum + moodValue;
+            }, 0) / totalEntries;
+            
             console.log('📊 [AI] Humor médio calculado:', avgMood);
 
         // Get mood distribution
@@ -713,7 +741,7 @@ Seja sempre empático, acolhedor e profissional. Lembre que esta análise não s
             // Get report data or generate new one
             let report = reportData;
             if (!report) {
-                const entries = await window.mentalStorage.getAllEntries();
+                const entries = await window.mentalStorage.getAllMoodEntries();
                 if (entries.length === 0) {
                     throw new Error('Nenhum dado encontrado para gerar relatório');
                 }

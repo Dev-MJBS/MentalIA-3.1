@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MentalIA - Teste de Relatório</title>
+</head>
+<body>
+    <h1>Teste de Geração de Relatório</h1>
+    <button onclick="testReport()">Gerar Relatório de Teste</button>
+    <div id="result"></div>
+
+    <script src="js/storage.js"></script>
+    <script src="js/ai_analysis.js"></script>
+    <script>
+        async function testReport() {
+            try {
+                console.log('🧪 Iniciando teste de relatório...');
+
+                // Verificar se storage está disponível
+                if (!window.mentalStorage) {
+                    throw new Error('Storage não disponível');
+                }
+
+                // Obter entradas
+                const entries = await window.mentalStorage.getAllMoodEntries();
+                console.log('📊 Entradas encontradas:', entries.length, entries);
+
+                if (entries.length === 0) {
+                    document.getElementById('result').innerHTML = '<p style="color: orange;">Nenhuma entrada encontrada. Adicione dados primeiro.</p>';
+                    return;
+                }
+
+                // Verificar se aiAnalysis está disponível
+                if (!window.aiAnalysis) {
+                    throw new Error('AI Analysis não disponível');
+                }
+
+                // Gerar relatório
+                console.log('🧠 Gerando relatório...');
+                const report = await window.aiAnalysis.generateReport(entries);
+                console.log('✅ Relatório gerado:', report);
+
+                // Exibir resultado
+                document.getElementById('result').innerHTML = `
+                    <h2>${report.title}</h2>
+                    <h3>${report.subtitle}</h3>
+                    <div style="background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px;">
+                        <pre>${JSON.stringify(report, null, 2)}</pre>
+                    </div>
+                `;
+
+            } catch (error) {
+                console.error('❌ Erro no teste:', error);
+                document.getElementById('result').innerHTML = `
+                    <p style="color: red;">Erro: ${error.message}</p>
+                    <pre style="background: #ffe6e6; padding: 10px; border-radius: 5px;">${error.stack}</pre>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
