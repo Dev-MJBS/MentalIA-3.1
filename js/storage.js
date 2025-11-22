@@ -33,6 +33,15 @@ class MentalStorage {
         }
     }
 
+    // 🔥 CORREÇÃO: Método ensureInitialized() estava faltando
+    async ensureInitialized() {
+        if (!this.initialized) {
+            console.log('🔄 [STORAGE] ensureInitialized: inicializando...');
+            await this.init();
+        }
+        return this.initialized;
+    }
+
     async initEncryption() {
         try {
             console.log('🔑 [STORAGE] Checking for existing encryption key...');
@@ -436,17 +445,37 @@ class MentalStorage {
 // Initialize globally
 window.mentalStorage = new MentalStorage();
 
-// Auto-initialize on first use
-const methodsToWrap = ['saveMoodEntry', 'getAllMoodEntries', 'getStats', 'saveSetting', 'getSetting'];
+// 🔥 CORREÇÃO: Auto-initialize mais robusto
+const methodsToWrap = ['saveMoodEntry', 'getAllMoodEntries', 'getStats', 'saveSetting', 'getSetting', 'deleteEntry', 'deleteAllEntries'];
 
 methodsToWrap.forEach(method => {
     const original = window.mentalStorage[method];
     if (original) {
         window.mentalStorage[method] = async function(...args) {
-            await this.ensureInitialized();
-            return original.apply(this, args);
+            console.log(`🔄 [STORAGE] Auto-init: calling ${method}`);
+            try {
+                await this.ensureInitialized();
+                console.log(`✅ [STORAGE] Auto-init: ${method} ready, calling original`);
+                return await original.apply(this, args);
+            } catch (error) {
+                console.error(`❌ [STORAGE] Auto-init failed for ${method}:`, error);
+                throw error;
+            }
         };
     }
 });
 
-console.log('🔒 MentalStorage 3.1 carregado e pronto');
+// 🔥 CORREÇÃO: Inicialização automática mais agressiva
+console.log('🔒 MentalStorage 3.1 carregado, iniciando auto-init...');
+
+// Try to initialize immediately
+setTimeout(async () => {
+    try {
+        console.log('🔄 [STORAGE] Auto-init: tentando inicialização automática...');
+        await window.mentalStorage.init();
+        console.log('✅ [STORAGE] Auto-init: inicialização automática bem-sucedida');
+    } catch (error) {
+        console.error('❌ [STORAGE] Auto-init: falha na inicialização automática:', error);
+        // Don't throw here, let manual init handle it
+    }
+}, 100);

@@ -1185,68 +1185,9 @@ class MentalIA {
         });
     }
 
-    updateChart(entries) {
-        console.log('📈 Atualizando gráfico com', entries?.length || 0, 'entradas');
-        
-        // Se não há entradas, mostrar estado vazio
-        if (!entries || entries.length === 0) {
-            const chartContainer = document.querySelector('.chart-container');
-            if (chartContainer) {
-                chartContainer.innerHTML = '<div class="empty-chart">📊 Nenhum dado para exibir</div>';
-            }
-            return;
-        }
 
-        // Implementação básica do gráfico pode ser adicionada aqui
-        // Por enquanto, apenas log para debug
-        console.log('📈 Primeiras 3 entradas para gráfico:', entries.slice(0, 3));
-    }
 
-    updateRecentEntries(entries) {
-        console.log('📅 Atualizando entradas recentes:', entries?.length || 0);
-        const container = document.getElementById('recent-entries');
-        if (!container) {
-            console.warn('⚠️ Container recent-entries não encontrado');
-            return;
-        }
 
-        // Limpar container
-        container.innerHTML = '';
-
-        // Se não há entradas, mostrar estado vazio
-        if (!entries || entries.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <h3>📝 Nenhum registro ainda</h3>
-                    <p>Registre seu primeiro humor para ver o histórico aqui!</p>
-                </div>
-            `;
-            return;
-        }
-
-        // Mostrar últimas 5 entradas
-        const recentEntries = entries.slice(0, 5);
-        recentEntries.forEach(entry => {
-            const entryEl = document.createElement('div');
-            entryEl.className = 'recent-entry';
-            
-            const moodEmoji = this.getMoodEmoji(entry.mood);
-            const feelingsText = entry.feelings.length > 0 
-                ? entry.feelings.slice(0, 3).join(', ') + (entry.feelings.length > 3 ? '...' : '')
-                : 'Nenhum sentimento selecionado';
-            
-            entryEl.innerHTML = `
-                <div class="entry-date">${new Date(entry.timestamp).toLocaleDateString('pt-BR')}</div>
-                <div class="entry-mood">${moodEmoji} ${entry.mood.toFixed(1)}</div>
-                <div class="entry-feelings">${feelingsText}</div>
-                ${entry.diary ? `<div class="entry-diary">"${entry.diary.substring(0, 100)}${entry.diary.length > 100 ? '...' : ''}"</div>` : ''}
-            `;
-            
-            container.appendChild(entryEl);
-        });
-
-        console.log('✅ Entradas recentes atualizadas');
-    }
 
     getMoodEmoji(mood) {
         if (mood <= 1.5) return '😢';
@@ -2473,6 +2414,33 @@ window.checkAPIs = async () => {
         return null;
     }
 };
+
+// ===== BACKUP SYSTEM =====
+async backupData() {
+    try {
+        console.log('💾 Iniciando backup de dados...');
+        
+        // Verificar se o sistema de backup está disponível
+        if (!window.googleDriveBackup) {
+            throw new Error('Sistema de backup não disponível');
+        }
+        
+        // Mostrar feedback visual
+        this.showToast('🔄 Fazendo backup seguro...', 'info');
+        
+        // Iniciar backup
+        await window.googleDriveBackup.backupToDrive();
+        
+        // Feedback de sucesso
+        this.showToast('✅ Backup realizado com sucesso!', 'success');
+        
+    } catch (error) {
+        console.error('❌ Erro no backup:', error);
+        
+        // Feedback de erro
+        this.showToast('❌ Erro no backup: ' + error.message, 'error');
+    }
+}
 
 // Tratamento global de promises rejeitadas
 window.addEventListener('unhandledrejection', function(event) {
