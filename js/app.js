@@ -1,375 +1,265 @@
-// MentalIA 3.1 - Main App JavaScript
-// Complete rewrite with all fixes
-
-console.log('🚀 MentalIA app.js carregado!');
-
-// 🔥 DEBUG: Adicionar listener global para capturar todos os cliques
-document.addEventListener('click', (e) => {
-    console.log('🔥 CLICK GLOBAL capturado:', {
-        target: e.target,
-        targetTag: e.target.tagName,
-        targetClass: e.target.className,
-        targetId: e.target.id,
-        dataScreen: e.target.dataset?.screen,
-        parentDataScreen: e.target.closest('[data-screen]')?.dataset?.screen,
-        timestamp: Date.now()
-    });
-}, true); // Use capture phase
-
-document.addEventListener('touchend', (e) => {
-    console.log('🔥 TOUCH GLOBAL capturado:', {
-        target: e.target,
-        targetTag: e.target.tagName,
-        targetClass: e.target.className,
-        targetId: e.target.id,
-        dataScreen: e.target.dataset?.screen,
-        parentDataScreen: e.target.closest('[data-screen]')?.dataset?.screen,
-        touches: e.touches?.length,
-        changedTouches: e.changedTouches?.length,
-        timestamp: Date.now()
-    });
-}, true); // Use capture phase
+/*
+    Clean, minimal `app.js` for MentalIA 3.1
+    - Restores interactivity (navigation, slider, feelings, save, delete, report)
+    - Uses `window.mentalStorage` and `window.aiAnalysis` provided elsewhere
+    - Keeps implementation focused so it's easy to audit and avoids merge markers
+*/
 
 class MentalIA {
     constructor() {
         this.currentScreen = 'welcome';
         this.currentMood = 3.0;
         this.selectedFeelings = new Set();
-        this.currentUser = null;
-        this.isPremium = true; // Todos os recursos gratuitos
-        // setupEventListeners() will be called in init() after DOM is ready
+        this.pendingDelete = null;
     }
 
     async init() {
-        console.log('🧠 MentalIA 3.1 inicializando...');
+        // Wait for storage and AI modules to be available
+        await this.waitForReady();
 
-        // Initialize premium system
-        await this.initPremium();
-
-        // Setup all event listeners AFTER DOM is ready
         this.setupEventListeners();
-
-        // Initialize components
         this.initTheme();
-        this.initChart();
-        this.initPWA();
-
-        // Load data
+        this.updateMoodDisplay(this.currentMood);
         await this.loadData();
-
-        // Show initial screen
         this.showScreen('welcome');
-
-        console.log('✅ MentalIA 3.1 pronto! Timestamp final:', Date.now());
-        this.showToast('MentalIA 3.1 carregado com sucesso! 🧠', 'success');
     }
 
-    // ===== PREMIUM FEATURES =====
-    async initPremium() {
-        console.log('💎 Todos os recursos liberados gratuitamente!');
-        
-        // Definir como premium permanentemente (todos os recursos gratuitos)
-        this.isPremium = true;
-        this.updatePremiumUI();
-    }
-
-    updatePremiumUI() {
-        // Atualiza classe no body
-        document.body.classList.toggle('premium-user', this.isPremium);
-        
-        // Mostra/esconde elementos premium
-        const premiumOnlyElements = document.querySelectorAll('[data-premium-only]');
-        premiumOnlyElements.forEach(el => {
-            el.style.display = this.isPremium ? '' : 'none';
-        });
-
-        // Mostra/esconde elementos free
-        const freeOnlyElements = document.querySelectorAll('[data-free-only]');
-        freeOnlyElements.forEach(el => {
-            el.style.display = this.isPremium ? 'none' : '';
-        });
-
-        // Atualiza botões de upgrade
-        const upgradeButtons = document.querySelectorAll('[data-show-premium]');
-        upgradeButtons.forEach(btn => {
-            btn.style.display = this.isPremium ? 'none' : '';
-        });
-
-        // Remove watermarks se premium
-        if (this.isPremium) {
-            const watermarks = document.querySelectorAll('.mentalia-watermark');
-            watermarks.forEach(w => w.style.display = 'none');
+    async waitForReady(timeout = 5000) {
+        const start = Date.now();
+        while ((typeof window.mentalStorage === 'undefined' || typeof window.aiAnalysis === 'undefined') && (Date.now() - start) < timeout) {
+            await new Promise(r => setTimeout(r, 100));
         }
-
-        console.log('💎 UI Premium atualizada. Status:', this.isPremium);
-    }
-
-<<<<<<< HEAD
-=======
-    // Função removida - todos os recursos são gratuitos
-
-    // Método para obter usuário Google (usado pelo premium)
-    async getGoogleUser() {
-        // Se já temos o usuário cached, retorna
-        if (this.currentUser) {
-            return this.currentUser;
-        }
-
-        // Tenta obter do storage ou Google API
-        try {
-            // Implementar integração com Google OAuth aqui
-            // Por agora, simula um usuário para desenvolvimento
-            if (localStorage.getItem('google_user')) {
-                this.currentUser = JSON.parse(localStorage.getItem('google_user'));
-                return this.currentUser;
-            }
-            
-            // Se não tem usuário, retorna null (usuário precisa fazer login)
-            return null;
-            
-        } catch (error) {
-            console.error('Erro ao obter usuário Google:', error);
-            return null;
+        if (window.mentalStorage && typeof window.mentalStorage.ensureInitialized === 'function') {
+            await window.mentalStorage.ensureInitialized();
         }
     }
 
-    // Método para refresh de dados (usado pelo premium)
-    async refreshData() {
-        console.log('🔄 Refreshing data...');
-        await this.loadData();
-        if (this.chart) {
-            this.updateChart();
-        }
-    }
-
-    // ===== STORAGE INITIALIZATION =====
-    async ensureStorageReady() {
-        console.log('🗄️ Verificando storage...');
-        
-        // Wait for storage to be available
-        let attempts = 0;
-        while (!window.mentalStorage && attempts < 50) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-        }
-        
-        if (!window.mentalStorage) {
-            throw new Error('Storage não disponível após aguardar');
-        }
-        
-        // Ensure storage is initialized
-        await window.mentalStorage.ensureInitialized();
-        console.log('✅ Storage pronto e inicializado');
-    }
-
-    // ===== ADMIN FEATURES =====
-    initAdminFeatures() {
-        console.log('👑 Verificando status de administrador...');
-        
-        // Simple admin detection - can be improved later
-        const isAdmin = this.checkAdminStatus();
-        
-        if (isAdmin) {
-            console.log('👑 Usuário administrador detectado - mostrando funcionalidades admin');
-            this.showAdminElements();
-        } else {
-            console.log('👤 Usuário normal - escondendo funcionalidades admin');
-            this.hideAdminElements();
-        }
-    }
-
-    checkAdminStatus() {
-        // Method 1: Check URL parameter
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('admin') === 'true') {
-            console.log('👑 Admin mode ativado via URL parameter');
-            return true;
-        }
-
-        // Method 2: Check localStorage
-        if (localStorage.getItem('mentalIA_admin') === 'true') {
-            console.log('👑 Admin mode ativado via localStorage');
-            return true;
-        }
-
-        // Method 3: Check for special key combination (Ctrl+Shift+A+D+M)
-        // This will be set up in setupEventListeners
-
-        // Method 4: Check if running on localhost/development
-        if (window.location.hostname === 'localhost' || 
-            window.location.hostname === '127.0.0.1' ||
-            window.location.hostname.includes('dev-mjbs.github.io')) {
-            console.log('👑 Admin mode ativado - desenvolvimento/GitHub Pages');
-            return true;
-        }
-
-        return false;
-    }
-
-    showAdminElements() {
-        const adminElements = document.querySelectorAll('.admin-only');
-        console.log('👑 Mostrando elementos admin:', adminElements.length);
-        
-        adminElements.forEach(element => {
-            element.classList.remove('hidden');
-            element.classList.add('admin-visible');
-        });
-    }
-
-    hideAdminElements() {
-        const adminElements = document.querySelectorAll('.admin-only');
-        console.log('👤 Escondendo elementos admin:', adminElements.length);
-        
-        adminElements.forEach(element => {
-            element.classList.add('hidden');
-            element.classList.remove('admin-visible');
-        });
-    }
-
-    // Toggle admin mode (for testing)
-    toggleAdminMode() {
-        const isCurrentlyAdmin = localStorage.getItem('mentalIA_admin') === 'true';
-        
-        if (isCurrentlyAdmin) {
-            localStorage.removeItem('mentalIA_admin');
-            this.hideAdminElements();
-            this.showToast('👤 Modo usuário ativado', 'info');
-            console.log('👤 Modo admin desativado');
-        } else {
-            localStorage.setItem('mentalIA_admin', 'true');
-            this.showAdminElements();
-            this.showToast('👑 Modo admin ativado', 'success');
-            console.log('👑 Modo admin ativado');
-        }
-    }
-
->>>>>>> parent of 6c8feb6 (Fix button)
     setupEventListeners() {
+        // Navigation buttons (data-screen)
+        document.querySelectorAll('[data-screen]').forEach(btn => {
+            const screen = btn.dataset.screen;
+            const handler = (e) => { e.preventDefault(); this.showScreen(screen); };
+            btn.removeEventListener('click', btn._mh);
+            btn._mh = handler;
+            btn.addEventListener('click', handler);
+            btn.addEventListener('touchend', handler);
+        });
+
+        // Slider
+        const slider = document.getElementById('mood-slider');
+        if (slider) {
+            slider.addEventListener('input', (e) => this.updateMoodDisplay(parseFloat(e.target.value)));
+            slider.addEventListener('change', (e) => this.updateMoodDisplay(parseFloat(e.target.value)));
+        }
+
+        // Toggle primary feeling cards
+        document.querySelectorAll('.primary-feeling-card .primary-feeling-btn, .primary-feeling-card .expand-icon').forEach(el => {
+            el.addEventListener('click', (e) => {
+                const card = e.currentTarget.closest('.primary-feeling-card');
+                if (card) this.toggleFeelingCategory(card);
+            });
+        });
+
+        // Sub-feeling items (delegated)
+        document.addEventListener('click', (e) => {
+            const item = e.target.closest('.sub-feeling-item');
+            if (item) {
+                const cb = item.querySelector('input[type="checkbox"]');
+                if (cb) cb.checked = !cb.checked;
+                this.updateSelectedFeelings();
+            }
+
+            // Delete single entry
+            const del = e.target.closest('.delete-entry-btn');
+            if (del) {
+                e.preventDefault();
+                const id = del.dataset.entryId ? Number(del.dataset.entryId) : null;
+                this.showDeleteModal(id, false);
+            }
+        });
+
+        // Delete all
+        const deleteAllBtn = document.getElementById('delete-all-data');
+        if (deleteAllBtn) deleteAllBtn.addEventListener('click', (e) => { e.preventDefault(); this.showDeleteModal(null, true); });
+
+        // Confirm / cancel delete modal
+        document.getElementById('confirm-delete')?.addEventListener('click', () => this.confirmDelete());
+        document.getElementById('cancel-delete')?.addEventListener('click', () => this.hideDeleteModal());
+
+        // Mood form
+        document.getElementById('mood-form')?.addEventListener('submit', (e) => this.handleMoodSubmit(e));
+
+        // Generate report
+        document.getElementById('generate-report')?.addEventListener('click', (e) => { e.preventDefault(); this.generateReport(); });
+
+        // Backup visual toggle
+        document.getElementById('backup-data')?.addEventListener('click', (e) => { e.preventDefault(); this.backupData(); });
+    }
+
+    initTheme() {
+        const t = localStorage.getItem('mental-ia-theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+    }
+
+    showScreen(name) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        const target = document.getElementById(`${name}-screen`);
+        if (target) target.classList.add('active');
+        this.currentScreen = name;
+        if (name === 'mood') this.updateMoodDisplay(this.currentMood);
+        if (name === 'history') this.loadData();
+    }
+
+    updateMoodDisplay(value) {
+        this.currentMood = Number(value) || 3.0;
+        this.currentMood = Math.max(1, Math.min(5, this.currentMood));
+        const emojiEl = document.getElementById('current-mood-emoji');
+        const textEl = document.getElementById('current-mood-text');
+        const valueEl = document.getElementById('current-mood-value');
+        const mood = this.getMoodData(this.currentMood);
+        if (emojiEl) emojiEl.textContent = mood.emoji;
+        if (textEl) textEl.textContent = mood.text;
+        if (valueEl) valueEl.textContent = this.currentMood.toFixed(1);
+        const slider = document.getElementById('mood-slider'); if (slider) slider.value = this.currentMood;
+        // set css var
+        document.documentElement.style.setProperty('--current-mood-color', mood.color || '#6366f1');
+    }
+
+    getMoodData(value) {
+        if (value <= 1.5) return { emoji: '😢', text: 'Muito Baixo', color: '#d32f2f' };
+        if (value <= 2.5) return { emoji: '😕', text: 'Baixo', color: '#f59e0b' };
+        if (value <= 3.5) return { emoji: '😐', text: 'Neutro', color: '#64748b' };
+        if (value <= 4.5) return { emoji: '😊', text: 'Alto', color: '#10b981' };
+        return { emoji: '😄', text: 'Muito Alto', color: '#06b6d4' };
+    }
+
+    toggleFeelingCategory(card) {
+        if (!card) return;
+        const was = card.classList.contains('expanded');
+        document.querySelectorAll('.primary-feeling-card').forEach(c => c.classList.remove('expanded'));
+        if (!was) card.classList.add('expanded');
+    }
+
+    updateSelectedFeelings() {
+        const checked = Array.from(document.querySelectorAll('.sub-feeling-item input[type="checkbox"]:checked'));
+        this.selectedFeelings = new Set(checked.map(cb => ({ value: cb.value, label: cb.dataset.label || cb.value })));
+        const list = document.getElementById('selected-feelings-list');
+        if (list) list.innerHTML = Array.from(this.selectedFeelings).map(f => `<span class="selected-feeling-tag">${f.label}</span>`).join('');
+    }
+
+    clearAllFeelings() { document.querySelectorAll('.sub-feeling-item input').forEach(cb => cb.checked = false); this.selectedFeelings.clear(); this.updateSelectedFeelings(); }
+
+    async handleMoodSubmit(e) {
+        e.preventDefault();
         try {
-            console.log('🔧 setupEventListeners() INICIADO - Timestamp:', Date.now());
-            console.log('🔧 DOM readyState:', document.readyState);
-            console.log('🔧 Window loaded:', window.mentalIA ? 'Sim' : 'Não');
+            const diary = document.getElementById('diary-entry')?.value?.trim() || '';
+            const entry = { id: Date.now(), mood: Math.round(this.currentMood * 10) / 10, feelings: Array.from(this.selectedFeelings), diary, timestamp: new Date().toISOString() };
+            if (!window.mentalStorage) throw new Error('Storage não disponível');
+            await window.mentalStorage.saveMoodEntry(entry);
+            this.showToast('Humor registrado com sucesso!', 'success');
+            this.resetMoodForm();
+            this.showScreen('history');
+            await this.loadData();
+        } catch (err) {
+            console.error('Erro ao salvar:', err);
+            this.showToast('Erro ao salvar: ' + (err.message || err), 'error');
+        }
+    }
 
-        // Admin key combination (Ctrl+Shift+D+E+V)
-        this.setupAdminKeyListener();
+    resetMoodForm() { this.currentMood = 3.0; this.updateMoodDisplay(3.0); this.clearAllFeelings(); const ta = document.getElementById('diary-entry'); if (ta) ta.value = ''; }
 
-        // Theme toggle
-        const themeToggle = document.getElementById('theme-toggle');
-        console.log('🎨 Theme toggle encontrado:', !!themeToggle);
-        themeToggle?.addEventListener('click', () => this.toggleTheme());
+    async loadData() {
+        try {
+            if (!window.mentalStorage) await this.waitForReady();
+            const entries = await window.mentalStorage.getAllMoodEntries();
+            const stats = await window.mentalStorage.getStats?.() || {};
+            this.updateStats(stats);
+            this.updateRecentEntries(entries || []);
+        } catch (err) { console.error('Erro ao carregar dados:', err); }
+    }
 
-        // All screen navigation buttons
-        const screenBtns = document.querySelectorAll('[data-screen]');
-        console.log('🧭 Botões de navegação encontrados:', screenBtns.length, screenBtns);
-        screenBtns.forEach(btn => {
-            console.log('🧭 Configurando event listener para botão:', btn.dataset.screen, btn);
-            console.log('🧭 Botão tem pointer-events:', window.getComputedStyle(btn).pointerEvents);
-            console.log('🧭 Botão tem touch-action:', window.getComputedStyle(btn).touchAction);
-<<<<<<< HEAD
+    updateStats(stats) {
+        const avg = document.getElementById('avg-mood'); if (avg) avg.textContent = (stats.averageMood || 0).toFixed ? (stats.averageMood || 0).toFixed(1) : (stats.averageMood || 0);
+        const total = document.getElementById('total-entries'); if (total) total.textContent = stats.totalEntries || 0;
+        const streak = document.getElementById('streak-days'); if (streak) streak.textContent = stats.streak || 0;
+    }
 
-            // Remove existing listeners to avoid duplicates
-            btn.removeEventListener('click', btn._screenClickHandler);
-            btn.removeEventListener('touchend', btn._screenTouchHandler);
-
-=======
-            
-            // Remove existing listeners to avoid duplicates
-            btn.removeEventListener('click', btn._screenClickHandler);
-            btn.removeEventListener('touchend', btn._screenTouchHandler);
-            
->>>>>>> parent of 6c8feb6 (Fix button)
-            // Create handlers
-            btn._screenClickHandler = (e) => {
-                console.log('🖱️ CLICK EVENT disparado no botão:', e.currentTarget.dataset.screen);
-                console.log('🖱️ Event details:', {
-                    type: e.type,
-                    target: e.target,
-                    currentTarget: e.currentTarget,
-                    screen: e.currentTarget.dataset.screen
-                });
-                e.preventDefault();
-                e.stopPropagation();
-                const screen = e.currentTarget.dataset.screen;
-                console.log('🧭 Navegando para (click):', screen);
-                this.showScreen(screen);
-            };
-<<<<<<< HEAD
-
-=======
-            
->>>>>>> parent of 6c8feb6 (Fix button)
-            btn._screenTouchHandler = (e) => {
-                console.log('👆 TOUCH EVENT disparado no botão:', e.currentTarget.dataset.screen);
-                console.log('👆 Touch event details:', {
-                    type: e.type,
-                    target: e.target,
-                    currentTarget: e.currentTarget,
-                    touches: e.touches?.length,
-                    changedTouches: e.changedTouches?.length
-                });
-                e.preventDefault();
-                e.stopPropagation();
-                const screen = e.currentTarget.dataset.screen;
-                console.log('🧭 Navegando para (touch):', screen);
-                this.showScreen(screen);
-            };
-<<<<<<< HEAD
-
-            // Add listeners
-            btn.addEventListener('click', btn._screenClickHandler);
-            btn.addEventListener('touchend', btn._screenTouchHandler);
-
-            console.log('✅ Event listeners anexados ao botão:', btn.dataset.screen);
+    updateRecentEntries(entries) {
+        const container = document.getElementById('recent-list'); if (!container) return;
+        container.innerHTML = '';
+        if (!entries || entries.length === 0) { container.innerHTML = `<div class="empty-state"><h3>📝 Nenhum registro ainda</h3><p>Registre seu primeiro humor para ver o histórico aqui!</p></div>`; return; }
+        entries.slice(0, 10).forEach(entry => {
+            const feelings = Array.isArray(entry.feelings) ? entry.feelings.map(f => typeof f === 'string' ? f : (f.label || f.value || '')).filter(Boolean) : [];
+            const el = document.createElement('div'); el.className = 'recent-entry'; el.innerHTML = `
+                <div class="entry-content">
+                    <div class="entry-date">${new Date(entry.timestamp).toLocaleDateString('pt-BR')}</div>
+                    <div class="entry-mood">${this.getMoodEmoji(entry.mood)} ${entry.mood.toFixed(1)}</div>
+                    <div class="entry-feelings">${feelings.slice(0,3).join(', ') || 'Nenhum sentimento selecionado'}</div>
+                    ${entry.diary ? `<div class="entry-diary">"${entry.diary.substring(0,100)}${entry.diary.length>100?'...':''}"</div>` : ''}
+                </div>
+                <button class="delete-entry-btn" data-entry-id="${entry.id}" title="Excluir registro">🗑️</button>
+            `; container.appendChild(el);
         });
+    }
 
-        // 🔥 TESTE: Adicionar botão de debug para testar navegação
-        const debugBtn = document.createElement('button');
-        debugBtn.id = 'debug-navigation-btn';
-        debugBtn.textContent = '🧪 Testar Navegação';
-        debugBtn.style.cssText = `
-            position: fixed;
-            bottom: 120px;
-            right: 20px;
-            background: #ff6b6b;
-            color: white;
-            border: none;
-            padding: 12px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            z-index: 9999;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        `;
-        debugBtn.addEventListener('click', () => {
-            console.log('🧪 BOTÃO DE DEBUG CLICADO!');
-            console.log('🧪 Testando navegação para mood screen...');
-            this.showScreen('mood');
-            this.showToast('🧪 Navegação testada!', 'info');
-        });
-        document.body.appendChild(debugBtn);
-        console.log('🧪 Botão de debug adicionado ao DOM');
+    getMoodEmoji(mood) { if (mood <= 1.5) return '😢'; if (mood <= 2.5) return '😕'; if (mood <= 3.5) return '😐'; if (mood <= 4.5) return '😊'; return '😄'; }
 
+    showDeleteModal(entryId, isAll) {
+        this.pendingDelete = { entryId, isAll };
+        const modal = document.getElementById('delete-modal');
+        const title = document.getElementById('modal-title');
+        const msg = document.getElementById('modal-message');
+        if (!modal) return;
+        title.textContent = isAll ? 'Apagar Todos os Dados' : 'Excluir Registro';
+        msg.textContent = isAll ? 'Isso vai apagar TODOS os seus registros permanentemente. Tem certeza?' : 'Tem certeza que quer excluir este registro? Isso é permanente.';
+        modal.classList.remove('hidden');
+    }
+
+    hideDeleteModal() { document.getElementById('delete-modal')?.classList.add('hidden'); this.pendingDelete = null; }
+
+    async confirmDelete() {
+        if (!this.pendingDelete) return;
+        const { entryId, isAll } = this.pendingDelete;
+        try {
+            if (isAll) { await window.mentalStorage.deleteAllEntries(); this.showToast('Todos os dados foram excluídos.', 'success'); this.showScreen('welcome'); }
+            else { await window.mentalStorage.deleteEntry(entryId); this.showToast('Registro excluído', 'success'); await this.loadData(); }
+        } catch (err) { console.error('Erro ao excluir:', err); this.showToast('Erro ao excluir: ' + (err.message || err), 'error'); }
+        finally { this.hideDeleteModal(); }
+    }
+
+    async generateReport() {
+        try {
+            const btn = document.getElementById('generate-report'); if (btn) { btn.disabled = true; }
+            const entries = await window.mentalStorage.getAllMoodEntries();
+            if (!entries || entries.length === 0) { this.displayEmptyReport(); this.showToast('Adicione registros para gerar relatório', 'info'); return; }
+            const report = await window.aiAnalysis.generateReport(entries);
+            this.displayReport(report);
+            this.showToast('Relatório gerado!', 'success');
+        } catch (err) { console.error('Erro no relatório:', err); this.showToast('Erro ao gerar relatório', 'error'); }
+        finally { const btn = document.getElementById('generate-report'); if (btn) { setTimeout(()=>btn.disabled = false, 800); } }
+    }
+
+    displayEmptyReport() { const content = document.getElementById('report-content'); if (content) content.innerHTML = '<p>Adicione registros para gerar um relatório.</p>'; }
+
+    displayReport(report) { const content = document.getElementById('report-content'); if (!content) return; content.classList.remove('hidden'); content.innerHTML = typeof report === 'string' ? `<div class="analysis-content">${report}</div>` : `<h3>${report.title||'Relatório'}</h3><div>${report.analysis||JSON.stringify(report)}</div>`; }
+
+    async backupData() { this.showToast('Backup (simulado)', 'info'); }
+
+    showToast(msg, type='info', duration=3000) {
+        const container = document.getElementById('toast-container');
+        if (!container) return console.log(msg);
+        const t = document.createElement('div'); t.className = `toast toast-${type}`; t.textContent = msg; container.appendChild(t); setTimeout(()=>t.classList.add('visible'),10); setTimeout(()=>{ t.classList.remove('visible'); setTimeout(()=>t.remove(),300); }, duration);
+    }
+}
+
+window.mentalIA = new MentalIA();
+document.addEventListener('DOMContentLoaded', async () => { try { await window.mentalIA.init(); } catch (e) { console.error('Erro init MentalIA:', e); } });
+
+console.log('✅ app.js replaced with clean implementation');
         // Mood form submission
         const moodForm = document.getElementById('mood-form');
         console.log('📝 Formulário de humor encontrado:', !!moodForm);
         moodForm?.addEventListener('submit', (e) => this.handleMoodSubmit(e));
-=======
-            
-            // Add listeners
-            btn.addEventListener('click', btn._screenClickHandler);
-            btn.addEventListener('touchend', btn._screenTouchHandler);
-            
-            console.log('✅ Event listeners anexados ao botão:', btn.dataset.screen);
-        });
-
-        // Mood form submission
-        const moodForm = document.getElementById('mood-form');
-        console.log('📝 Formulário de humor encontrado:', !!moodForm);
-        moodForm?.addEventListener('submit', (e) => {
-            console.log('📝 Mood form submit event triggered');
-            this.handleMoodSubmit(e);
-        });
->>>>>>> parent of 6c8feb6 (Fix button)
 
         // Report generation with mobile optimization
         const reportBtn = document.getElementById('generate-report');
@@ -1474,7 +1364,8 @@ class MentalIA {
 
     updateRecentEntries(entries) {
         console.log('📅 Atualizando entradas recentes:', entries?.length || 0);
-        const container = document.getElementById('recent-entries');
+        // O container no HTML tem id `recent-list` (dentro da div .recent-entries)
+        const container = document.getElementById('recent-list');
         if (!container) {
             console.warn('⚠️ Container recent-entries não encontrado');
             return;
@@ -1500,10 +1391,18 @@ class MentalIA {
             const entryEl = document.createElement('div');
             entryEl.className = 'recent-entry';
             
-            const moodEmoji = this.getMoodEmoji(entry.mood);
-            const feelingsText = entry.feelings.length > 0 
-                ? entry.feelings.slice(0, 3).join(', ') + (entry.feelings.length > 3 ? '...' : '')
-                : 'Nenhum sentimento selecionado';
+                const moodEmoji = this.getMoodEmoji(entry.mood);
+                // Normalize feelings (may be strings or objects { label, value })
+                const feelingsArr = Array.isArray(entry.feelings) ? entry.feelings : [];
+                const mappedFeelings = feelingsArr.map(f => {
+                    if (!f) return '';
+                    if (typeof f === 'string') return f;
+                    return f.label || f.value || f.name || '';
+                }).filter(Boolean);
+
+                const feelingsText = mappedFeelings.length > 0
+                    ? mappedFeelings.slice(0, 3).join(', ') + (mappedFeelings.length > 3 ? '...' : '')
+                    : 'Nenhum sentimento selecionado';
             
             entryEl.innerHTML = `
                 <div class="entry-content">
