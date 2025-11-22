@@ -300,6 +300,57 @@ class MentalIA {
             });
         }
 
+        // PDF generation button
+        const pdfBtn = document.getElementById('generate-pdf-report');
+        console.log('📄 Botão PDF encontrado:', !!pdfBtn);
+        
+        if (pdfBtn) {
+            const generatePDFHandler = async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('📄 Gerando PDF...');
+                
+                try {
+                    // Disable button during generation
+                    pdfBtn.disabled = true;
+                    pdfBtn.textContent = '📄 Gerando PDF...';
+                    
+                    await window.aiAnalysis.downloadReportPDF();
+                    
+                } catch (error) {
+                    console.error('Erro ao gerar PDF:', error);
+                    this.showToast('Erro ao gerar PDF: ' + error.message, 'error');
+                } finally {
+                    // Re-enable button
+                    pdfBtn.disabled = false;
+                    pdfBtn.textContent = '📄 Baixar Relatório em PDF';
+                }
+            };
+            
+            // Event listeners for PDF button
+            pdfBtn.addEventListener('click', generatePDFHandler);
+            pdfBtn.addEventListener('touchend', generatePDFHandler);
+            
+            // Touch feedback for PDF button
+            pdfBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                pdfBtn.style.transform = 'scale(0.98)';
+                pdfBtn.style.opacity = '0.8';
+            });
+            
+            pdfBtn.addEventListener('touchend', () => {
+                setTimeout(() => {
+                    pdfBtn.style.transform = 'scale(1)';
+                    pdfBtn.style.opacity = '1';
+                }, 150);
+            });
+            
+            pdfBtn.addEventListener('touchcancel', () => {
+                pdfBtn.style.transform = 'scale(1)';
+                pdfBtn.style.opacity = '1';
+            });
+        }
+
         // Backup
         const backupBtn = document.getElementById('backup-data');
         console.log('💾 Botão backup encontrado:', !!backupBtn);

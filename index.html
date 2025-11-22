@@ -49,7 +49,7 @@
         *, *::before, *::after { -webkit-tap-highlight-color: transparent; }
         button, .nav-btn, .btn-primary, .btn-login, [data-screen],
         .primary-feeling-btn, .expand-icon, .sub-feeling-item,
-        #backup-data, #generate-report, #theme-toggle, #login-toggle {
+        #backup-data, #generate-report, #generate-pdf-report, #theme-toggle, #login-toggle {
             cursor: pointer !important;
             pointer-events: auto !important;
             touch-action: manipulation !important;
@@ -787,6 +787,11 @@
             <!-- Generate Report Button -->
             <button id="generate-report" class="btn-primary btn-full">
                 🧠 Gerar Relatório de IA
+            </button>
+
+            <!-- PDF Download Button -->
+            <button id="generate-pdf-report" class="btn-secondary btn-full pdf-btn">
+                📄 Baixar Relatório em PDF
             </button>
 
             <!-- Premium Features -->

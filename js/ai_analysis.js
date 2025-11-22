@@ -689,200 +689,264 @@ Seja sempre empático, acolhedor e profissional. Lembre que esta análise não s
         return insights;
     }
 
-    // PDF Generation - Mobile Optimized
-    async downloadReportPDF() {
+    // PDF Generation - Structured and Organized
+    async downloadReportPDF(reportData = null) {
         try {
-            console.log('📄 [PDF] Iniciando geração de PDF...');
+            console.log('📄 [PDF] Iniciando geração de PDF estruturado...');
 
-            // Check if libraries are loaded
-            if (typeof html2canvas === 'undefined' || typeof jsPDF === 'undefined') {
-                throw new Error('Bibliotecas PDF não carregadas');
+            // Check if jsPDF is loaded
+            if (typeof jsPDF === 'undefined') {
+                // Try to load from window.jspdf if available
+                if (window.jspdf && window.jspdf.jsPDF) {
+                    window.jsPDF = window.jspdf.jsPDF;
+                } else {
+                    throw new Error('Biblioteca jsPDF não carregada');
+                }
             }
 
-            const reportContent = document.getElementById('report-content');
-            if (!reportContent) {
-                throw new Error('Conteúdo do relatório não encontrado');
+            // Get report data or generate new one
+            let report = reportData;
+            if (!report) {
+                const entries = await window.mentalStorage.getAllEntries();
+                if (entries.length === 0) {
+                    throw new Error('Nenhum dado encontrado para gerar relatório');
+                }
+                report = await this.generateReport(entries);
             }
 
-            // Mobile-specific improvements
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            console.log('📄 [PDF] Dados do relatório:', report);
             
-            this.showToast('Gerando PDF...', 'info');
+            this.showToast('📄 Gerando PDF estruturado...', 'info');
             
-            // Add loading indicator for mobile
-            if (isMobile) {
-                document.body.style.cursor = 'wait';
-                const loadingEl = document.createElement('div');
-                loadingEl.id = 'pdf-loading';
-                loadingEl.style.cssText = `
-                    position: fixed;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                    background: rgba(0,0,0,0.8);
-                    color: white;
-                    padding: 20px;
-                    border-radius: 10px;
-                    z-index: 10000;
-                    font-size: 16px;
-                `;
-                loadingEl.textContent = '📄 Gerando PDF...';
-                document.body.appendChild(loadingEl);
+            // Create PDF with jsPDF
+            const { jsPDF } = window.jspdf || window;
+            if (!jsPDF) {
+                throw new Error('jsPDF não encontrado');
             }
-
-            // Prepare content for PDF
-            reportContent.classList.add('pdf-generation');
-
-            // Mobile-optimized canvas settings
-            const canvasOptions = {
-                scale: isMobile ? 1.5 : 2, // Lower scale on mobile for performance
-                useCORS: true,
-                backgroundColor: '#ffffff',
-                width: reportContent.scrollWidth,
-                height: reportContent.scrollHeight,
-                allowTaint: true,
-                foreignObjectRendering: true,
-                logging: false, // Disable logging on mobile
-                onclone: (clonedDoc) => {
-                    // Ensure mobile-friendly rendering
-                    const clonedContent = clonedDoc.getElementById('report-content');
-                    if (clonedContent && isMobile) {
-                        clonedContent.style.maxWidth = '100%';
-                        clonedContent.style.overflow = 'visible';
-                    }
+            
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            const margin = 20;
+            const contentWidth = pageWidth - (margin * 2);
+            let yPosition = margin;
+            
+            // Helper function to add text with line wrapping
+            const addWrappedText = (text, x, y, maxWidth, fontSize = 12, fontStyle = 'normal') => {
+                pdf.setFontSize(fontSize);
+                pdf.setFont('helvetica', fontStyle);
+                const lines = pdf.splitTextToSize(text, maxWidth);
+                pdf.text(lines, x, y);
+                return y + (lines.length * (fontSize * 0.35)); // Return new Y position
+            };
+            
+            // Helper function to check if we need a new page
+            const checkNewPage = (neededSpace) => {
+                if (yPosition + neededSpace > pageHeight - margin) {
+                    pdf.addPage();
+                    yPosition = margin;
                 }
             };
-
-            const canvas = await html2canvas(reportContent, canvasOptions);
-
-            reportContent.classList.remove('pdf-generation');
-
-            // Create PDF
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF('p', 'mm', 'a4');
-
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
-            const margin = 10;
-            const contentWidth = pdfWidth - (margin * 2);
-
-            // Add header
-            pdf.setFontSize(20);
+            
+            // 📋 HEADER - Título e Data
+            pdf.setFillColor(26, 26, 46); // Dark blue background
+            pdf.rect(0, 0, pageWidth, 40, 'F');
+            
+            pdf.setTextColor(255, 255, 255); // White text
+            pdf.setFontSize(24);
             pdf.setFont('helvetica', 'bold');
-            pdf.text('Relatório MentalIA', margin, 20);
-
-            const dateStr = new Date().toLocaleDateString('pt-BR');
+            pdf.text('📊 Relatório MentalIA', margin, 25);
+            
+            const dateStr = new Date().toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: 'long',
+                year: 'numeric'
+            });
             pdf.setFontSize(12);
             pdf.setFont('helvetica', 'normal');
-            pdf.text(`Gerado em: ${dateStr}`, margin, 30);
-
-            // Add content
-            const imgData = canvas.toDataURL('image/jpeg', 0.95);
-            const imgWidth = contentWidth;
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-            let yPosition = 40;
-            if (imgHeight <= pdfHeight - yPosition - 20) {
-                pdf.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, imgHeight);
-            } else {
-                // Multi-page handling (simplified)
-                pdf.addImage(imgData, 'JPEG', margin, yPosition, imgWidth, pdfHeight - yPosition - 20);
-            }
-
-            // Add footer
-            pdf.setFontSize(10);
-            pdf.setFont('helvetica', 'normal');
-            pdf.setTextColor(128, 128, 128);
-            const footerText = 'Gerado pelo MentalIA • 100% local e privado';
-            pdf.text(footerText, margin, pdfHeight - 10);
-
-            // Download with mobile improvements
-            const filename = `Relatorio_MentalIA_${dateStr.replace(/\//g, '-')}.pdf`;
+            pdf.text(`Gerado em ${dateStr}`, margin, 35);
             
-            if (isMobile) {
-                // Mobile-specific download handling
+            // Reset colors for content
+            pdf.setTextColor(0, 0, 0);
+            yPosition = 55;
+            
+            // 📋 SEÇÃO 1: TÍTULO DO RELATÓRIO
+            checkNewPage(30);
+            pdf.setFillColor(99, 102, 241); // Blue background
+            pdf.rect(margin - 5, yPosition - 5, contentWidth + 10, 20, 'F');
+            
+            pdf.setTextColor(255, 255, 255);
+            pdf.setFontSize(16);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text(report.title || 'Relatório de Bem-Estar', margin, yPosition + 8);
+            
+            pdf.setTextColor(0, 0, 0);
+            yPosition += 30;
+            
+            // 📋 SEÇÃO 2: SUBTÍTULO
+            if (report.subtitle) {
+                checkNewPage(20);
+                yPosition = addWrappedText(report.subtitle, margin, yPosition, contentWidth, 12, 'italic');
+                yPosition += 10;
+            }
+            
+            // 📋 SEÇÃO 3: ANÁLISE PRINCIPAL
+            if (report.analysis) {
+                checkNewPage(40);
+                pdf.setFillColor(240, 240, 240);
+                pdf.rect(margin - 5, yPosition - 5, contentWidth + 10, 15, 'F');
+                
+                pdf.setFontSize(14);
+                pdf.setFont('helvetica', 'bold');
+                pdf.text('🧠 Análise Personalizada', margin, yPosition + 6);
+                yPosition += 25;
+                
+                // Clean and format analysis text
+                const analysisText = report.analysis
+                    .replace(/#{1,6}\s/g, '') // Remove markdown headers
+                    .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold markdown
+                    .replace(/\n\n+/g, '\n\n') // Normalize line breaks
+                    .trim();
+                    
+                yPosition = addWrappedText(analysisText, margin, yPosition, contentWidth, 11, 'normal');
+                yPosition += 15;
+            }
+            
+            // 📋 SEÇÃO 4: RECOMENDAÇÕES
+            if (report.recommendations && report.recommendations.length > 0) {
+                checkNewPage(40);
+                pdf.setFillColor(240, 248, 255);
+                pdf.rect(margin - 5, yPosition - 5, contentWidth + 10, 15, 'F');
+                
+                pdf.setFontSize(14);
+                pdf.setFont('helvetica', 'bold');
+                pdf.text('💡 Recomendações Personalizadas', margin, yPosition + 6);
+                yPosition += 25;
+                
+                report.recommendations.forEach((rec, index) => {
+                    checkNewPage(15);
+                    const bullet = `${index + 1}.`;
+                    pdf.setFontSize(11);
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.text(bullet, margin, yPosition);
+                    yPosition = addWrappedText(rec, margin + 10, yPosition, contentWidth - 10, 11, 'normal');
+                    yPosition += 5;
+                });
+                yPosition += 10;
+            }
+            
+            // 📋 SEÇÃO 5: INSIGHTS
+            if (report.insights && report.insights.length > 0) {
+                checkNewPage(40);
+                pdf.setFillColor(255, 248, 240);
+                pdf.rect(margin - 5, yPosition - 5, contentWidth + 10, 15, 'F');
+                
+                pdf.setFontSize(14);
+                pdf.setFont('helvetica', 'bold');
+                pdf.text('🌟 Insights Importantes', margin, yPosition + 6);
+                yPosition += 25;
+                
+                report.insights.forEach((insight, index) => {
+                    checkNewPage(15);
+                    const bullet = `•`;
+                    pdf.setFontSize(11);
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.text(bullet, margin, yPosition);
+                    yPosition = addWrappedText(insight, margin + 8, yPosition, contentWidth - 8, 11, 'normal');
+                    yPosition += 5;
+                });
+                yPosition += 10;
+            }
+            
+            // 📋 SEÇÃO 6: DISCLAIMER
+            if (report.disclaimer) {
+                checkNewPage(30);
+                pdf.setFillColor(255, 240, 240);
+                pdf.rect(margin - 5, yPosition - 5, contentWidth + 10, 25, 'F');
+                
+                pdf.setFontSize(12);
+                pdf.setFont('helvetica', 'bold');
+                pdf.text('⚠️ Importante', margin, yPosition + 8);
+                yPosition += 18;
+                
+                yPosition = addWrappedText(report.disclaimer, margin, yPosition, contentWidth, 10, 'normal');
+            }
+            
+            // 📋 FOOTER em todas as páginas
+            const totalPages = pdf.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                pdf.setPage(i);
+                pdf.setFontSize(9);
+                pdf.setFont('helvetica', 'normal');
+                pdf.setTextColor(128, 128, 128);
+                
+                const footerLeft = 'MentalIA • 100% Local e Privado';
+                const footerRight = `Página ${i} de ${totalPages}`;
+                
+                pdf.text(footerLeft, margin, pageHeight - 10);
+                pdf.text(footerRight, pageWidth - margin - pdf.getTextWidth(footerRight), pageHeight - 10);
+            }
+            
+            // 📥 DOWNLOAD DO PDF
+            const now = new Date();
+            const filename = `Relatorio_MentalIA_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.pdf`;
+            
+            console.log('📄 [PDF] Salvando arquivo:', filename);
+            
+            try {
+                // Download direto
+                pdf.save(filename);
+                
+                this.showToast('📄 PDF gerado com sucesso!', 'success');
+                console.log('✅ [PDF] Download concluído');
+                
+            } catch (downloadError) {
+                console.warn('⚠️ [PDF] Erro no download direto, tentando alternativa:', downloadError);
+                
+                // Fallback: abrir em nova aba
                 try {
-                    // Try direct download first
-                    pdf.save(filename);
-                    
-                    // Alternative for iOS Safari and other browsers that might block download
-                    setTimeout(() => {
-                        const pdfOutput = pdf.output('blob');
-                        const pdfUrl = URL.createObjectURL(pdfOutput);
-                        
-                        // Create temporary link for mobile download
-                        const tempLink = document.createElement('a');
-                        tempLink.href = pdfUrl;
-                        tempLink.download = filename;
-                        tempLink.style.display = 'none';
-                        document.body.appendChild(tempLink);
-                        
-                        // Trigger download
-                        tempLink.click();
-                        
-                        // Clean up
-                        setTimeout(() => {
-                            document.body.removeChild(tempLink);
-                            URL.revokeObjectURL(pdfUrl);
-                        }, 100);
-                    }, 100);
-                    
-                } catch (downloadError) {
-                    console.warn('Fallback para download mobile:', downloadError);
-                    // Show PDF in new tab as fallback
                     const pdfOutput = pdf.output('blob');
                     const pdfUrl = URL.createObjectURL(pdfOutput);
-                    window.open(pdfUrl, '_blank');
+                    const newWindow = window.open(pdfUrl, '_blank');
+                    
+                    if (newWindow) {
+                        this.showToast('📄 PDF aberto em nova aba', 'info');
+                    } else {
+                        throw new Error('Popup bloqueado');
+                    }
+                    
+                    // Limpeza após 5 segundos
+                    setTimeout(() => URL.revokeObjectURL(pdfUrl), 5000);
+                    
+                } catch (fallbackError) {
+                    console.error('❌ [PDF] Todas as tentativas de download falharam:', fallbackError);
+                    this.showToast('❌ Erro ao baixar PDF. Tente novamente.', 'error');
                 }
-            } else {
-                // Desktop download
-                pdf.save(filename);
             }
-
-            // Clean up mobile loading indicator
-            if (isMobile) {
-                document.body.style.cursor = '';
-                const loadingEl = document.getElementById('pdf-loading');
-                if (loadingEl) {
-                    document.body.removeChild(loadingEl);
-                }
-            }
-
-            this.showToast('PDF gerado com sucesso!', 'success');
-            console.log('✅ [PDF] PDF gerado e baixado');
 
         } catch (error) {
-            console.error('❌ [PDF] Erro:', error);
-            
-            // Clean up mobile loading indicator on error
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            if (isMobile) {
-                document.body.style.cursor = '';
-                const loadingEl = document.getElementById('pdf-loading');
-                if (loadingEl) {
-                    document.body.removeChild(loadingEl);
-                }
-            }
-            
-            this.showToast('Erro ao gerar PDF: ' + error.message, 'error');
+            console.error('❌ [PDF] Erro na geração do PDF:', error);
+            this.showToast(`❌ Erro ao gerar PDF: ${error.message}`, 'error');
+            throw error;
         }
     }
 
     showToast(message, type = 'info') {
-        if (window.mentalIA && typeof window.mentalIA.showToast === 'function') {
+        // Check if showToast exists globally
+        if (typeof window.mentalIA !== 'undefined' && window.mentalIA.showToast) {
             window.mentalIA.showToast(message, type);
         } else {
-            console.log(`[${type.toUpperCase()}] ${message}`);
+            console.log( [] );
         }
     }
 }
 
-// Initialize globally
+// Initialize AI Analysis
 window.aiAnalysis = new AIAnalysis();
 
-// Global method for compatibility with existing buttons
+// Compatibility function for downloadReport
 window.aiAnalysis.downloadReport = function() {
     return this.downloadReportPDF();
 };
 
-console.log('🤖 Módulo de análise de IA carregado com sucesso');
+console.log(' M�dulo de an�lise de IA carregado com sucesso');
