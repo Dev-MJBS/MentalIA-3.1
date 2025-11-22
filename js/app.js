@@ -67,6 +67,9 @@ class MentalIA {
         this.initChart();
         this.initPWA();
 
+        // Update auto backup status
+        this.updateAutoBackupStatus();
+
         // Load data
         await this.loadData();
 
@@ -425,6 +428,98 @@ class MentalIA {
         backupBtn?.addEventListener('click', () => {
             console.log('💾 Fazendo backup...');
             this.backupData();
+        });
+
+        // Connect Google Drive button
+        const connectBtn = document.getElementById('connect-google-drive');
+        console.log('🔗 Botão conectar Google Drive encontrado:', !!connectBtn);
+        connectBtn?.addEventListener('click', () => {
+            console.log('🔗 Conectando ao Google Drive...');
+            if (window.googleDriveBackup) {
+                window.googleDriveBackup.handleBackupClick();
+            } else {
+                this.showToast('Sistema de backup não disponível', 'error');
+            }
+        });
+
+        // Auto backup toggle
+        const autoBackupToggle = document.getElementById('auto-backup-toggle');
+        console.log('🔄 Toggle backup automático encontrado:', !!autoBackupToggle);
+        autoBackupToggle?.addEventListener('change', async (e) => {
+            console.log('🔄 Toggle backup automático alterado:', e.target.checked);
+            const enabled = e.target.checked;
+
+            if (enabled) {
+                // Verificar se está conectado ao Google Drive
+                if (!window.googleDriveBackup?.isSignedIn) {
+                    this.showToast('Conecte-se ao Google Drive primeiro', 'warning');
+                    e.target.checked = false;
+                    return;
+                }
+
+                const success = await window.googleDriveBackup.enableAutoBackup();
+                if (!success) {
+                    e.target.checked = false;
+                }
+            } else {
+                await window.googleDriveBackup.disableAutoBackup();
+            }
+
+            // Atualizar status na UI
+            this.updateAutoBackupStatus();
+        });
+
+        // Manual backup button
+        const manualBackupBtn = document.getElementById('backup-now-btn');
+        console.log('💾 Botão backup manual encontrado:', !!manualBackupBtn);
+        manualBackupBtn?.addEventListener('click', async () => {
+            console.log('💾 Botão backup manual clicado');
+
+            // Verificar se o sistema de backup está disponível
+            if (!window.googleDriveBackup) {
+                this.showToast('Sistema de backup não disponível', 'error');
+                return;
+            }
+
+            // Verificar se o usuário está conectado ao Google Drive
+            if (!window.googleDriveBackup.isSignedIn) {
+                this.showToast('🔗 Conecte-se ao Google Drive primeiro usando o botão "Conectar Google Drive"', 'warning');
+                return;
+            }
+
+            // Mostrar feedback visual - botão em loading
+            const btn = document.getElementById('backup-now-btn');
+            const btnText = btn.querySelector('.btn-text');
+            const btnLoading = btn.querySelector('.btn-loading');
+
+            if (btn && btnText && btnLoading) {
+                btn.classList.add('loading');
+                btn.disabled = true;
+            }
+
+            try {
+                // Mostrar feedback
+                this.showToast('🔄 Fazendo backup manual...', 'info');
+
+                // Executar backup
+                await window.googleDriveBackup.backupToDrive();
+
+                // Feedback de sucesso
+                this.showToast('✅ Backup manual realizado com sucesso!', 'success');
+
+                // Atualizar status do último backup
+                this.updateAutoBackupStatus();
+
+            } catch (error) {
+                console.error('❌ Erro no backup manual:', error);
+                this.showToast('❌ Erro no backup manual: ' + error.message, 'error');
+            } finally {
+                // Restaurar botão
+                if (btn && btnText && btnLoading) {
+                    btn.classList.remove('loading');
+                    btn.disabled = false;
+                }
+            }
         });
 
         // AI mode toggle
@@ -2451,11 +2546,20 @@ class MentalIA {
                 throw new Error('Sistema de backup não disponível');
             }
 
+            // Verificar se o usuário está conectado ao Google Drive
+            if (!window.googleDriveBackup.isSignedIn) {
+                this.showToast('🔗 Conecte-se ao Google Drive primeiro usando o botão "Conectar Google Drive"', 'warning');
+                return;
+            }
+
             // Mostrar feedback visual
             this.showToast('🔄 Fazendo backup seguro...', 'info');
 
             // Iniciar backup
             await window.googleDriveBackup.backupToDrive();
+
+            // Salvar timestamp do backup manual
+            localStorage.setItem('lastManualBackup', new Date().toISOString());
 
             // Feedback de sucesso
             this.showToast('✅ Backup realizado com sucesso!', 'success');
@@ -2465,6 +2569,58 @@ class MentalIA {
 
             // Feedback de erro
             this.showToast('❌ Erro no backup: ' + error.message, 'error');
+        }
+    }
+
+    // Update auto backup status in UI
+    updateAutoBackupStatus() {
+        if (!window.googleDriveBackup) return;
+
+        const toggle = document.getElementById('auto-backup-toggle');
+        const lastBackupText = document.getElementById('last-backup-text');
+        const nextBackupText = document.getElementById('next-backup-text');
+        const lastManualBackupInfo = document.getElementById('last-manual-backup-info');
+
+        if (toggle) {
+            toggle.checked = window.googleDriveBackup.isAutoBackupEnabled();
+        }
+
+        // Atualizar informações de backup automático
+        if (lastBackupText) {
+            const lastBackup = localStorage.getItem('lastAutoBackup');
+            if (lastBackup) {
+                const date = new Date(lastBackup);
+                lastBackupText.textContent = `Último backup automático: ${date.toLocaleDateString('pt-BR')} às ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+            } else {
+                lastBackupText.textContent = 'Último backup automático: Nunca';
+            }
+        }
+
+        if (nextBackupText) {
+            const nextBackup = new Date();
+            nextBackup.setHours(7, 0, 0, 0);
+            if (nextBackup <= new Date()) {
+                nextBackup.setDate(nextBackup.getDate() + 1);
+            }
+            nextBackupText.textContent = `Próximo backup automático: ${nextBackup.toLocaleDateString('pt-BR')} às 07:00`;
+        }
+
+        // Atualizar informações de backup manual
+        if (lastManualBackupInfo) {
+            const lastManualBackup = localStorage.getItem('lastManualBackup');
+            const infoIcon = lastManualBackupInfo.querySelector('.info-icon');
+            const infoText = lastManualBackupInfo.querySelector('.info-text');
+
+            if (lastManualBackup) {
+                const date = new Date(lastManualBackup);
+                if (infoIcon) infoIcon.textContent = '✅';
+                if (infoText) infoText.textContent = `Último backup manual: ${date.toLocaleDateString('pt-BR')} às ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+                lastManualBackupInfo.style.display = 'flex';
+            } else {
+                if (infoIcon) infoIcon.textContent = '⏳';
+                if (infoText) infoText.textContent = 'Nenhum backup manual realizado ainda';
+                lastManualBackupInfo.style.display = 'flex';
+            }
         }
     }
 }

@@ -12,8 +12,9 @@ class GoogleDriveBackup {
         this.oneTapInitialized = false;
 
         console.log('☁️ [BACKUP] Inicializando sistema de backup Google Drive...');
-        // Don't initialize One Tap automatically - wait for button click
-        this.updateBackupStatus(false, 'Clique em "Backup Seguro" para conectar');
+        // Inicializar com status claro
+        this.updateBackupStatus(false, 'Clique em "Backup Seguro" para conectar ao Google Drive');
+        this.updateConnectButtonVisibility();
     }
 
     async showGoogleOneTap() {
@@ -38,7 +39,7 @@ class GoogleDriveBackup {
             // Show One Tap prompt
             google.accounts.id.prompt();
 
-            this.updateBackupStatus(false, 'Aguardando login...');
+            this.updateBackupStatus(false, '🔄 Conectando ao Google... Clique na janela de login que apareceu');
 
         } catch (error) {
             console.error('❌ [ONE TAP] Erro ao mostrar One Tap:', error);
@@ -79,7 +80,8 @@ class GoogleDriveBackup {
 
             if (this.accessToken) {
                 this.isSignedIn = true;
-                this.updateBackupStatus(true, `Conectado: ${payload.email}`);
+                this.updateBackupStatus(true, `🟢 Conectado: ${payload.email}`);
+                this.updateConnectButtonVisibility();
                 console.log('✅ [BACKUP] Acesso ao Google Drive autorizado');
             } else {
                 throw new Error('Falha ao obter token de acesso');
@@ -275,6 +277,14 @@ class GoogleDriveBackup {
             statusElement.className = `backup-status ${connected ? 'connected' : 'error'}`;
             statusElement.textContent = connected ? `🟢 ${statusText}` : `🔴 ${statusText}`;
         }
+        this.updateConnectButtonVisibility();
+    }
+
+    updateConnectButtonVisibility() {
+        const connectBtn = document.getElementById('connect-google-drive');
+        if (connectBtn) {
+            connectBtn.style.display = this.isSignedIn ? 'none' : 'block';
+        }
     }
 
     showToast(message, type = 'info') {
@@ -295,6 +305,119 @@ class GoogleDriveBackup {
             setTimeout(() => toast.remove(), 300);
         }, 4000);
     }
+
+    // ===== BACKUP AUTOMÁTICO =====
+
+    // Habilita backup automático
+    async enableAutoBackup() {
+        console.log('☁️ [AUTO-BACKUP] Habilitando backup automático...');
+
+        if (!this.isSignedIn) {
+            this.showToast('Conecte-se ao Google Drive primeiro', 'error');
+            return false;
+        }
+
+        try {
+            // Envia mensagem para o service worker
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'ENABLE_AUTO_BACKUP'
+                });
+            }
+
+            // Salva configuração local
+            localStorage.setItem('autoBackupEnabled', 'true');
+
+            this.showToast('Backup automático habilitado! Executará todos os dias às 7:00', 'success');
+            return true;
+
+        } catch (error) {
+            console.error('❌ [AUTO-BACKUP] Erro ao habilitar backup automático:', error);
+            this.showToast('Erro ao habilitar backup automático', 'error');
+            return false;
+        }
+    }
+
+    // Desabilita backup automático
+    async disableAutoBackup() {
+        console.log('☁️ [AUTO-BACKUP] Desabilitando backup automático...');
+
+        try {
+            // Envia mensagem para o service worker
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'DISABLE_AUTO_BACKUP'
+                });
+            }
+
+            // Remove configuração local
+            localStorage.removeItem('autoBackupEnabled');
+
+            this.showToast('Backup automático desabilitado', 'info');
+            return true;
+
+        } catch (error) {
+            console.error('❌ [AUTO-BACKUP] Erro ao desabilitar backup automático:', error);
+            this.showToast('Erro ao desabilitar backup automático', 'error');
+            return false;
+        }
+    }
+
+    // Verifica se backup automático está habilitado
+    isAutoBackupEnabled() {
+        return localStorage.getItem('autoBackupEnabled') === 'true';
+    }
+
+    // Executa backup automático (chamado pelo service worker)
+    async performAutoBackup() {
+        console.log('☁️ [AUTO-BACKUP] Executando backup automático...');
+
+        try {
+            if (!this.isSignedIn) {
+                console.log('🔐 [AUTO-BACKUP] Usuário não logado, pulando backup automático');
+                return false;
+            }
+
+            // Executa backup normalmente
+            const success = await this.backupToDrive();
+
+            if (success) {
+                console.log('✅ [AUTO-BACKUP] Backup automático concluído com sucesso');
+                // Notificação já é mostrada pelo service worker
+            } else {
+                console.log('❌ [AUTO-BACKUP] Backup automático falhou');
+            }
+
+            return success;
+
+        } catch (error) {
+            console.error('❌ [AUTO-BACKUP] Erro no backup automático:', error);
+            return false;
+        }
+    }
+
+    // Listener para mensagens do service worker
+    setupServiceWorkerListener() {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'AUTO_BACKUP_REQUEST') {
+                    console.log('📨 [AUTO-BACKUP] Recebida solicitação de backup automático');
+
+                    // Executa backup e responde
+                    this.performAutoBackup().then(success => {
+                        // Responde para o service worker
+                        if (navigator.serviceWorker.controller) {
+                            navigator.serviceWorker.controller.postMessage({
+                                type: 'AUTO_BACKUP_RESPONSE',
+                                success: success,
+                                timestamp: event.data.timestamp
+                            });
+                        }
+                    });
+                }
+            });
+        }
+    }
 }
 
 // Initialize when page loads
@@ -308,4 +431,7 @@ window.addEventListener('DOMContentLoaded', () => {
             window.googleDriveBackup.handleBackupClick();
         });
     }
+
+    // Setup service worker listener for auto backup
+    window.googleDriveBackup.setupServiceWorkerListener();
 });

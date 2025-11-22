@@ -812,7 +812,44 @@
             <div class="backup-section">
                 <h3>💾 Backup de Dados</h3>
                 <p>Seus dados ficam seguros localmente. Sincronize com Google Drive quando quiser:</p>
-                
+
+                <!-- Auto Backup Section -->
+                <div class="auto-backup-section">
+                    <div class="auto-backup-header">
+                        <h4>🔄 Backup Automático</h4>
+                        <label class="auto-backup-toggle">
+                            <input type="checkbox" id="auto-backup-toggle">
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-text">Habilitar backup diário às 7:00</span>
+                        </label>
+                    </div>
+                    <div class="auto-backup-info">
+                        <div class="last-backup-info">
+                            <span class="info-icon">🕐</span>
+                            <span class="info-text" id="last-backup-text">Último backup: Nunca</span>
+                        </div>
+                        <div class="next-backup-info">
+                            <span class="info-icon">📅</span>
+                            <span class="info-text" id="next-backup-text">Próximo backup: Amanhã às 7:00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Manual Backup Section -->
+                <div class="manual-backup-section">
+                    <h4>⚡ Backup Imediato</h4>
+                    <p>Faça backup dos seus dados agora mesmo</p>
+                    <button id="backup-now-btn" class="btn-primary btn-full backup-now-btn">
+                        <span class="btn-icon">⚡</span>
+                        <span class="btn-text">Backup Agora</span>
+                        <span class="btn-loading">⏳</span>
+                    </button>
+                    <div class="last-manual-backup-info">
+                        <span class="info-icon">🕒</span>
+                        <span class="info-text" id="last-manual-backup-text">Último backup manual: Nunca</span>
+                    </div>
+                </div>
+
                 <!-- Google Drive Status -->
                 <div class="drive-status" id="drive-status">
                     <div class="status-indicator offline" id="status-indicator">
@@ -821,12 +858,17 @@
                     </div>
                     <button id="disconnect-drive" class="disconnect-btn">Desconectar</button>
                 </div>
-                
+
                 <div class="backup-controls">
                     <!-- Google Drive Status -->
-                    <div id="google-backup-status" class="backup-status">🔴 Backup Google Drive não conectado</div>
+                    <div id="google-backup-status" class="backup-status">🔴 Clique em "Backup Seguro" para conectar ao Google Drive</div>
                     <div id="google-backup-btn" class="google-one-tap-btn"></div>
-                    
+
+                    <button id="connect-google-drive" class="btn-secondary connect-btn">
+                        <span class="btn-icon">🔗</span>
+                        <span class="btn-text">Conectar Google Drive</span>
+                    </button>
+
                     <button id="backup-data" class="btn-secondary backup-btn">
                         <span class="btn-icon">☁️</span>
                         <span class="btn-text">Backup Seguro</span>
@@ -845,22 +887,10 @@
                         Debug Logs
                     </button>
                 </div>
-                
+
                 <!-- Login Prompt -->
                 <div class="login-prompt" id="login-prompt">
                     <p class="prompt-text">🔐 Para fazer backup, conecte-se ao Google Drive</p>
-                </div>
-                
-                <!-- Backup Confirmation Modal -->
-                <div class="backup-modal" id="backup-modal">
-                    <div class="backup-modal-content">
-                        <h3>🔒 Backup Criptografado</h3>
-                        <p>Vamos salvar seus dados criptografados no seu Google Drive? Nada fica armazenado lá sem sua chave.</p>
-                        <div class="backup-modal-actions">
-                            <button class="modal-btn primary" id="confirm-backup">Sim, fazer backup</button>
-                            <button class="modal-btn secondary" id="cancel-backup">Cancelar</button>
-                        </div>
-                    </div>
                 </div>
             </div>
 
