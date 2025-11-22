@@ -1911,7 +1911,9 @@ body {
     font-size: 1.3rem;
   }
   
-  .feelings-grid {
+  /* FIX: Grid feelings 2 columns no mobile */
+  .primary-feelings-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
     gap: 0.8rem;
   }
   
@@ -1928,15 +1930,42 @@ body {
     font-size: 0.85rem;
   }
   
+  /* FIX: Textarea height auto no mobile */
   .diary-textarea {
-    min-height: 80px;
+    height: auto !important;
     padding: 1rem;
+    resize: none;
   }
   
   .mood-continue-btn {
     margin: 1.5rem 0.5rem 1rem;
     padding: 1.1rem 1.5rem;
     font-size: 1rem;
+  }
+  
+  /* FIX: Buttons min-height 44px para acessibilidade mobile */
+  button,
+  .btn-primary,
+  .btn-secondary,
+  .nav-btn,
+  .primary-feeling-btn,
+  .mood-continue-btn,
+  .clear-selection-btn {
+    min-height: 44px !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+  
+  /* FIX: Touch-action manipulation para toques suaves */
+  .primary-feeling-btn,
+  .sub-feeling-item,
+  .expand-icon,
+  .mood-slider,
+  .diary-textarea,
+  .mood-continue-btn {
+    touch-action: manipulation !important;
+    -webkit-user-select: none;
+    user-select: none;
   }
 }
 
@@ -2633,4 +2662,161 @@ html, body {
 .chart-fallback button:hover {
     background: var(--accent-secondary);
     transform: translateY(-1px);
+}
+
+/* ===== GOOGLE DRIVE BACKUP STATUS ===== */
+.backup-status {
+    font-size: 1.1rem;
+    font-weight: bold;
+    padding: 16px 20px;
+    border-radius: 12px;
+    margin: 15px 0;
+    text-align: center;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.backup-status.connected {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border-color: #10b981;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.backup-status.error {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+    border-color: #ef4444;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.backup-status.disconnected {
+    background: linear-gradient(135deg, #f87171, #ef4444);
+    color: white;
+    border-color: #f87171;
+    box-shadow: 0 4px 12px rgba(248, 113, 113, 0.3);
+}
+
+.google-one-tap-btn {
+    display: flex;
+    justify-content: center;
+    margin: 15px 0;
+    min-height: 40px;
+}
+
+/* Mobile-First Mood Screen Optimizations */
+@media (max-width: 768px) {
+  .mood-header {
+    padding: 1.5rem 1rem;
+  }
+  
+  .mood-title {
+    font-size: 1.8rem;
+  }
+  
+  .mood-subtitle {
+    font-size: 1rem;
+  }
+  
+  .security-badge {
+    padding: 0.6rem 0.8rem;
+    font-size: 0.8rem;
+  }
+  
+  .slider-container {
+    padding: 1rem 0.5rem;
+  }
+  
+  .slider-track {
+    height: 10px;
+  }
+  
+  .slider-thumb {
+    width: 28px;
+    height: 28px;
+    border-width: 3px;
+  }
+  
+  .mood-indicators {
+    margin: 1.5rem 0;
+    padding: 0 0.5rem;
+  }
+  
+  .indicator-emoji {
+    font-size: 1.5rem;
+  }
+  
+  .indicator-label {
+    font-size: 0.7rem;
+  }
+  
+  .current-mood {
+    padding: 1rem;
+    margin: 1.5rem 0;
+  }
+  
+  .current-mood-emoji {
+    font-size: 3rem;
+  }
+  
+  .current-mood-text {
+    font-size: 1.3rem;
+  }
+  
+  /* FIX: Grid feelings 2 columns no mobile */
+  .primary-feelings-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.8rem;
+  }
+  
+  .feeling-btn {
+    padding: 1rem 0.8rem;
+    min-height: 70px;
+  }
+  
+  .feeling-emoji {
+    font-size: 1.5rem;
+  }
+  
+  .feeling-text {
+    font-size: 0.85rem;
+  }
+  
+  /* FIX: Textarea height auto no mobile */
+  .diary-textarea {
+    height: auto !important;
+    padding: 1rem;
+    resize: none;
+  }
+  
+  .mood-continue-btn {
+    margin: 1.5rem 0.5rem 1rem;
+    padding: 1.1rem 1.5rem;
+    font-size: 1rem;
+  }
+  
+  /* FIX: Buttons min-height 44px para acessibilidade mobile */
+  button,
+  .btn-primary,
+  .btn-secondary,
+  .nav-btn,
+  .primary-feeling-btn,
+  .mood-continue-btn,
+  .clear-selection-btn {
+    min-height: 44px !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+  
+  /* FIX: Touch-action manipulation para toques suaves */
+  .primary-feeling-btn,
+  .sub-feeling-item,
+  .expand-icon,
+  .mood-slider,
+  .diary-textarea,
+  .mood-continue-btn {
+    touch-action: manipulation !important;
+    -webkit-user-select: none;
+    user-select: none;
+  }
 }

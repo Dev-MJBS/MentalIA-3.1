@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Teste Backup Google Drive - MentalIA 3.1</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .backup-status {
+            font-size: 1.2rem;
+            font-weight: bold;
+            padding: 18px 24px;
+            border-radius: 12px;
+            margin: 30px auto 20px auto;
+            max-width: 400px;
+            text-align: center;
+            transition: background 0.3s;
+        }
+        #google-backup-btn {
+            margin: 20px auto;
+            display: flex;
+            justify-content: center;
+        }
+        #do-backup-btn {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 12px 28px;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin: 20px auto;
+            display: block;
+        }
+        #do-backup-btn:hover {
+            background: #4f46e5;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="text-align:center;">Teste Backup Google Drive</h1>
+    <div id="google-backup-status" class="backup-status">🔴 Backup Google Drive não conectado</div>
+    <div id="google-backup-btn"></div>
+    <button id="do-backup-btn">Fazer Backup Agora</button>
+    <script src="js/google_drive_backup.js"></script>
+    <script>
+        // Exemplo de dados para backup
+        window.appData = [
+            { date: '2025-11-22', mood: 4, note: 'Dia bom!' },
+            { date: '2025-11-21', mood: 2, note: 'Pouco ansioso.' }
+        ];
+    </script>
+</body>
+</html>
