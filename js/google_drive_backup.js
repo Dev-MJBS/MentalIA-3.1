@@ -21,46 +21,81 @@ class GoogleDriveBackup {
         try {
             console.log('🚪 [ONE TAP] Mostrando Google One Tap...');
 
+            // Check if we're in a secure context (HTTPS or localhost)
+            const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost';
+            console.log('🚪 [ONE TAP] Contexto seguro:', isSecure);
+
             // Wait for Google Identity Services to load
             await this.waitForGoogleIdentityServices();
 
+            console.log('🚪 [ONE TAP] Google Identity Services carregado!');
+
             // Initialize One Tap if not already done
             if (!this.oneTapInitialized) {
+                console.log('🚪 [ONE TAP] Inicializando One Tap...');
                 google.accounts.id.initialize({
                     client_id: this.clientId,
                     callback: this.handleGoogleCredential.bind(this),
                     auto_select: false,
                     cancel_on_tap_outside: true,
-                    context: 'signin'
+                    context: 'signin',
+                    state: 'google_drive_backup_' + Date.now() // Add unique state
                 });
                 this.oneTapInitialized = true;
+                console.log('🚪 [ONE TAP] One Tap inicializado!');
             }
 
-            // Show One Tap prompt
-            google.accounts.id.prompt();
+            // Cancel any existing prompt first
+            try {
+                google.accounts.id.cancel();
+                console.log('🚪 [ONE TAP] Prompt anterior cancelado');
+            } catch (e) {
+                console.log('🚪 [ONE TAP] Nenhum prompt anterior para cancelar');
+            }
 
-            this.updateBackupStatus(false, '🔄 Conectando ao Google... Clique na janela de login que apareceu');
+            // Small delay before showing new prompt
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Show One Tap prompt
+            console.log('🚪 [ONE TAP] Chamando google.accounts.id.prompt()...');
+            google.accounts.id.prompt();
+                console.log('🚪 [ONE TAP] Notificação do prompt:', notification);
+
+                if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                    console.log('🚪 [ONE TAP] Prompt não exibido ou pulado, tentando popup alternativo...');
+                    // Fallback to popup authentication
+                    this.showGooglePopupAuth();
+                }
+            });
+
+            this.updateBackupStatus(false, '🔄 Conectando ao Google... Procure a janela de login');
 
         } catch (error) {
             console.error('❌ [ONE TAP] Erro ao mostrar One Tap:', error);
-            this.updateBackupStatus(false, 'Erro ao conectar');
-            this.showToast('Erro ao conectar com Google', 'error');
+            console.log('🚪 [ONE TAP] Tentando método alternativo...');
+            // Fallback to popup authentication
+            this.showGooglePopupAuth();
         }
     }
 
     async waitForGoogleIdentityServices() {
         return new Promise((resolve, reject) => {
             let attempts = 0;
-            const maxAttempts = 50;
+            const maxAttempts = 100; // Aumentado para 100 tentativas
+            const checkInterval = 200; // Aumentado para 200ms entre tentativas
 
             const checkServices = () => {
                 attempts++;
+                console.log(`🔄 [WAIT] Tentativa ${attempts}/${maxAttempts} - Verificando Google Identity Services...`);
+
                 if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+                    console.log('✅ [WAIT] Google Identity Services encontrado!');
                     resolve();
                 } else if (attempts >= maxAttempts) {
+                    console.error('❌ [WAIT] Google Identity Services não carregou após', maxAttempts, 'tentativas');
                     reject(new Error('Google Identity Services não carregou'));
                 } else {
-                    setTimeout(checkServices, 100);
+                    setTimeout(checkServices, checkInterval);
                 }
             };
             checkServices();
@@ -176,7 +211,70 @@ class GoogleDriveBackup {
         }
     }
 
-    async encryptData(data) {
+    async showGooglePopupAuth() {
+        try {
+            console.log('🔐 [POPUP] Iniciando autenticação popup...');
+
+            // Create OAuth URL
+            const redirectUri = window.location.origin + window.location.pathname;
+            const scope = encodeURIComponent('https://www.googleapis.com/auth/drive.appdata');
+            const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+                `client_id=${this.clientId}&` +
+                `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+                `scope=${scope}&` +
+                `response_type=code&` +
+                `access_type=offline&` +
+                `prompt=consent`;
+
+            console.log('🔐 [POPUP] URL de autenticação:', authUrl);
+
+            // Open popup
+            const popup = window.open(
+                authUrl,
+                'google-auth',
+                'width=500,height=600,scrollbars=yes,resizable=yes'
+            );
+
+            if (!popup) {
+                throw new Error('Popup bloqueado pelo navegador');
+            }
+
+            // Listen for messages from popup
+            return new Promise((resolve, reject) => {
+                const messageListener = (event) => {
+                    if (event.origin !== window.location.origin) return;
+
+                    if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
+                        console.log('🔐 [POPUP] Autenticação bem-sucedida!');
+                        window.removeEventListener('message', messageListener);
+                        popup.close();
+                        resolve(event.data.code);
+                    } else if (event.data.type === 'GOOGLE_AUTH_ERROR') {
+                        console.error('🔐 [POPUP] Erro na autenticação:', event.data.error);
+                        window.removeEventListener('message', messageListener);
+                        popup.close();
+                        reject(new Error(event.data.error));
+                    }
+                };
+
+                window.addEventListener('message', messageListener);
+
+                // Check if popup was closed
+                const checkClosed = setInterval(() => {
+                    if (popup.closed) {
+                        clearInterval(checkClosed);
+                        window.removeEventListener('message', messageListener);
+                        reject(new Error('Popup fechado pelo usuário'));
+                    }
+                }, 1000);
+            });
+
+        } catch (error) {
+            console.error('❌ [POPUP] Erro na autenticação popup:', error);
+            this.showToast('Erro na autenticação: ' + error.message, 'error');
+            throw error;
+        }
+    }
         try {
             // Generate key from device fingerprint
             const key = await this.generateEncryptionKey();

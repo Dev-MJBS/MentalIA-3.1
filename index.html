@@ -24,7 +24,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <!-- Google APIs -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://accounts.google.com/gsi/client"></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
     
     <!-- Stripe SDK for Premium -->
@@ -42,6 +42,7 @@
     <link rel="stylesheet" href="css/pdf-addon.css">
     <link rel="stylesheet" href="css/auth-styles.css">
     <link rel="stylesheet" href="css/status-indicator.css">
+    <link rel="stylesheet" href="css/report-screen.css">
     <link rel="stylesheet" href="css/interactive-styles.css?v=1142">
     <link rel="stylesheet" href="css/premium-styles.css?v=1149">
     <link rel="stylesheet" href="css/mobile-touch.css">
@@ -714,15 +715,40 @@
 
         <!-- Report Screen -->
         <section id="report-screen" class="screen">
-            <div class="screen-header">
-                <h2>Relatório de IA</h2>
-                <p>Análise profissional do seu bem-estar mental</p>
+            <!-- Background Gradient -->
+            <div class="report-bg">
+                <div class="report-gradient"></div>
+                <div class="report-particles"></div>
+            </div>
+
+            <!-- Header Section -->
+            <div class="report-header-section">
+                <div class="report-header-glass">
+                    <div class="report-title">
+                        <div class="title-emoji">📊</div>
+                        <h1>Seu Relatório da Semana</h1>
+                        <p class="report-subtitle">Análise personalizada do seu bem-estar emocional</p>
+                    </div>
+                    <div class="report-meta">
+                        <div class="report-date">
+                            <span class="date-icon">📅</span>
+                            <span id="report-date-display">Carregando...</span>
+                        </div>
+                        <div class="report-status">
+                            <span class="status-dot"></span>
+                            <span>Relatório gerado por IA</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- AI Mode Toggle -->
-            <div class="ai-mode-toggle">
-                <div class="toggle-header">
-                    <h3>Modo de Análise</h3>
+            <div class="ai-mode-section">
+                <div class="ai-mode-glass">
+                    <h3 class="section-title">
+                        <span class="section-emoji">🤖</span>
+                        Modo de Análise
+                    </h3>
                     <div class="mode-switch">
                         <input type="radio" id="mode-private" name="ai-mode" value="private" checked>
                         <input type="radio" id="mode-fast" name="ai-mode" value="fast">
@@ -746,181 +772,163 @@
             </div>
 
             <!-- Generate Report Button -->
-            <button id="generate-report" class="btn-primary btn-full">
-                🧠 Gerar Relatório de IA
-            </button>
-
-            <!-- PDF Download Button -->
-            <button id="generate-pdf-report" class="btn-secondary btn-full pdf-btn">
-                📄 Baixar Relatório em PDF
-            </button>
-
-            <!-- Recursos Avançados (Gratuitos) -->
-            <div class="advanced-actions">
-                <div class="action-group">
-                    <button id="export-pdf" class="btn-secondary">
-                        📄 Exportar PDF
-                    </button>
-                    <button id="advanced-analysis" class="btn-secondary">
-                        🧠 Análise Avançada
-                    </button>
-                </div>
+            <div class="generate-section">
+                <button id="generate-report" class="generate-btn">
+                    <div class="btn-content">
+                        <span class="btn-emoji">🧠</span>
+                        <span class="btn-text">Gerar Relatório de IA</span>
+                        <span class="btn-arrow">→</span>
+                    </div>
+                    <div class="btn-glow"></div>
+                </button>
             </div>
 
             <!-- Report Content -->
             <div id="report-content" class="report-content hidden">
-                <div class="report-header">
-                    <h3>📋 Relatório Gerado</h3>
-                    <span class="report-date" id="report-date"></span>
-                </div>
-                
-                <div class="report-section">
-                    <h4>🎯 Análise Geral</h4>
-                    <div id="general-analysis" class="analysis-content">
-                        <!-- Dynamic content -->
+                <!-- Avaliação Geral -->
+                <div class="report-card general-card">
+                    <div class="card-header">
+                        <div class="card-icon">🎯</div>
+                        <h3>Avaliação Geral</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="mood-circle" id="mood-circle">
+                            <div class="mood-value">3.5</div>
+                            <div class="mood-label">Neutro-Alto</div>
+                        </div>
+                        <div class="general-text" id="general-analysis">
+                            <!-- Dynamic content -->
+                        </div>
                     </div>
                 </div>
 
-                <div class="report-section">
-                    <h4>📊 Padrões Identificados</h4>
-                    <div id="patterns-analysis" class="analysis-content">
-                        <!-- Dynamic content -->
+                <!-- Padrões Identificados -->
+                <div class="report-card patterns-card">
+                    <div class="card-header">
+                        <div class="card-icon">🔍</div>
+                        <h3>Padrões Identificados</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="patterns-grid" id="patterns-analysis">
+                            <!-- Dynamic content -->
+                        </div>
                     </div>
                 </div>
 
-                <div class="report-section">
-                    <h4>💡 Recomendações</h4>
-                    <div id="recommendations" class="analysis-content">
-                        <!-- Dynamic content -->
+                <!-- Gatilhos Identificados -->
+                <div class="report-card triggers-card">
+                    <div class="card-header">
+                        <div class="card-icon">⚠️</div>
+                        <h3>Gatilhos Identificados</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="triggers-list" id="triggers-analysis">
+                            <!-- Dynamic content -->
+                        </div>
                     </div>
                 </div>
 
+                <!-- Recomendações Personalizadas -->
+                <div class="report-card recommendations-card">
+                    <div class="card-header">
+                        <div class="card-icon">💡</div>
+                        <h3>Recomendações Personalizadas</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="recommendations-list" id="recommendations">
+                            <!-- Dynamic content -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mensagem de Apoio -->
+                <div class="report-card support-card">
+                    <div class="card-header">
+                        <div class="card-icon">💙</div>
+                        <h3>Mensagem de Apoio</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="support-message">
+                            <p class="support-text">
+                                Você é mais forte do que imagina. Cada passo que você dá, por menor que seja,
+                                é uma vitória. Continue cuidando de si mesmo com a mesma dedicação que tem demonstrado.
+                                Você merece todo o amor e cuidado que está investindo em seu bem-estar.
+                            </p>
+                            <div class="support-signature">
+                                <span class="heart-icon">💙</span>
+                                <span>CVV 188 - Centro de Valorização da Vida</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Disclaimer -->
                 <div class="report-disclaimer">
-                    <h4>⚠️ Importante</h4>
-                    <p>Este relatório é baseado em análise de IA e não substitui o acompanhamento profissional. Se você está passando por dificuldades, procure ajuda de um psicólogo ou psiquiatra qualificado.</p>
-                </div>
-                
-                <!-- Report Actions -->
-                <div class="report-actions">
-                    <button id="download-pdf" class="btn-secondary btn-full" onclick="window.aiAnalysis.downloadReport()">
-                        📄 Baixar Relatório em PDF
-                    </button>
-                </div>
-            </div>
-
-            <!-- Backup Section -->
-            <div class="backup-section">
-                <h3>💾 Backup de Dados</h3>
-                <p>Seus dados ficam seguros localmente. Sincronize com Google Drive quando quiser:</p>
-
-                <!-- Auto Backup Section -->
-                <div class="auto-backup-section">
-                    <div class="auto-backup-header">
-                        <h4>🔄 Backup Automático</h4>
-                        <label class="auto-backup-toggle">
-                            <input type="checkbox" id="auto-backup-toggle">
-                            <span class="toggle-slider"></span>
-                            <span class="toggle-text">Habilitar backup diário às 7:00</span>
-                        </label>
-                    </div>
-                    <div class="auto-backup-info">
-                        <div class="last-backup-info">
-                            <span class="info-icon">🕐</span>
-                            <span class="info-text" id="last-backup-text">Último backup: Nunca</span>
-                        </div>
-                        <div class="next-backup-info">
-                            <span class="info-icon">📅</span>
-                            <span class="info-text" id="next-backup-text">Próximo backup: Amanhã às 7:00</span>
+                    <div class="disclaimer-content">
+                        <div class="disclaimer-icon">⚠️</div>
+                        <div class="disclaimer-text">
+                            <strong>Importante:</strong> Este relatório é baseado em análise de IA e não substitui
+                            o acompanhamento profissional. Se você está passando por dificuldades, procure ajuda
+                            de um psicólogo ou psiquiatra qualificado.
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Manual Backup Section -->
-                <div class="manual-backup-section">
-                    <h4>⚡ Backup Imediato</h4>
-                    <p>Faça backup dos seus dados agora mesmo</p>
-                    <button id="backup-now-btn" class="btn-primary btn-full backup-now-btn">
-                        <span class="btn-icon">⚡</span>
-                        <span class="btn-text">Backup Agora</span>
-                        <span class="btn-loading">⏳</span>
+            <!-- Floating Action Bar -->
+            <div class="floating-actions">
+                <div class="actions-glass">
+                    <button id="generate-new-report" class="action-btn">
+                        <span class="action-icon">🔄</span>
+                        <span class="action-text">Novo Relatório</span>
                     </button>
-                    <div class="last-manual-backup-info">
-                        <span class="info-icon">🕒</span>
-                        <span class="info-text" id="last-manual-backup-text">Último backup manual: Nunca</span>
-                    </div>
-                </div>
-
-                <!-- Google Drive Status -->
-                <div class="drive-status" id="drive-status">
-                    <div class="status-indicator offline" id="status-indicator">
-                        <span class="status-icon">🔴</span>
-                        <span class="status-text">Faça login primeiro</span>
-                    </div>
-                    <button id="disconnect-drive" class="disconnect-btn">Desconectar</button>
-                </div>
-
-                <div class="backup-controls">
-                    <!-- Google Drive Status -->
-                    <div id="google-backup-status" class="backup-status">🔴 Clique em "Backup Seguro" para conectar ao Google Drive</div>
-                    <div id="google-backup-btn" class="google-one-tap-btn"></div>
-
-                    <button id="connect-google-drive" class="btn-secondary connect-btn">
-                        <span class="btn-icon">🔗</span>
-                        <span class="btn-text">Conectar Google Drive</span>
+                    <button id="export-pdf" class="action-btn">
+                        <span class="action-icon">📄</span>
+                        <span class="action-text">Exportar PDF</span>
                     </button>
-
-                    <button id="backup-data" class="btn-secondary backup-btn">
-                        <span class="btn-icon">☁️</span>
-                        <span class="btn-text">Backup Seguro</span>
-                        <span class="btn-loading">⏳</span>
+                    <button id="share-report" class="action-btn">
+                        <span class="action-icon">📤</span>
+                        <span class="action-text">Compartilhar</span>
                     </button>
-                    <button id="restore-data" class="btn-secondary">
-                        <span class="btn-icon">📥</span>
-                        Restaurar
+                    <button id="back-to-history" class="action-btn primary">
+                        <span class="action-icon">←</span>
+                        <span class="action-text">Voltar</span>
                     </button>
-                    <button id="delete-all-data" class="btn-delete-all">
-                        <span class="btn-icon">🗑️</span>
-                        <span class="btn-text">Apagar Todos os Dados</span>
-                    </button>
-                    <button id="debug-logs" class="btn-secondary debug-btn admin-only hidden" onclick="window.exportDebugLogs()">
-                        <span class="btn-icon">🐛</span>
-                        Debug Logs
-                    </button>
-                </div>
-
-                <!-- Login Prompt -->
-                <div class="login-prompt" id="login-prompt">
-                    <p class="prompt-text">🔐 Para fazer backup, conecte-se ao Google Drive</p>
                 </div>
             </div>
 
-            <!-- Delete Entry Modal -->
-            <div class="delete-modal" id="delete-entry-modal">
-                <div class="delete-modal-content">
-                    <h3>🗑️ Excluir Registro</h3>
-                    <p>Tem certeza que deseja excluir este registro de humor? Esta ação não pode ser desfeita.</p>
-                    <div class="delete-modal-actions">
-                        <button class="modal-btn delete" id="confirm-delete-entry">Excluir</button>
-                        <button class="modal-btn secondary" id="cancel-delete-entry">Cancelar</button>
-                    </div>
-                    <div class="lgpd-notice">
-                        <small>🔒 Direito à exclusão garantido pela LGPD (Art. 18, VI)</small>
-                    </div>
-                </div>
+            <!-- Delete Data Button (LGPD) -->
+            <div class="delete-data-section">
+                <button id="delete-all-data" class="delete-data-btn">
+                    <span class="delete-icon">🗑️</span>
+                    <span class="delete-text">Apagar Todos os Dados</span>
+                    <span class="delete-arrow">→</span>
+                </button>
             </div>
 
-            <!-- Delete All Data Modal -->
-            <div class="delete-modal" id="delete-all-modal">
-                <div class="delete-modal-content">
-                    <h3>⚠️ Apagar Todos os Dados</h3>
-                    <p><strong>Atenção:</strong> Esta ação irá excluir permanentemente todos os seus registros de humor, sentimentos e dados pessoais armazenados localmente.</p>
-                    <p>Você pode registrar novos dados quando quiser, mas os dados atuais serão perdidos para sempre.</p>
-                    <div class="delete-modal-actions">
-                        <button class="modal-btn delete-all" id="confirm-delete-all">Apagar Tudo</button>
-                        <button class="modal-btn secondary" id="cancel-delete-all">Cancelar</button>
+            <!-- Backup Section (Compact) -->
+            <div class="backup-compact">
+                <div class="backup-glass">
+                    <h4 class="backup-title">
+                        <span class="backup-icon">💾</span>
+                        Backup Seguro
+                    </h4>
+                    <p class="backup-desc">Seus dados ficam seguros localmente. Sincronize com Google Drive quando quiser.</p>
+
+                    <div class="backup-actions">
+                        <button id="backup-now-btn" class="backup-btn primary">
+                            <span class="btn-icon">⚡</span>
+                            <span class="btn-text">Backup Agora</span>
+                            <span class="btn-loading">⏳</span>
+                        </button>
+                        <button id="connect-google-drive" class="backup-btn secondary">
+                            <span class="btn-icon">🔗</span>
+                            <span class="btn-text">Conectar Drive</span>
+                        </button>
                     </div>
-                    <div class="lgpd-notice">
-                        <small>🔒 Direito ao esquecimento garantido pela LGPD (Art. 18, VI)</small>
+
+                    <div class="backup-status" id="google-backup-status">
+                        🔴 Clique em "Backup Seguro" para conectar ao Google Drive
                     </div>
                 </div>
             </div>
@@ -940,6 +948,7 @@
     <script src="js/mock-api.js?v=1150"></script>                <!-- Mock API para desenvolvimento -->
     <script src="js/ai_analysis.js?v=1148"></script>             <!-- 2º -->
     <script src="js/google_drive_backup.js?v=1141"></script>     <!-- 3º -->
+    <script src="js/report-screen.js?v=1141"></script>           <!-- 3.1º -->
     <script src="js/app.js?v=1149"></script>                     <!-- 4º e último -->
     <script src="test-storage.js"></script>                      <!-- Test script -->
     <script src="test-modals.js"></script>                      <!-- Test modals script -->
