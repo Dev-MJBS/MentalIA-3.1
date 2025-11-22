@@ -2,6 +2,7 @@
 client_secret_*-*.json
 credentials.json
 config.json
+.env
 
 # Environment variables e secrets
 functions/.env

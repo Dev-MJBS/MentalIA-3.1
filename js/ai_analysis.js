@@ -452,7 +452,7 @@ Olá! Baseado em ${summary.totalEntries} registros de humor coletados ao longo d
         }
 
         // Feelings analysis
-        if (summary.topFeelings.length > 0) {
+        if (summary.topFeelings && Array.isArray(summary.topFeelings) && summary.topFeelings.length > 0) {
             analysis += `### 🎭 **Padrões Emocionais que Identifiquei**
 Os sentimentos mais presentes em seus registros são: **${summary.topFeelings.slice(0, 3).join(', ')}**. Isso nos dá pistas importantes sobre seus estados emocionais mais recorrentes e pode ajudar a identificar gatilhos ou padrões comportamentais. Cada emoção que você registra é valiosa para entender melhor seu mundo interno.\n\n`;
         }
@@ -637,7 +637,7 @@ Se precisar conversar ou tiver dúvidas sobre seus registros, estou aqui para aj
 - Período analisado: ${summary.dateRange}
 - Total de registros: ${summary.totalEntries}
 - Humor médio: ${summary.averageMood.toFixed(1)}/5
-- Sentimentos mais frequentes: ${summary.topFeelings.join(', ')}
+- Sentimentos mais frequentes: ${summary.topFeelings && Array.isArray(summary.topFeelings) ? summary.topFeelings.join(', ') : 'N/A'}
 - Tendência recente: ${summary.recentTrend > 0 ? 'Melhora' : summary.recentTrend < 0 ? 'Declínio' : 'Estável'}
 
 **Instruções:**
@@ -662,7 +662,8 @@ Seja sempre empático, acolhedor e profissional. Lembre que esta análise não s
             recommendations.push('Pratique técnicas de relaxamento');
         }
 
-        if (summary.topFeelings.includes('ansioso') || summary.topFeelings.includes('ansiosa')) {
+        if (summary.topFeelings && Array.isArray(summary.topFeelings) && 
+            (summary.topFeelings.includes('ansioso') || summary.topFeelings.includes('ansiosa'))) {
             recommendations.push('Experimente meditação ou mindfulness');
         }
 

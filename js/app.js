@@ -1722,13 +1722,19 @@ class MentalIA {
 
     // ===== UTILITIES =====
     showToast(message, type = 'info', duration = 5000) {
+        console.log('🔥 showToast chamado:', { message, type, duration });
+        
         // Create toast container if it doesn't exist
         let container = document.getElementById('toast-container');
         if (!container) {
+            console.log('📦 Criando container de toast...');
             container = document.createElement('div');
             container.id = 'toast-container';
             container.className = 'toast-container';
             document.body.appendChild(container);
+            console.log('✅ Container criado e adicionado ao body');
+        } else {
+            console.log('📦 Container já existe');
         }
 
         // Create toast element
@@ -1765,7 +1771,23 @@ class MentalIA {
 
         // Trigger show animation
         requestAnimationFrame(() => {
+            console.log('🎬 Adicionando classe toast-show ao toast:', toastId);
             toast.classList.add('toast-show');
+            console.log('✅ Classe toast-show adicionada, toast deve estar visível');
+            
+            // Debug: verificar se o toast está visível após adicionar a classe
+            setTimeout(() => {
+                const computedStyle = window.getComputedStyle(toast);
+                console.log('🔍 Debug toast visibility:', {
+                    id: toastId,
+                    display: computedStyle.display,
+                    visibility: computedStyle.visibility,
+                    opacity: computedStyle.opacity,
+                    transform: computedStyle.transform,
+                    classes: toast.className,
+                    containerExists: !!document.getElementById('toast-container')
+                });
+            }, 100);
         });
 
         console.log('💬 Toast exibido:', { message, type, id: toastId });
@@ -1915,7 +1937,12 @@ class MentalIA {
     }
     
     removeToast(toast) {
-        if (!toast || !toast.parentElement) return;
+        console.log('🗑️ Removendo toast:', toast.id);
+        
+        if (!toast || !toast.parentElement) {
+            console.log('❌ Toast já foi removido ou não existe');
+            return;
+        }
         
         // Clean up timers and events
         if (toast._cleanup) {
@@ -1929,6 +1956,7 @@ class MentalIA {
         setTimeout(() => {
             if (toast.parentElement) {
                 toast.remove();
+                console.log('✅ Toast removido do DOM:', toast.id);
             }
         }, 300);
         
