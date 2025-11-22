@@ -1220,8 +1220,27 @@ class MentalIA {
             }, 500);
 
         } catch (error) {
-            console.error('Erro no relatório:', error);
-            this.showToast('Erro: ' + error.message, 'error');
+            console.error('❌ Erro no relatório:', error);
+            
+            // Display a fallback report
+            this.displayReport({
+                title: 'Relatório MentalIA - Modo Seguro',
+                subtitle: 'Análise básica disponível',
+                analysis: '⚠️ Houve um problema técnico ao gerar seu relatório completo, mas seus dados estão seguros. Continue registrando seu humor regularmente para obter insights valiosos sobre seu bem-estar emocional.',
+                recommendations: [
+                    'Continue registrando seu humor diariamente',
+                    'Tente gerar o relatório novamente em alguns minutos',
+                    'Verifique se tem uma conexão estável com a internet'
+                ],
+                insights: [
+                    'Sistema funcionando em modo seguro',
+                    'Seus dados estão protegidos'
+                ],
+                disclaimer: 'Relatório gerado em modo seguro devido a erro técnico temporário.',
+                error: true
+            });
+            
+            this.showToast('⚠️ Relatório em modo seguro gerado', 'warning');
         } finally {
             // 🔥 CORREÇÃO: Restaurar botão sempre
             const reportBtn = document.getElementById('generate-report');
@@ -1235,6 +1254,44 @@ class MentalIA {
         }
     }
 
+    // Convert markdown to HTML
+    markdownToHtml(markdown) {
+        if (!markdown) return '';
+        
+        let html = markdown
+            // Headers
+            .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+            .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+            .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+            
+            // Bold text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/__(.*?)__/g, '<strong>$1</strong>')
+            
+            // Italic text
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/_(.*?)_/g, '<em>$1</em>')
+            
+            // Lists
+            .replace(/^\• (.*$)/gim, '<li>$1</li>')
+            .replace(/^- (.*$)/gim, '<li>$1</li>')
+            .replace(/^\* (.*$)/gim, '<li>$1</li>')
+            
+            // Line breaks
+            .replace(/\n\n/g, '</p><p>')
+            .replace(/\n/g, '<br>');
+            
+        // Wrap lists in ul tags
+        html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+        
+        // Wrap paragraphs
+        if (!html.includes('<p>') && !html.includes('<h')) {
+            html = `<p>${html}</p>`;
+        }
+        
+        return html;
+    }
+
     displayReport(report) {
         const content = document.getElementById('report-content');
         if (content) {
@@ -1243,14 +1300,42 @@ class MentalIA {
             // Handle different report formats
             let htmlContent = '';
             if (typeof report === 'string') {
-                htmlContent = `<div class="report-section"><div class="analysis-content">${report}</div></div>`;
+                // Convert markdown string to HTML
+                const convertedContent = this.markdownToHtml(report);
+                htmlContent = `<div class="report-section"><div class="analysis-content">${convertedContent}</div></div>`;
             } else if (report.analysis) {
+                // Convert markdown analysis to HTML
+                const convertedAnalysis = this.markdownToHtml(report.analysis);
+                
                 htmlContent = `
                     <div class="report-section">
-                        <h3>${report.title || 'Análise de Humor'}</h3>
-                        <div class="analysis-content">${report.analysis}</div>
-                        ${report.recommendations ? `<div class="recommendations"><h4>Recomendações:</h4><ul>${report.recommendations.map(r => `<li>${r}</li>`).join('')}</ul></div>` : ''}
-                        ${report.disclaimer ? `<div class="disclaimer">${report.disclaimer}</div>` : ''}
+                        <div class="report-header">
+                            <h2 class="report-title">${report.title || 'Análise de Humor'}</h2>
+                            ${report.subtitle ? `<p class="report-subtitle">${report.subtitle}</p>` : ''}
+                        </div>
+                        <div class="analysis-content">${convertedAnalysis}</div>
+                        ${report.recommendations && report.recommendations.length > 0 ? `
+                            <div class="recommendations">
+                                <h3>💡 Recomendações Personalizadas</h3>
+                                <ul class="recommendation-list">
+                                    ${report.recommendations.map(r => `<li>${this.markdownToHtml(r)}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        ${report.insights && report.insights.length > 0 ? `
+                            <div class="insights">
+                                <h3>🌟 Insights Importantes</h3>
+                                <ul class="insight-list">
+                                    ${report.insights.map(i => `<li>${this.markdownToHtml(i)}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        ${report.disclaimer ? `
+                            <div class="disclaimer">
+                                <h4>⚠️ Importante</h4>
+                                <p>${this.markdownToHtml(report.disclaimer)}</p>
+                            </div>
+                        ` : ''}
                     </div>
                 `;
             } else {
@@ -1258,7 +1343,7 @@ class MentalIA {
             }
 
             content.innerHTML = htmlContent;
-            console.log('📊 Relatório exibido:', report);
+            console.log('📊 Relatório exibido e formatado:', report);
         } else {
             console.error('❌ Elemento report-content não encontrado');
         }
@@ -1675,3 +1760,15 @@ window.checkAPIs = async () => {
         return null;
     }
 };
+
+// Tratamento global de promises rejeitadas
+window.addEventListener('unhandledrejection', function(event) {
+    console.warn('⚠️ Promise rejeitada não tratada:', event.reason);
+    // Previne que o erro apareça no console como não tratado
+    event.preventDefault();
+});
+
+// Tratamento global de erros não capturados
+window.addEventListener('error', function(event) {
+    console.error('❌ Erro não capturado:', event.error);
+});

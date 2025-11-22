@@ -695,14 +695,19 @@ Seja sempre empático, acolhedor e profissional. Lembre que esta análise não s
             console.log('📄 [PDF] Iniciando geração de PDF estruturado...');
 
             // Check if jsPDF is loaded
-            if (typeof jsPDF === 'undefined') {
-                // Try to load from window.jspdf if available
-                if (window.jspdf && window.jspdf.jsPDF) {
-                    window.jsPDF = window.jspdf.jsPDF;
-                } else {
-                    throw new Error('Biblioteca jsPDF não carregada');
-                }
+            let jsPDFClass = null;
+            
+            if (typeof jsPDF !== 'undefined') {
+                jsPDFClass = jsPDF;
+            } else if (window.jspdf && window.jspdf.jsPDF) {
+                jsPDFClass = window.jspdf.jsPDF;
+            } else if (window.jsPDF) {
+                jsPDFClass = window.jsPDF;
+            } else {
+                throw new Error('Biblioteca jsPDF não foi carregada. Verifique sua conexão com a internet.');
             }
+            
+            console.log('📄 [PDF] jsPDF encontrado:', !!jsPDFClass);
 
             // Get report data or generate new one
             let report = reportData;
@@ -718,13 +723,8 @@ Seja sempre empático, acolhedor e profissional. Lembre que esta análise não s
             
             this.showToast('📄 Gerando PDF estruturado...', 'info');
             
-            // Create PDF with jsPDF
-            const { jsPDF } = window.jspdf || window;
-            if (!jsPDF) {
-                throw new Error('jsPDF não encontrado');
-            }
-            
-            const pdf = new jsPDF('p', 'mm', 'a4');
+            // Create PDF instance
+            const pdf = new jsPDFClass('p', 'mm', 'a4');
             const pageWidth = pdf.internal.pageSize.getWidth();
             const pageHeight = pdf.internal.pageSize.getHeight();
             const margin = 20;
@@ -949,4 +949,4 @@ window.aiAnalysis.downloadReport = function() {
     return this.downloadReportPDF();
 };
 
-console.log(' M�dulo de an�lise de IA carregado com sucesso');
+console.log(' M�dulo de an�lise de IA carregado com sucesso');

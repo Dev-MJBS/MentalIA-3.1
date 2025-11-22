@@ -1998,6 +1998,133 @@ button,
     transform: none;
 }
 
+/* Report Display Styles */
+.report-section {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    border: 1px solid var(--border);
+}
+
+.report-header {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--accent-primary);
+}
+
+.report-title {
+    color: var(--accent-primary);
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+}
+
+.report-subtitle {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    font-style: italic;
+    margin: 0;
+}
+
+.analysis-content {
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+}
+
+.analysis-content h1 {
+    color: var(--accent-primary);
+    font-size: 1.6rem;
+    margin: 2rem 0 1rem 0;
+    border-bottom: 2px solid var(--accent-primary);
+    padding-bottom: 0.5rem;
+}
+
+.analysis-content h2 {
+    color: var(--accent-primary);
+    font-size: 1.4rem;
+    margin: 1.5rem 0 1rem 0;
+    border-left: 4px solid var(--accent-primary);
+    padding-left: 1rem;
+}
+
+.analysis-content h3 {
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    margin: 1.2rem 0 0.8rem 0;
+    font-weight: 600;
+}
+
+.analysis-content p {
+    margin: 1rem 0;
+    text-align: justify;
+}
+
+.analysis-content strong {
+    color: var(--accent-primary);
+    font-weight: 600;
+}
+
+.analysis-content ul {
+    margin: 1rem 0;
+    padding-left: 1.5rem;
+}
+
+.analysis-content li {
+    margin: 0.5rem 0;
+    list-style-type: disc;
+}
+
+.recommendations, .insights {
+    background: rgba(99, 102, 241, 0.05);
+    border-left: 4px solid var(--accent-primary);
+    padding: 1.5rem;
+    margin: 2rem 0;
+    border-radius: 0 8px 8px 0;
+}
+
+.recommendations h3, .insights h3 {
+    color: var(--accent-primary);
+    margin-top: 0;
+    font-size: 1.3rem;
+}
+
+.recommendation-list, .insight-list {
+    margin: 1rem 0 0 0;
+    padding-left: 0;
+}
+
+.recommendation-list li, .insight-list li {
+    background: rgba(255, 255, 255, 0.5);
+    padding: 0.8rem;
+    margin: 0.5rem 0;
+    border-radius: 6px;
+    list-style: none;
+    border-left: 3px solid var(--accent-primary);
+}
+
+.disclaimer {
+    background: rgba(255, 193, 7, 0.1);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 2rem 0;
+    text-align: center;
+}
+
+.disclaimer h4 {
+    color: #856404;
+    margin-top: 0;
+    font-size: 1.1rem;
+}
+
+.disclaimer p {
+    color: #856404;
+    margin-bottom: 0;
+    font-size: 0.9rem;
+}
+
 /* Garante que área de toque seja grande o suficiente */
 button,
 .nav-btn,
