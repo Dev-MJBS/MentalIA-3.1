@@ -108,5 +108,4 @@
         console.log('   4. Execute este script novamente');
     }, 1000);
 
-})();</content>
-<parameter name="filePath">c:\MentalIA-2\MentalIA-3.1\verificar_google_api.js
+})();

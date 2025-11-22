@@ -2188,3 +2188,51 @@ html, body {
 .disconnect-btn.show {
     display: block;
 }
+
+/* Classes para elementos com estilos inline removidos */
+.mock-premium-btn {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.privacy-body {
+    font-family: sans-serif;
+    padding: 2rem;
+    line-height: 1.6;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.trial-counter-hidden {
+    display: none;
+}
+
+.pricing-highlight {
+    color: #4CAF50;
+}
+
+.premium-form-section {
+    margin-bottom: 1rem;
+}
+
+.premium-support-text {
+    font-size: 0.85rem;
+    opacity: 0.8;
+    margin: 0;
+}
+
+.stripe-security-text {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.premium-divider {
+    margin: 1rem 0;
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.3);
+}
+
+.premium-cancel-text {
+    font-size: 0.9rem;
+    opacity: 0.8;
+}

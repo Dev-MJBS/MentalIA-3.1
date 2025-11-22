@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiByeD0iMjQiIGZpbGw9IiMxYTFhMmUiLz4KPHN2ZyB4PSI0OCIgeT0iNDgiIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjNjY2NkZGIj4KPHA
+">
     <title>MentalIA Premium - Transforme sua Saúde Mental</title>
     <link rel="stylesheet" href="css/styles.css">
     <style>
@@ -654,7 +656,7 @@
             <div class="trial-details">
                 <p>✅ Sem cobrança nos primeiros 7 dias</p>
                 <p>✅ Cancele a qualquer momento</p>
-                <div class="trial-counter" id="trialCounter" style="display: none;">
+                <div class="trial-counter trial-counter-hidden" id="trialCounter">
                     <span id="trialTimeLeft"></span>
                 </div>
             </div>
@@ -735,7 +737,7 @@
                     <div class="pricing-price">
                         R$ <span class="pricing-currency">49,90</span>
                     </div>
-                    <p class="pricing-period">por ano • <strong style="color: #4CAF50;">Economize 30%</strong></p>
+                    <p class="pricing-period">por ano • <strong class="pricing-highlight">Economize 30%</strong></p>
                     
                     <ul class="pricing-features">
                         <li>Backup criptografado no Google Drive</li>
@@ -828,17 +830,17 @@
 
             <div class="footer-section">
                 <h3>💬 Suporte VIP</h3>
-                <div style="margin-bottom: 1rem;">
+                <div class="premium-form-section">
                     <a href="https://wa.me/5564981381981?text=Olá! Preciso de ajuda com o MentalIA Premium" class="whatsapp-support" target="_blank" rel="noopener">
                         📱 WhatsApp: +55 64 98138-1981
                     </a>
                 </div>
-                <p style="font-size: 0.85rem; opacity: 0.8; margin: 0;">Suporte prioritário para usuários Premium</p>
+                <p class="premium-support-text">Suporte prioritário para usuários Premium</p>
             </div>
 
             <div class="footer-section">
                 <h3>🚀 Navegação</h3>
-                <div style="margin-bottom: 1rem;">
+                <div class="premium-form-section">
                     <a href="#" onclick="goBackToApp(); return false;" class="back-to-app">
                         ← Voltar ao MentalIA
                     </a>
@@ -853,7 +855,7 @@
 
         <div class="footer-bottom">
             <p>&copy; 2024 MentalIA. Todos os direitos reservados. Desenvolvido com ❤️ para sua saúde mental.</p>
-            <p style="margin-top: 0.5rem; font-size: 0.8rem;">Pagamentos processados com segurança pelo Stripe</p>
+            <p class="stripe-security-text">Pagamentos processados com segurança pelo Stripe</p>
         </div>
     </footer>
 
