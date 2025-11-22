@@ -3,9 +3,9 @@
 /* CSS Variables for Theme System */
 :root {
   /* Light Theme Colors */
-  --bg-primary: rgba(255, 255, 255, 0.85);
-  --bg-secondary: rgba(248, 250, 252, 0.9);
-  --bg-tertiary: rgba(241, 245, 249, 0.95);
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
   --text-primary: #1e293b;
   --text-secondary: #64748b;
   --text-muted: #94a3b8;
@@ -14,7 +14,7 @@
   --success: #10b981;
   --warning: #f59e0b;
   --error: #ef4444;
-  --border: rgba(226, 232, 240, 0.8);
+  --border: #e2e8f0;
   --shadow: rgba(0, 0, 0, 0.1);
   --gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   
@@ -35,21 +35,21 @@
 }
 
 [data-theme="dark"] {
-  /* Dark Theme Colors */
-  --bg-primary: rgba(15, 23, 42, 0.85);
-  --bg-secondary: rgba(30, 41, 59, 0.9);
-  --bg-tertiary: rgba(51, 65, 85, 0.95);
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
-  --accent-primary: #6366f1;
-  --accent-secondary: #8b5cf6;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --error: #ef4444;
-  --border: rgba(71, 85, 105, 0.8);
+  /* Dark Theme Colors - Dracula Theme */
+  --bg-primary: #282a36;
+  --bg-secondary: #44475a;
+  --bg-tertiary: #6272a4;
+  --text-primary: #f8f8f2;
+  --text-secondary: #6272a4;
+  --text-muted: #6272a4;
+  --accent-primary: #bd93f9;
+  --accent-secondary: #ff79c6;
+  --success: #50fa7b;
+  --warning: #ffb86c;
+  --error: #ff5555;
+  --border: #44475a;
   --shadow: rgba(0, 0, 0, 0.3);
-  --gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  --gradient: linear-gradient(135deg, #bd93f9 0%, #ff79c6 100%);
 }
 
 /* Base Styles */
@@ -66,20 +66,11 @@ html {
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background: linear-gradient(135deg, #1e1b4b 0%, #6366f1 100%);
-  background-attachment: fixed;
+  background: var(--bg-primary);
   color: var(--text-primary);
   line-height: 1.6;
   transition: all 0.3s ease;
   overflow-x: hidden;
-  min-height: 100vh;
-}
-
-/* Responsive: Mobile vertical gradient */
-@media (max-width: 768px) {
-  body {
-    background: linear-gradient(180deg, #1e1b4b 0%, #6366f1 100%);
-  }
 }
 
 /* Loading Overlay */
@@ -164,8 +155,6 @@ body {
   z-index: 100;
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .header-content {
@@ -232,8 +221,8 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(255, 255, 255, 0.05);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
   display: flex;
   justify-content: space-around;
   padding: 0.5rem 0;
@@ -280,25 +269,11 @@ body {
   margin: 0 auto;
   padding: 1rem;
   padding-bottom: 100px;
-  background: rgba(255, 255, 255, 0.05);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 .screen {
   display: none;
   animation: fadeIn 0.3s ease;
-  background: rgba(255, 255, 255, 0.05);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  margin: 1rem;
-  padding: 1rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 .screen.active {
@@ -350,15 +325,12 @@ body {
 }
 
 .feature-card {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
   border-radius: 16px;
   padding: 1.5rem;
   text-align: center;
   transition: all 0.3s ease;
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 .feature-card:hover {
@@ -373,7 +345,8 @@ body {
 
 .feature-card h3 {
   margin-bottom: 0.5rem;
-  color: var(--accent-primary);
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 .cta-buttons {
@@ -702,13 +675,10 @@ body {
 .current-mood {
   text-align: center;
   padding: 1.5rem;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--bg-secondary);
   border-radius: 20px;
   margin: 2rem 0;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border);
 }
 
 .current-mood-emoji {
@@ -769,14 +739,11 @@ body {
 }
 
 .primary-feeling-card {
-    background: rgba(255, 255, 255, 0.9);
+    background: var(--bg-secondary);
     border-radius: 16px;
     overflow: hidden;
-    border: 2px solid rgba(255, 255, 255, 0.2);
+    border: 2px solid var(--border);
     transition: all 0.3s ease;
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 .primary-feeling-card.expanded {
@@ -1089,15 +1056,12 @@ body {
 
 /* Chart Container */
 .chart-container {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
   border-radius: 16px;
   padding: 1.5rem;
   margin-bottom: 2rem;
   height: 400px;
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 /* Stats Grid */
@@ -1109,15 +1073,12 @@ body {
 }
 
 .stat-card {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1.5rem;
   text-align: center;
   transition: all 0.3s ease;
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 .stat-card:hover {
@@ -1144,13 +1105,10 @@ body {
 
 /* Recent Entries */
 .recent-entries {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
   border-radius: 16px;
   padding: 1.5rem;
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 .recent-entries h3 {
@@ -1165,13 +1123,10 @@ body {
 }
 
 .entry-item {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-tertiary);
   border-radius: 12px;
   padding: 1rem;
   border-left: 4px solid var(--accent-primary);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
 .entry-header {
@@ -1215,14 +1170,11 @@ body {
 
 /* AI Mode Toggle */
 .ai-mode-toggle {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
   border-radius: 16px;
   padding: 1.5rem;
   margin-bottom: 2rem;
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 .toggle-header h3 {
@@ -1299,14 +1251,11 @@ body {
 
 /* Report Content */
 .report-content {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
   border-radius: 16px;
   padding: 1.5rem;
   margin-top: 2rem;
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 .report-content.hidden {
@@ -1604,14 +1553,11 @@ body {
 
 /* Backup Section */
 .backup-section {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
   border-radius: 16px;
   padding: 1.5rem;
   margin-top: 2rem;
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 .backup-section h3 {
@@ -2877,152 +2823,120 @@ html, body {
     user-select: none;
   }
 }
-/ *   = = = = =   C O R R E � � E S   A D I C I O N A I S   P A R A   B O T � E S   F U N C I O N A R E M   = = = = =   * / 
- @ m e d i a   ( m a x - w i d t h :   7 6 8 p x )   { 
-     / *   G a r a n t i r   q u e   t o d o s   o s   b o t � e s   f u n c i o n e m   c o r r e t a m e n t e   * / 
-     b u t t o n , 
-     . b t n - p r i m a r y , 
-     . b t n - s e c o n d a r y , 
-     . n a v - b t n , 
-     . p r i m a r y - f e e l i n g - b t n , 
-     . m o o d - c o n t i n u e - b t n , 
-     . c l e a r - s e l e c t i o n - b t n , 
-     [ d a t a - s c r e e n ] , 
-     . e x p a n d - i c o n , 
-     . s u b - f e e l i n g - i t e m   { 
-         m i n - h e i g h t :   4 8 p x   ! i m p o r t a n t ; 
-         t o u c h - a c t i o n :   m a n i p u l a t i o n   ! i m p o r t a n t ; 
-         - w e b k i t - t a p - h i g h l i g h t - c o l o r :   t r a n s p a r e n t   ! i m p o r t a n t ; 
-         c u r s o r :   p o i n t e r   ! i m p o r t a n t ; 
-         p o i n t e r - e v e n t s :   a u t o   ! i m p o r t a n t ; 
-         - w e b k i t - u s e r - s e l e c t :   n o n e   ! i m p o r t a n t ; 
-         u s e r - s e l e c t :   n o n e   ! i m p o r t a n t ; 
-         - w e b k i t - t o u c h - c a l l o u t :   n o n e   ! i m p o r t a n t ; 
-         - w e b k i t - a p p e a r a n c e :   n o n e   ! i m p o r t a n t ; 
-         b o r d e r :   n o n e   ! i m p o r t a n t ; 
-         o u t l i n e :   n o n e   ! i m p o r t a n t ; 
-         b a c k g r o u n d :   t r a n s p a r e n t   ! i m p o r t a n t ; 
-     } 
-     
-     / *   B o t � e s   e s p e c � f i c o s   * / 
-     . b t n - p r i m a r y   { 
-         b a c k g r o u n d :   v a r ( - - g r a d i e n t )   ! i m p o r t a n t ; 
-         c o l o r :   w h i t e   ! i m p o r t a n t ; 
-     } 
-     
-     . b t n - s e c o n d a r y   { 
-         b a c k g r o u n d :   v a r ( - - b g - s e c o n d a r y )   ! i m p o r t a n t ; 
-         c o l o r :   v a r ( - - t e x t - p r i m a r y )   ! i m p o r t a n t ; 
-         b o r d e r :   1 p x   s o l i d   v a r ( - - b o r d e r )   ! i m p o r t a n t ; 
-     } 
-     
-     . n a v - b t n   { 
-         b a c k g r o u n d :   n o n e   ! i m p o r t a n t ; 
-         c o l o r :   v a r ( - - t e x t - m u t e d )   ! i m p o r t a n t ; 
-     } 
-     
-     . n a v - b t n . a c t i v e   { 
-         c o l o r :   v a r ( - - a c c e n t - p r i m a r y )   ! i m p o r t a n t ; 
-         b a c k g r o u n d :   r g b a ( 9 9 ,   1 0 2 ,   2 4 1 ,   0 . 1 )   ! i m p o r t a n t ; 
-     } 
- } 
- 
- / *   B a c k u p   S t a t u s   S t y l e s   * / 
- 
- . b a c k u p - s t a t u s   { 
- 
-     d i s p l a y :   i n l i n e - b l o c k ; 
- 
-     p a d d i n g :   0 . 5 r e m   1 r e m ; 
- 
-     b o r d e r - r a d i u s :   2 0 p x ; 
- 
-     f o n t - s i z e :   0 . 9 r e m ; 
- 
-     f o n t - w e i g h t :   5 0 0 ; 
- 
-     t e x t - a l i g n :   c e n t e r ; 
- 
-     t r a n s i t i o n :   a l l   0 . 3 s   e a s e ; 
- 
-     b o r d e r :   2 p x   s o l i d   t r a n s p a r e n t ; 
- 
-     m i n - w i d t h :   1 2 0 p x ; 
- 
- } 
- 
- 
- 
- . b a c k u p - s t a t u s . c o n n e c t e d   { 
- 
-     b a c k g r o u n d :   l i n e a r - g r a d i e n t ( 1 3 5 d e g ,   # 1 0 b 9 8 1   0 % ,   # 0 5 9 6 6 9   1 0 0 % ) ; 
- 
-     c o l o r :   w h i t e ; 
- 
-     b o r d e r - c o l o r :   # 1 0 b 9 8 1 ; 
- 
-     b o x - s h a d o w :   0   4 p x   1 2 p x   r g b a ( 1 6 ,   1 8 5 ,   1 2 9 ,   0 . 3 ) ; 
- 
- } 
- 
- 
- 
- . b a c k u p - s t a t u s . e r r o r   { 
- 
-     b a c k g r o u n d :   l i n e a r - g r a d i e n t ( 1 3 5 d e g ,   # e f 4 4 4 4   0 % ,   # d c 2 6 2 6   1 0 0 % ) ; 
- 
-     c o l o r :   w h i t e ; 
- 
-     b o r d e r - c o l o r :   # e f 4 4 4 4 ; 
- 
-     b o x - s h a d o w :   0   4 p x   1 2 p x   r g b a ( 2 3 9 ,   6 8 ,   6 8 ,   0 . 3 ) ; 
- 
- } 
- 
- 
- 
- . b a c k u p - s t a t u s : n o t ( . c o n n e c t e d ) : n o t ( . e r r o r )   { 
- 
-     b a c k g r o u n d :   v a r ( - - b g - t e r t i a r y ) ; 
- 
-     c o l o r :   v a r ( - - t e x t - s e c o n d a r y ) ; 
- 
-     b o r d e r - c o l o r :   v a r ( - - b o r d e r ) ; 
- 
- } 
- 
- / *   M o b i l e   r e s p o n s i v e   f i x e s   f o r   M e n t a l I A   3 . 1   * / 
- @ m e d i a   ( m a x - w i d t h :   7 6 8 p x )   { 
-     / *   F I X :   T e x t a r e a   h e i g h t   a u t o   n o   m o b i l e   * / 
-     . d i a r y - t e x t a r e a   { 
-         h e i g h t :   a u t o   ! i m p o r t a n t ; 
-         p a d d i n g :   1 r e m ; 
-         r e s i z e :   n o n e ; 
-     } 
-     
-     / *   F I X :   G r i d   f e e l i n g s   2   c o l u m n s   n o   m o b i l e   * / 
-     . p r i m a r y - f e e l i n g s - g r i d   { 
-         g r i d - t e m p l a t e - c o l u m n s :   r e p e a t ( 2 ,   1 f r )   ! i m p o r t a n t ; 
-         g a p :   0 . 8 r e m ; 
-     } 
-     
-     / *   F I X :   T o u c h - a c t i o n   m a n i p u l a t i o n   p a r a   t o q u e s   s u a v e s   * / 
-     . p r i m a r y - f e e l i n g - b t n , 
-     . s u b - f e e l i n g - i t e m , 
-     . e x p a n d - i c o n , 
-     . m o o d - s l i d e r , 
-     . d i a r y - t e x t a r e a , 
-     . m o o d - c o n t i n u e - b t n , 
-     b u t t o n , 
-     . b t n - p r i m a r y , 
-     . b t n - s e c o n d a r y , 
-     . n a v - b t n   { 
-         t o u c h - a c t i o n :   m a n i p u l a t i o n   ! i m p o r t a n t ; 
-         - w e b k i t - t a p - h i g h l i g h t - c o l o r :   t r a n s p a r e n t   ! i m p o r t a n t ; 
-         - w e b k i t - u s e r - s e l e c t :   n o n e ; 
-         u s e r - s e l e c t :   n o n e ; 
-         m i n - h e i g h t :   4 4 p x   ! i m p o r t a n t ;   / *   A c e s s i b i l i d a d e   m o b i l e   * / 
-     } 
- } 
- 
- 
+
+/* ===== CORREÇÕES ADICIONAIS PARA BOTÕES FUNCIONAREM ===== */
+@media (max-width: 768px) {
+  /* Garantir que todos os botões funcionem corretamente */
+  button,
+  .btn-primary,
+  .btn-secondary,
+  .nav-btn,
+  .primary-feeling-btn,
+  .mood-continue-btn,
+  .clear-selection-btn,
+  [data-screen],
+  .expand-icon,
+  .sub-feeling-item {
+    min-height: 48px !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none !important;
+    -webkit-appearance: none !important;
+    border: none !important;
+    outline: none !important;
+    background: transparent !important;
+  }
+  
+  /* Botões específicos */
+  .btn-primary {
+    background: var(--gradient) !important;
+    color: white !important;
+  }
+  
+  .btn-secondary {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border) !important;
+  }
+  
+  .nav-btn {
+    background: none !important;
+    color: var(--text-muted) !important;
+  }
+  
+  .nav-btn.active {
+    color: var(--accent-primary) !important;
+    background: rgba(99, 102, 241, 0.1) !important;
+  }
+}
+
+/* Backup Status Styles */
+.backup-status {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: center;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  min-width: 120px;
+}
+
+.backup-status.connected {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border-color: #10b981;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.backup-status.error {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  border-color: #ef4444;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.backup-status:not(.connected):not(.error) {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border-color: var(--border);
+}
+
+/* Mobile responsive fixes for MentalIA 3.1 */
+@media (max-width: 768px) {
+  /* FIX: Textarea height auto no mobile */
+  .diary-textarea {
+    height: auto !important;
+    padding: 1rem;
+    resize: none;
+  }
+  
+  /* FIX: Grid feelings 2 columns no mobile */
+  .primary-feelings-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.8rem;
+  }
+  
+  /* FIX: Touch-action manipulation para toques suaves */
+  .primary-feeling-btn,
+  .sub-feeling-item,
+  .expand-icon,
+  .mood-slider,
+  .diary-textarea,
+  .mood-continue-btn,
+  button,
+  .btn-primary,
+  .btn-secondary,
+  .nav-btn {
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
+    -webkit-user-select: none;
+    user-select: none;
+    min-height: 44px !important; /* Acessibilidade mobile */
+  }
+}
