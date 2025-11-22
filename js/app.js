@@ -319,33 +319,6 @@ class MentalIA {
             console.log('✅ Event listeners anexados ao botão:', btn.dataset.screen);
         });
 
-        // 🔥 TESTE: Adicionar botão de debug para testar navegação
-        const debugBtn = document.createElement('button');
-        debugBtn.id = 'debug-navigation-btn';
-        debugBtn.textContent = '🧪 Testar Navegação';
-        debugBtn.style.cssText = `
-            position: fixed;
-            bottom: 120px;
-            right: 20px;
-            background: #ff6b6b;
-            color: white;
-            border: none;
-            padding: 12px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            z-index: 9999;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        `;
-        debugBtn.addEventListener('click', () => {
-            console.log('🧪 BOTÃO DE DEBUG CLICADO!');
-            console.log('🧪 Testando navegação para mood screen...');
-            this.showScreen('mood');
-            this.showToast('🧪 Navegação testada!', 'info');
-        });
-        document.body.appendChild(debugBtn);
-        console.log('🧪 Botão de debug adicionado ao DOM');
-
         // Mood form submission
         const moodForm = document.getElementById('mood-form');
         console.log('📝 Formulário de humor encontrado:', !!moodForm);
