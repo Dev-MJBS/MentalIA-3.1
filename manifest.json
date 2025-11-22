@@ -1,181 +1,52 @@
 {
-  "name": "MentalIA",
+  "name": "MentalIA 3.1",
   "short_name": "MentalIA",
-  "description": "App de saúde mental com IA local e privacidade absoluta",
-  "version": "3.0.0",
-  "start_url": "/",
-  "display": "standalone",
-  "orientation": "portrait-primary",
-  "theme_color": "#1a1a2e",
-  "background_color": "#0f172a",
+  "description": "MentalIA 3.1 — Registro e relatório de bem-estar mental. Relatório gerado por IA para apoio clínico.",
   "lang": "pt-BR",
-  "scope": "/",
-  "categories": ["health", "medical", "lifestyle", "productivity"],
-  "screenshots": [
-    {
-      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjU2OCIgdmlld0JveD0iMCAwIDMyMCA1NjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMjAiIGhlaWdodD0iNTY4IiBmaWxsPSIjMGYxNzJhIi8+Cjx0ZXh0IHg9IjE2MCIgeT0iMjAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNjM2NmYxIiBmb250LXNpemU9IjI0IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+8J+ngCBNZW50YWxJQSAzLjA8L3RleHQ+Cjx0ZXh0IHg9IjE2MCIgeT0iMzAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjY2JkNWUxIiBmb250LXNpemU9IjE2IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+U2HDumRlIG1lbnRhbCBjb20gSUEgbG9jYWw8L3RleHQ+CjxyZWN0IHg9IjQwIiB5PSIzNDAiIHdpZHRoPSIyNDAiIGhlaWdodD0iNDAiIHJ4PSIyMCIgZmlsbD0iIzYzNjZmMSIvPgo8dGV4dCB4PSIxNjAiIHk9IjM2NCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7wn5K-IFJlZ2lzdHJhciBIdW1vcjwvdGV4dD4KPC9zdmc+",
-      "sizes": "320x568",
-      "type": "image/svg+xml",
-      "form_factor": "narrow",
-      "label": "Tela principal do MentalIA"
-    },
-    {
-      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzY4IiBoZWlnaHQ9IjEwMjQiIHZpZXdCb3g9IjAgMCA3NjggMTAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9Ijc2OCIgaGVpZ2h0PSIxMDI0IiBmaWxsPSIjMGYxNzJhIi8+Cjx0ZXh0IHg9IjM4NCIgeT0iMjAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNjM2NmYxIiBmb250LXNpemU9IjMyIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+8J+SiiBIaXN0w7NyaWNvPC90ZXh0Pgo8cmVjdCB4PSIxMDAiIHk9IjMwMCIgd2lkdGg9IjU2OCIgaGVpZ2h0PSIzMDAiIHJ4PSIxNiIgZmlsbD0iIzFlMjkzYiIgc3Ryb2tlPSIjNDc1NTY5Ii8+Cjx0ZXh0IHg9IjM4NCIgeT0iNDYwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjY2JkNWUxIiBmb250LXNpemU9IjE4IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+R3LDoWZpY28gZGUgSHVtb3I8L3RleHQ+CjxyZWN0IHg9IjEwMCIgeT0iNjUwIiB3aWR0aD0iMTcwIiBoZWlnaHQ9IjEwMCIgcng9IjEyIiBmaWxsPSIjMWUyOTNiIiBzdHJva2U9IiM0NzU1NjkiLz4KPHRleHQgeD0iMTg1IiB5PSI3MTAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiM2MzY2ZjEiIGZvbnQtc2l6ZT0iMjQiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj40LjI8L3RleHQ+CjxyZWN0IHg9IjMwMCIgeT0iNjUwIiB3aWR0aD0iMTcwIiBoZWlnaHQ9IjEwMCIgcng9IjEyIiBmaWxsPSIjMWUyOTNiIiBzdHJva2U9IiM0NzU1NjkiLz4KPHN2ZyB4PSIzMDAiIHk9IjY1MCIgd2lkdGg9IjE3MCIgaGVpZ2h0PSIxMDAiPgo8L3N2Zz4KPC9zdmc+",
-      "sizes": "768x1024",
-      "type": "image/svg+xml",
-      "form_factor": "wide",
-      "label": "Histórico e gráficos detalhados"
-    }
-  ],
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1a1a2e",
+  "theme_color": "#1a1a2e",
   "icons": [
     {
-      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzIiIGhlaWdodD0iNzIiIHZpZXdCb3g9IjAgMCA3MiA3MiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjcyIiBoZWlnaHQ9IjcyIiByeD0iMTIiIGZpbGw9IiMxYTFhMmUiLz4KPHN2ZyB4PSIxOCIgeT0iMTgiIHdpZHRoPSIzNiIgaGVpZ2h0PSIzNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjNjY2NkZGIj4KPHA+Cjx0ZXh0IGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIzNiIgeD0iMTgiIHk9IjQyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNjY2NkZGIj7wn6eAPC90ZXh0Pgo8L3N2Zz4KPC9zdmc+",
+      "src": "icons/icon-48.png",
+      "sizes": "48x48",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-72.png",
       "sizes": "72x72",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiMxYTFhMmUiLz4KPHN2ZyB4PSIyNCIgeT0iMjQiIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjNjY2NkZGIj4KCjx0ZXh0IGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI0OCIgeD0iNDgiIHk9IjU2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNjY2NkZGIj7wn6eAPC90ZXh0Pgo8L3N2Zz4KPC9zdmc+",
+      "src": "icons/icon-96.png",
       "sizes": "96x96",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiByeD0iMjAiIGZpbGw9IiMxYTFhMmUiLz4KPHN2ZyB4PSIzMiIgeT0iMzIiIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjNjY2NkZGIj4KCjx0ZXh0IGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI2NCIgeD0iNjQiIHk9Ijc0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNjY2NkZGIj7wn6eAPC90ZXh0Pgo8L3N2Zz4KPC9zdmc+",
-      "sizes": "128x128",
-      "type": "image/svg+xml",
-      "purpose": "any"
-    },
-    {
-      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTQ0IiBoZWlnaHQ9IjE0NCIgdmlld0JveD0iMCAwIDE0NCAxNDQiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxNDQiIGhlaWdodD0iMTQ0IiByeD0iMjIiIGZpbGw9IiMxYTFhMmUiLz4KPHN2ZyB4PSIzNiIgeT0iMzYiIHdpZHRoPSI3MiIgaGVpZ2h0PSI3MiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjNjY2NkZGIj4KCjx0ZXh0IGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI3MiIgeD0iNzIiIHk9IjgzIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNjY2NkZGIj7wn6eAPC90ZXh0Pgo8L3N2Zz4KPC9zdmc+",
+      "src": "icons/icon-144.png",
       "sizes": "144x144",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiByeD0iMjQiIGZpbGw9IiMxYTFhMmUiLz4KPHN2ZyB4PSI0OCIgeT0iNDgiIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSIjNjY2NkZGIj4KCjx0ZXh0IGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI5NiIgeD0iOTYiIHk9IjExMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzY2NjZGRiI+8J+ngDwvdGV4dD4KPC9zdmc+Cjwvc3ZnPg==",
+      "src": "icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "any"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgdmlld0JveD0iMCAwIDUxMiA1MTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiByeD0iNjQiIGZpbGw9IiMxYTFhMmUiLz4KPHN2ZyB4PSIxMjgiIHk9IjEyOCIgd2lkdGg9IjI1NiIgaGVpZ2h0PSIyNTYiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzY2NjZGRiI+CjxnIHRyYW5zZm9ybT0ic2NhbGUoMTAuNjY3KSI+Cjx0ZXh0IGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyNCIgeD0iMTIiIHk9IjE2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNjY2NkZGIj7wn6eAPC90ZXh0Pgo8L2c+Cjwvc3ZnPgo8L3N2Zz4=",
+      "src": "icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ],
-  "shortcuts": [
-    {
-      "name": "Registrar Humor",
-      "short_name": "Humor",
-      "description": "Registrar rapidamente seu humor atual",
-      "url": "/?screen=mood",
-      "icons": [
-        {
-          "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM2MzY2ZjEiLz4KPHN2ZyB4PSIyNCIgeT0iMjQiIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+Cjx0ZXh0IGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI0OCIgeD0iNDgiIHk9IjU2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSI+8J+YijwvdGV4dD4KPC9zdmc+CjwvYWc+",
-          "sizes": "96x96",
-          "type": "image/svg+xml"
-        }
-      ]
-    },
-    {
-      "name": "Ver Histórico",
-      "short_name": "Histórico",
-      "description": "Visualizar gráficos e estatísticas",
-      "url": "/?screen=history",
-      "icons": [
-        {
-          "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiM4YjVjZjYiLz4KPHN2ZyB4PSIyNCIgeT0iMjQiIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+Cjx0ZXh0IGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI0OCIgeD0iNDgiIHk9IjU2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSI+8J+SijwvdGV4dD4KPC9zdmc+CjwvYWc+",
-          "sizes": "96x96",
-          "type": "image/svg+xml"
-        }
-      ]
-    },
-    {
-      "name": "Relatório IA",
-      "short_name": "Análise",
-      "description": "Gerar relatório com inteligência artificial",
-      "url": "/?screen=report",
-      "icons": [
-        {
-          "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiMxMGI5ODEiLz4KPHN2ZyB4PSIyNCIgeT0iMjQiIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+Cjx0ZXh0IGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI0OCIgeD0iNDgiIHk9IjU2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSI+8J+UpTwvdGV4dD4KPC9zdmc+CjwvYWc+",
-          "sizes": "96x96",
-          "type": "image/svg+xml"
-        }
-      ]
-    }
-  ],
-  "file_handlers": [
-    {
-      "action": "/?import",
-      "accept": {
-        "application/json": [".json", ".mental-backup"]
-      },
-      "launch_type": "single-client"
-    }
-  ],
-  "protocol_handlers": [
-    {
-      "protocol": "web+mentalia",
-      "url": "/?action=%s"
-    }
-  ],
-  "share_target": {
-    "action": "/?share",
-    "method": "POST",
-    "enctype": "multipart/form-data",
-    "params": {
-      "title": "title",
-      "text": "text",
-      "url": "url",
-      "files": [
-        {
-          "name": "backup_file",
-          "accept": ["application/json", ".json", ".mental-backup"]
-        }
-      ]
-    }
-  },
-  "edge_side_panel": {
-    "preferred_width": 400
-  },
-  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
-  "prefer_related_applications": false,
   "related_applications": [],
-  "features": [
-    "CrossOriginEmbedderPolicyCredentialless",
-    "WebAppUrlHandling"
-  ],
-  "handle_links": "preferred",
-  "launch_handler": {
-    "client_mode": "navigate-existing"
-  },
-  "id": "mental-ia-3",
-  "manifest_version": 3,
-  "permissions": [
-    "storage",
-    "notifications",
-    "background-sync"
-  ],
-  "apps": {
-    "shortcuts": [
-      {
-        "name": "Emergency Contact",
-        "description": "Quick access to emergency mental health resources",
-        "url": "/?emergency=true",
-        "icons": [
-          {
-            "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTYiIGZpbGw9IiNlZjQ0NDQiLz4KPHN2ZyB4PSIyNCIgeT0iMjQiIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+Cjx0ZXh0IGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI0OCIgeD0iNDgiIHk9IjU2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSI+8J+YgzwvdGV4dD4KPC9zdmc+CjwvYWc+",
-            "sizes": "96x96",
-            "type": "image/svg+xml"
-          }
-        ]
-      }
-    ]
-  },
-  "experimental": {
-    "auto_launch": false,
-    "controlled_frame": false
-  }
+  "prefer_related_applications": false
 }

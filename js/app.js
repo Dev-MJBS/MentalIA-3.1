@@ -832,3 +832,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 console.log(' app.js fully replaced')
+
+// Register service worker if available so the app is installable as a PWA
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => {
+        console.log('[SW] Service worker registrado:', reg);
+      })
+      .catch(err => {
+        console.warn('[SW] Falha ao registrar service worker:', err);
+      });
+  });
+}
