@@ -3,7 +3,7 @@
 
 class MentalStorage {
     constructor() {
-        this.dbName = 'MentalIA-DB-v3.1';
+        this.dbName = 'mentalIA';
         this.dbVersion = 2; // 🔥 CORREÇÃO: Incrementado para forçar upgrade
         this.db = null;
         this.encryptionKey = null;

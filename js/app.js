@@ -83,7 +83,7 @@ class MentalIA {
     // ===== PREMIUM FEATURES =====
     async initPremium() {
         console.log('💎 Todos os recursos liberados gratuitamente!');
-        
+
         // Definir como premium permanentemente (todos os recursos gratuitos)
         this.isPremium = true;
         this.updatePremiumUI();
@@ -92,7 +92,7 @@ class MentalIA {
     updatePremiumUI() {
         // Atualiza classe no body
         document.body.classList.toggle('premium-user', this.isPremium);
-        
+
         // Mostra/esconde elementos premium
         const premiumOnlyElements = document.querySelectorAll('[data-premium-only]');
         premiumOnlyElements.forEach(el => {
@@ -120,57 +120,21 @@ class MentalIA {
         console.log('💎 UI Premium atualizada. Status:', this.isPremium);
     }
 
-    // Função removida - todos os recursos são gratuitos
-
-    // Método para obter usuário Google (usado pelo premium)
-    async getGoogleUser() {
-        // Se já temos o usuário cached, retorna
-        if (this.currentUser) {
-            return this.currentUser;
-        }
-
-        // Tenta obter do storage ou Google API
-        try {
-            // Implementar integração com Google OAuth aqui
-            // Por agora, simula um usuário para desenvolvimento
-            if (localStorage.getItem('google_user')) {
-                this.currentUser = JSON.parse(localStorage.getItem('google_user'));
-                return this.currentUser;
-            }
-            
-            // Se não tem usuário, retorna null (usuário precisa fazer login)
-            return null;
-            
-        } catch (error) {
-            console.error('Erro ao obter usuário Google:', error);
-            return null;
-        }
-    }
-
-    // Método para refresh de dados (usado pelo premium)
-    async refreshData() {
-        console.log('🔄 Refreshing data...');
-        await this.loadData();
-        if (this.chart) {
-            this.updateChart();
-        }
-    }
-
     // ===== STORAGE INITIALIZATION =====
     async ensureStorageReady() {
         console.log('🗄️ Verificando storage...');
-        
+
         // Wait for storage to be available
         let attempts = 0;
         while (!window.mentalStorage && attempts < 50) {
             await new Promise(resolve => setTimeout(resolve, 100));
             attempts++;
         }
-        
+
         if (!window.mentalStorage) {
             throw new Error('Storage não disponível após aguardar');
         }
-        
+
         // Ensure storage is initialized
         await window.mentalStorage.ensureInitialized();
         console.log('✅ Storage pronto e inicializado');
@@ -179,10 +143,10 @@ class MentalIA {
     // ===== ADMIN FEATURES =====
     initAdminFeatures() {
         console.log('👑 Verificando status de administrador...');
-        
+
         // Simple admin detection - can be improved later
         const isAdmin = this.checkAdminStatus();
-        
+
         if (isAdmin) {
             console.log('👑 Usuário administrador detectado - mostrando funcionalidades admin');
             this.showAdminElements();
@@ -210,7 +174,7 @@ class MentalIA {
         // This will be set up in setupEventListeners
 
         // Method 4: Check if running on localhost/development
-        if (window.location.hostname === 'localhost' || 
+        if (window.location.hostname === 'localhost' ||
             window.location.hostname === '127.0.0.1' ||
             window.location.hostname.includes('dev-mjbs.github.io')) {
             console.log('👑 Admin mode ativado - desenvolvimento/GitHub Pages');
@@ -223,7 +187,7 @@ class MentalIA {
     showAdminElements() {
         const adminElements = document.querySelectorAll('.admin-only');
         console.log('👑 Mostrando elementos admin:', adminElements.length);
-        
+
         adminElements.forEach(element => {
             element.classList.remove('hidden');
             element.classList.add('admin-visible');
@@ -233,7 +197,7 @@ class MentalIA {
     hideAdminElements() {
         const adminElements = document.querySelectorAll('.admin-only');
         console.log('👤 Escondendo elementos admin:', adminElements.length);
-        
+
         adminElements.forEach(element => {
             element.classList.add('hidden');
             element.classList.remove('admin-visible');
@@ -243,7 +207,7 @@ class MentalIA {
     // Toggle admin mode (for testing)
     toggleAdminMode() {
         const isCurrentlyAdmin = localStorage.getItem('mentalIA_admin') === 'true';
-        
+
         if (isCurrentlyAdmin) {
             localStorage.removeItem('mentalIA_admin');
             this.hideAdminElements();
@@ -263,369 +227,448 @@ class MentalIA {
             console.log('🔧 DOM readyState:', document.readyState);
             console.log('🔧 Window loaded:', window.mentalIA ? 'Sim' : 'Não');
 
-        // Admin key combination (Ctrl+Shift+D+E+V)
-        this.setupAdminKeyListener();
+            // 🔥 CORREÇÃO: Remover listeners duplicados primeiro
+            this.removeExistingListeners();
 
-        // Theme toggle
-        const themeToggle = document.getElementById('theme-toggle');
-        console.log('🎨 Theme toggle encontrado:', !!themeToggle);
-        themeToggle?.addEventListener('click', () => this.toggleTheme());
+            // Admin key combination (Ctrl+Shift+D+E+V)
+            this.setupAdminKeyListener();
 
-        // All screen navigation buttons
-        const screenBtns = document.querySelectorAll('[data-screen]');
-        console.log('🧭 Botões de navegação encontrados:', screenBtns.length, screenBtns);
-        screenBtns.forEach(btn => {
-            console.log('🧭 Configurando event listener para botão:', btn.dataset.screen, btn);
-            console.log('🧭 Botão tem pointer-events:', window.getComputedStyle(btn).pointerEvents);
-            console.log('🧭 Botão tem touch-action:', window.getComputedStyle(btn).touchAction);
-            
-            // Remove existing listeners to avoid duplicates
-            btn.removeEventListener('click', btn._screenClickHandler);
-            btn.removeEventListener('touchend', btn._screenTouchHandler);
-            
-            // Create handlers
-            btn._screenClickHandler = (e) => {
-                console.log('🖱️ CLICK EVENT disparado no botão:', e.currentTarget.dataset.screen);
-                console.log('🖱️ Event details:', {
-                    type: e.type,
-                    target: e.target,
-                    currentTarget: e.currentTarget,
-                    screen: e.currentTarget.dataset.screen
+            // Theme toggle
+            const themeToggle = document.getElementById('theme-toggle');
+            console.log('🎨 Theme toggle encontrado:', !!themeToggle);
+            themeToggle?.addEventListener('click', () => this.toggleTheme());
+
+            // ===== 1. BOTÃO PRINCIPAL - .btn-primary 'click' → showScreen('mood') =====
+            console.log('🔍 Procurando botões .btn-primary...');
+            const btnPrimaryElements = document.querySelectorAll('.btn-primary');
+            console.log('🔍 Encontrados .btn-primary:', btnPrimaryElements.length);
+
+            btnPrimaryElements.forEach((btn, index) => {
+                console.log(`🔍 Configurando .btn-primary #${index}:`, btn);
+                btn.addEventListener('click', (e) => {
+                    console.log('🎯 .btn-primary clicado! Navegando para mood...');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.showScreen('mood');
                 });
-                e.preventDefault();
-                e.stopPropagation();
-                const screen = e.currentTarget.dataset.screen;
-                console.log('🧭 Navegando para (click):', screen);
-                this.showScreen(screen);
-            };
-            
-            btn._screenTouchHandler = (e) => {
-                console.log('👆 TOUCH EVENT disparado no botão:', e.currentTarget.dataset.screen);
-                console.log('👆 Touch event details:', {
-                    type: e.type,
-                    target: e.target,
-                    currentTarget: e.currentTarget,
-                    touches: e.touches?.length,
-                    changedTouches: e.changedTouches?.length
+                btn.addEventListener('touchend', (e) => {
+                    console.log('🎯 .btn-primary touch! Navegando para mood...');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.showScreen('mood');
                 });
-                e.preventDefault();
-                e.stopPropagation();
-                const screen = e.currentTarget.dataset.screen;
-                console.log('🧭 Navegando para (touch):', screen);
-                this.showScreen(screen);
-            };
-            
-            // Add listeners
-            btn.addEventListener('click', btn._screenClickHandler);
-            btn.addEventListener('touchend', btn._screenTouchHandler);
-            
-            console.log('✅ Event listeners anexados ao botão:', btn.dataset.screen);
-        });
-
-        // Mood form submission
-        const moodForm = document.getElementById('mood-form');
-        console.log('📝 Formulário de humor encontrado:', !!moodForm);
-        moodForm?.addEventListener('submit', (e) => {
-            console.log('📝 Mood form submit event triggered');
-            this.handleMoodSubmit(e);
-        });
-
-        // Report generation with mobile optimization
-        const reportBtn = document.getElementById('generate-report');
-        console.log('📊 Botão relatório encontrado:', !!reportBtn);
-        
-        if (reportBtn) {
-            // 🔥 CORREÇÃO: Múltiplos event listeners para melhor compatibilidade mobile
-            const generateReportHandler = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('📊 Gerando relatório...');
-                this.generateReport();
-            };
-            
-            // Event listeners para diferentes tipos de interação
-            reportBtn.addEventListener('click', generateReportHandler);
-            reportBtn.addEventListener('touchend', generateReportHandler);
-            
-            // Prevenção de double-tap zoom no iOS
-            reportBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
             });
-            
-            // Feedback visual para touch
-            reportBtn.addEventListener('touchstart', () => {
-                reportBtn.style.transform = 'scale(0.98)';
-                reportBtn.style.opacity = '0.8';
+
+            // All screen navigation buttons (data-screen)
+            const screenBtns = document.querySelectorAll('[data-screen]');
+            console.log('🧭 Botões de navegação encontrados:', screenBtns.length, screenBtns);
+            screenBtns.forEach(btn => {
+                console.log('🧭 Configurando event listener para botão:', btn.dataset.screen, btn);
+                console.log('🧭 Botão tem pointer-events:', window.getComputedStyle(btn).pointerEvents);
+                console.log('🧭 Botão tem touch-action:', window.getComputedStyle(btn).touchAction);
+
+                // Remove existing listeners to avoid duplicates
+                btn.removeEventListener('click', btn._screenClickHandler);
+                btn.removeEventListener('touchend', btn._screenTouchHandler);
+
+                // Create handlers
+                btn._screenClickHandler = (e) => {
+                    console.log('🖱️ CLICK EVENT disparado no botão:', e.currentTarget.dataset.screen);
+                    console.log('🖱️ Event details:', {
+                        type: e.type,
+                        target: e.target,
+                        currentTarget: e.currentTarget,
+                        screen: e.currentTarget.dataset.screen
+                    });
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const screen = e.currentTarget.dataset.screen;
+                    console.log('🧭 Navegando para (click):', screen);
+                    this.showScreen(screen);
+                };
+
+                btn._screenTouchHandler = (e) => {
+                    console.log('👆 TOUCH EVENT disparado no botão:', e.currentTarget.dataset.screen);
+                    console.log('👆 Touch event details:', {
+                        type: e.type,
+                        target: e.target,
+                        currentTarget: e.currentTarget,
+                        touches: e.touches?.length,
+                        changedTouches: e.changedTouches?.length
+                    });
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const screen = e.currentTarget.dataset.screen;
+                    console.log('🧭 Navegando para (touch):', screen);
+                    this.showScreen(screen);
+                };
+
+                // Add listeners
+                btn.addEventListener('click', btn._screenClickHandler);
+                btn.addEventListener('touchend', btn._screenTouchHandler);
+
+                console.log('✅ Event listeners anexados ao botão:', btn.dataset.screen);
             });
-            
-            reportBtn.addEventListener('touchend', () => {
-                setTimeout(() => {
+
+            // ===== 4. MOOD CONTINUE BUTTON - #mood-continue-btn 'click' → handleMoodSubmit() =====
+            const moodContinueBtn = document.getElementById('mood-continue-btn');
+            console.log('📝 Botão mood-continue encontrado:', !!moodContinueBtn);
+            if (moodContinueBtn) {
+                moodContinueBtn.addEventListener('click', (e) => {
+                    console.log('📝 mood-continue-btn clicado! Chamando handleMoodSubmit...');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.handleMoodSubmit(e);
+                });
+                moodContinueBtn.addEventListener('touchend', (e) => {
+                    console.log('📝 mood-continue-btn touch! Chamando handleMoodSubmit...');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.handleMoodSubmit(e);
+                });
+            }
+
+            // Mood form submission
+            const moodForm = document.getElementById('mood-form');
+            console.log('📝 Formulário de humor encontrado:', !!moodForm);
+            moodForm?.addEventListener('submit', (e) => {
+                console.log('📝 Mood form submit event triggered');
+                this.handleMoodSubmit(e);
+            });
+
+            // ===== 5. GENERATE REPORT BUTTON - #generate-report 'click' → generateReport(entries) =====
+            const reportBtn = document.getElementById('generate-report');
+            console.log('📊 Botão relatório encontrado:', !!reportBtn);
+
+            if (reportBtn) {
+                // 🔥 CORREÇÃO: Múltiplos event listeners para melhor compatibilidade mobile
+                const generateReportHandler = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('📊 generate-report clicado! Gerando relatório...');
+                    this.generateReport();
+                };
+
+                // Event listeners para diferentes tipos de interação
+                reportBtn.addEventListener('click', generateReportHandler);
+                reportBtn.addEventListener('touchend', generateReportHandler);
+
+                // Prevenção de double-tap zoom no iOS
+                reportBtn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                });
+
+                // Feedback visual para touch
+                reportBtn.addEventListener('touchstart', () => {
+                    reportBtn.style.transform = 'scale(0.98)';
+                    reportBtn.style.opacity = '0.8';
+                });
+
+                reportBtn.addEventListener('touchend', () => {
+                    setTimeout(() => {
+                        reportBtn.style.transform = 'scale(1)';
+                        reportBtn.style.opacity = '1';
+                    }, 150);
+                });
+
+                reportBtn.addEventListener('touchcancel', () => {
                     reportBtn.style.transform = 'scale(1)';
                     reportBtn.style.opacity = '1';
-                }, 150);
-            });
-            
-            reportBtn.addEventListener('touchcancel', () => {
-                reportBtn.style.transform = 'scale(1)';
-                reportBtn.style.opacity = '1';
-            });
-        }
+                });
+            }
 
-        // PDF generation button
-        const pdfBtn = document.getElementById('generate-pdf-report');
-        console.log('📄 Botão PDF encontrado:', !!pdfBtn);
-        
-        if (pdfBtn) {
-            const generatePDFHandler = async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('📄 Gerando PDF...');
-                
-                try {
-                    // Disable button during generation
-                    pdfBtn.disabled = true;
-                    pdfBtn.textContent = '📄 Gerando PDF...';
-                    
-                    await window.aiAnalysis.downloadReportPDF();
-                    
-                } catch (error) {
-                    console.error('Erro ao gerar PDF:', error);
-                    this.showToast('Erro ao gerar PDF: ' + error.message, 'error');
-                } finally {
-                    // Re-enable button
-                    pdfBtn.disabled = false;
-                    pdfBtn.textContent = '📄 Baixar Relatório em PDF';
-                }
-            };
-            
-            // Event listeners for PDF button
-            pdfBtn.addEventListener('click', generatePDFHandler);
-            pdfBtn.addEventListener('touchend', generatePDFHandler);
-            
-            // Touch feedback for PDF button
-            pdfBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                pdfBtn.style.transform = 'scale(0.98)';
-                pdfBtn.style.opacity = '0.8';
-            });
-            
-            pdfBtn.addEventListener('touchend', () => {
-                setTimeout(() => {
+            // PDF generation button
+            const pdfBtn = document.getElementById('generate-pdf-report');
+            console.log('📄 Botão PDF encontrado:', !!pdfBtn);
+
+            if (pdfBtn) {
+                const generatePDFHandler = async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('📄 generate-pdf-report clicado! Gerando PDF...');
+
+                    try {
+                        // Disable button during generation
+                        pdfBtn.disabled = true;
+                        pdfBtn.textContent = '📄 Gerando PDF...';
+
+                        await window.aiAnalysis.downloadReportPDF();
+
+                    } catch (error) {
+                        console.error('Erro ao gerar PDF:', error);
+                        this.showToast('Erro ao gerar PDF: ' + error.message, 'error');
+                    } finally {
+                        // Re-enable button
+                        pdfBtn.disabled = false;
+                        pdfBtn.textContent = '📄 Baixar Relatório em PDF';
+                    }
+                };
+
+                // Event listeners for PDF button
+                pdfBtn.addEventListener('click', generatePDFHandler);
+                pdfBtn.addEventListener('touchend', generatePDFHandler);
+
+                // Touch feedback for PDF button
+                pdfBtn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    pdfBtn.style.transform = 'scale(0.98)';
+                    pdfBtn.style.opacity = '0.8';
+                });
+
+                pdfBtn.addEventListener('touchend', () => {
+                    setTimeout(() => {
+                        pdfBtn.style.transform = 'scale(1)';
+                        pdfBtn.style.opacity = '1';
+                    }, 150);
+                });
+
+                pdfBtn.addEventListener('touchcancel', () => {
                     pdfBtn.style.transform = 'scale(1)';
                     pdfBtn.style.opacity = '1';
-                }, 150);
-            });
-            
-            pdfBtn.addEventListener('touchcancel', () => {
-                pdfBtn.style.transform = 'scale(1)';
-                pdfBtn.style.opacity = '1';
-            });
-        }
-
-        // Backup
-        const backupBtn = document.getElementById('backup-data');
-        console.log('💾 Botão backup encontrado:', !!backupBtn);
-        backupBtn?.addEventListener('click', () => {
-            console.log('💾 Fazendo backup...');
-            this.backupData();
-        });
-        const backupBtn = document.getElementById('backup-data');
-        console.log('💾 Botão backup encontrado:', !!backupBtn);
-        backupBtn?.addEventListener('click', () => {
-            console.log('💾 Fazendo backup...');
-            this.backupData();
-        });
-
-        // Connect Google Drive button
-        const connectBtn = document.getElementById('connect-google-drive');
-        console.log('🔗 Botão conectar Google Drive encontrado:', !!connectBtn);
-        connectBtn?.addEventListener('click', () => {
-            console.log('🔗 [BOTÃO] Botão "Conectar Google Drive" clicado!');
-            if (window.googleDriveBackup) {
-                console.log('🔗 [BOTÃO] Chamando showGoogleOneTap...');
-                window.googleDriveBackup.showGoogleOneTap();
-            } else {
-                console.error('🔗 [BOTÃO] Sistema de backup não disponível');
-                this.showToast('Sistema de backup não disponível', 'error');
+                });
             }
-        });
 
-        // Auto backup toggle
-        const autoBackupToggle = document.getElementById('auto-backup-toggle');
-        console.log('🔄 Toggle backup automático encontrado:', !!autoBackupToggle);
-        autoBackupToggle?.addEventListener('change', async (e) => {
-            console.log('🔄 Toggle backup automático alterado:', e.target.checked);
-            const enabled = e.target.checked;
+            // ===== 6. BACKUP DATA BUTTON - #backup-now-btn 'click' → backupData() com One Tap =====
+            const backupBtn = document.getElementById('backup-now-btn');
+            console.log('💾 Botão backup encontrado:', !!backupBtn);
+            if (backupBtn) {
+                backupBtn.addEventListener('click', () => {
+                    console.log('💾 backup-now-btn clicado! Fazendo backup...');
+                    this.backupData();
+                });
+                backupBtn.addEventListener('touchend', (e) => {
+                    console.log('💾 backup-now-btn touch! Fazendo backup...');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.backupData();
+                });
+            }
 
-            if (enabled) {
-                // Verificar se está conectado ao Google Drive
-                if (!window.googleDriveBackup?.isSignedIn) {
-                    this.showToast('Conecte-se ao Google Drive primeiro', 'warning');
-                    e.target.checked = false;
+            // Connect Google Drive button
+            const connectBtn = document.getElementById('connect-google-drive');
+            console.log('🔗 Botão conectar Google Drive encontrado:', !!connectBtn);
+            connectBtn?.addEventListener('click', () => {
+                console.log('🔗 [BOTÃO] Botão "Conectar Google Drive" clicado!');
+                if (window.googleDriveBackup) {
+                    console.log('🔗 [BOTÃO] Chamando showGoogleOneTap...');
+                    window.googleDriveBackup.showGoogleOneTap();
+                } else {
+                    console.error('🔗 [BOTÃO] Sistema de backup não disponível');
+                    this.showToast('Sistema de backup não disponível', 'error');
+                }
+            });
+
+            // Auto backup toggle
+            const autoBackupToggle = document.getElementById('auto-backup-toggle');
+            console.log('🔄 Toggle backup automático encontrado:', !!autoBackupToggle);
+            autoBackupToggle?.addEventListener('change', async (e) => {
+                console.log('🔄 Toggle backup automático alterado:', e.target.checked);
+                const enabled = e.target.checked;
+
+                if (enabled) {
+                    // Verificar se está conectado ao Google Drive
+                    if (!window.googleDriveBackup?.isSignedIn) {
+                        this.showToast('Conecte-se ao Google Drive primeiro', 'warning');
+                        e.target.checked = false;
+                        return;
+                    }
+
+                    const success = await window.googleDriveBackup.enableAutoBackup();
+                    if (!success) {
+                        e.target.checked = false;
+                    }
+                } else {
+                    await window.googleDriveBackup.disableAutoBackup();
+                }
+
+                // Atualizar status na UI
+                this.updateAutoBackupStatus();
+            });
+
+            // Manual backup button
+            const manualBackupBtn = document.getElementById('backup-now-btn');
+            console.log('💾 Botão backup manual encontrado:', !!manualBackupBtn);
+            manualBackupBtn?.addEventListener('click', async () => {
+                console.log('💾 Botão backup manual clicado');
+
+                // Verificar se o sistema de backup está disponível
+                if (!window.googleDriveBackup) {
+                    this.showToast('Sistema de backup não disponível', 'error');
                     return;
                 }
 
-                const success = await window.googleDriveBackup.enableAutoBackup();
-                if (!success) {
-                    e.target.checked = false;
+                // Verificar se o usuário está conectado ao Google Drive
+                if (!window.googleDriveBackup.isSignedIn) {
+                    this.showToast('🔗 Conecte-se ao Google Drive primeiro usando o botão "Conectar Google Drive"', 'warning');
+                    return;
                 }
-            } else {
-                await window.googleDriveBackup.disableAutoBackup();
-            }
 
-            // Atualizar status na UI
-            this.updateAutoBackupStatus();
-        });
+                // Mostrar feedback visual - botão em loading
+                const btn = document.getElementById('backup-now-btn');
+                const btnText = btn.querySelector('.btn-text');
+                const btnLoading = btn.querySelector('.btn-loading');
 
-        // Manual backup button
-        const manualBackupBtn = document.getElementById('backup-now-btn');
-        console.log('💾 Botão backup manual encontrado:', !!manualBackupBtn);
-        manualBackupBtn?.addEventListener('click', async () => {
-            console.log('💾 Botão backup manual clicado');
-
-            // Verificar se o sistema de backup está disponível
-            if (!window.googleDriveBackup) {
-                this.showToast('Sistema de backup não disponível', 'error');
-                return;
-            }
-
-            // Verificar se o usuário está conectado ao Google Drive
-            if (!window.googleDriveBackup.isSignedIn) {
-                this.showToast('🔗 Conecte-se ao Google Drive primeiro usando o botão "Conectar Google Drive"', 'warning');
-                return;
-            }
-
-            // Mostrar feedback visual - botão em loading
-            const btn = document.getElementById('backup-now-btn');
-            const btnText = btn.querySelector('.btn-text');
-            const btnLoading = btn.querySelector('.btn-loading');
-
-            if (btn && btnText && btnLoading) {
-                btn.classList.add('loading');
-                btn.disabled = true;
-            }
-
-            try {
-                // Mostrar feedback
-                this.showToast('🔄 Fazendo backup manual...', 'info');
-
-                // Executar backup
-                await window.googleDriveBackup.backupToDrive();
-
-                // Feedback de sucesso
-                this.showToast('✅ Backup manual realizado com sucesso!', 'success');
-
-                // Atualizar status do último backup
-                this.updateAutoBackupStatus();
-
-            } catch (error) {
-                console.error('❌ Erro no backup manual:', error);
-                this.showToast('❌ Erro no backup manual: ' + error.message, 'error');
-            } finally {
-                // Restaurar botão
                 if (btn && btnText && btnLoading) {
-                    btn.classList.remove('loading');
-                    btn.disabled = false;
+                    btn.classList.add('loading');
+                    btn.disabled = true;
                 }
-            }
-        });
 
-        // AI mode toggle
-        const modeLabels = document.querySelectorAll('.mode-label');
-        console.log('🤖 Labels de modo AI encontrados:', modeLabels.length);
-        modeLabels.forEach(label => {
-            label.addEventListener('click', (e) => {
-                console.log('🤖 Label clicado:', label);
-                const forAttr = label.getAttribute('for');
-                console.log('🤖 For attribute:', forAttr);
-                const radio = document.getElementById(forAttr);
-                if (radio) {
-                    radio.checked = true;
-                    console.log('🤖 Modo AI alterado para:', radio.value);
+                try {
+                    // Mostrar feedback
+                    this.showToast('🔄 Fazendo backup manual...', 'info');
+
+                    // Executar backup
+                    await window.googleDriveBackup.backupToDrive();
+
+                    // Feedback de sucesso
+                    this.showToast('✅ Backup manual realizado com sucesso!', 'success');
+
+                    // Atualizar status do último backup
+                    this.updateAutoBackupStatus();
+
+                } catch (error) {
+                    console.error('❌ Erro no backup manual:', error);
+                    this.showToast('❌ Erro no backup manual: ' + error.message, 'error');
+                } finally {
+                    // Restaurar botão
+                    if (btn && btnText && btnLoading) {
+                        btn.classList.remove('loading');
+                        btn.disabled = false;
+                    }
                 }
             });
-        });
 
-        // 🔥 CORREÇÃO: Premium Actions - Análise Avançada e Export PDF
-        const advancedAnalysisBtn = document.getElementById('advanced-analysis');
-        const exportPdfBtn = document.getElementById('export-pdf');
-        
-        console.log('🧠 Botão análise avançada encontrado:', !!advancedAnalysisBtn);
-        console.log('📄 Botão export PDF encontrado:', !!exportPdfBtn);
-        
-        advancedAnalysisBtn?.addEventListener('click', async () => {
-            console.log('🧠 Análise avançada clicada!');
-            
-            try {
-                this.showToast('🤖 Gerando análise avançada...', 'info');
-                
-                // Usar o sistema de análise IA
-                if (window.aiAnalysis) {
-                    const analysis = await window.aiAnalysis.generateFullAnalysis(this.data);
-                    this.displayAdvancedAnalysis(analysis);
-                } else {
-                    throw new Error('Sistema de IA não disponível');
+            // AI mode toggle
+            const modeLabels = document.querySelectorAll('.mode-label');
+            console.log('🤖 Labels de modo AI encontrados:', modeLabels.length);
+            modeLabels.forEach(label => {
+                label.addEventListener('click', (e) => {
+                    console.log('🤖 Label clicado:', label);
+                    const forAttr = label.getAttribute('for');
+                    console.log('🤖 For attribute:', forAttr);
+                    const radio = document.getElementById(forAttr);
+                    if (radio) {
+                        radio.checked = true;
+                        console.log('🤖 Modo AI alterado para:', radio.value);
+                    }
+                });
+            });
+
+            // 🔥 CORREÇÃO: Premium Actions - Análise Avançada e Export PDF
+            const advancedAnalysisBtn = document.getElementById('advanced-analysis');
+            const exportPdfBtn = document.getElementById('export-pdf');
+
+            console.log('🧠 Botão análise avançada encontrado:', !!advancedAnalysisBtn);
+            console.log('📄 Botão export PDF encontrado:', !!exportPdfBtn);
+
+            advancedAnalysisBtn?.addEventListener('click', async () => {
+                console.log('🧠 Análise avançada clicada!');
+
+                try {
+                    this.showToast('🤖 Gerando análise avançada...', 'info');
+
+                    // Usar o sistema de análise IA
+                    if (window.aiAnalysis) {
+                        const analysis = await window.aiAnalysis.generateFullAnalysis(this.data);
+                        this.displayAdvancedAnalysis(analysis);
+                    } else {
+                        throw new Error('Sistema de IA não disponível');
+                    }
+                } catch (error) {
+                    console.error('Erro na análise avançada:', error);
+                    this.showToast('Erro ao gerar análise. Tente novamente.', 'error');
                 }
-            } catch (error) {
-                console.error('Erro na análise avançada:', error);
-                this.showToast('Erro ao gerar análise. Tente novamente.', 'error');
-            }
-        });
-        
-        exportPdfBtn?.addEventListener('click', async () => {
-            console.log('📄 Export PDF clicado!');
-            
-            try {
-                this.showToast('📄 Gerando PDF...', 'info');
-                
-                // Usar o sistema de análise IA para PDF
-                if (window.aiAnalysis) {
-                    await window.aiAnalysis.downloadReportPDF();
-                } else {
-                    throw new Error('Sistema de PDF não disponível');
+            });
+
+            exportPdfBtn?.addEventListener('click', async () => {
+                console.log('📄 Export PDF clicado!');
+
+                try {
+                    this.showToast('📄 Gerando PDF...', 'info');
+
+                    // Usar o sistema de análise IA para PDF
+                    if (window.aiAnalysis) {
+                        await window.aiAnalysis.downloadReportPDF();
+                    } else {
+                        throw new Error('Sistema de PDF não disponível');
+                    }
+                } catch (error) {
+                    console.error('Erro no export PDF:', error);
+                    this.showToast('Erro ao gerar PDF. Tente novamente.', 'error');
                 }
-            } catch (error) {
-                console.error('Erro no export PDF:', error);
-                this.showToast('Erro ao gerar PDF. Tente novamente.', 'error');
-            }
-        });
+            });
 
-        // Delete buttons
-        const deleteAllBtn = document.getElementById('delete-all-data');
-        const confirmDeleteEntryBtn = document.getElementById('confirm-delete-entry');
-        const cancelDeleteEntryBtn = document.getElementById('cancel-delete-entry');
-        const confirmDeleteAllBtn = document.getElementById('confirm-delete-all');
-        const cancelDeleteAllBtn = document.getElementById('cancel-delete-all');
+            // Delete buttons
+            const deleteAllBtn = document.getElementById('delete-all-data');
+            const confirmDeleteEntryBtn = document.getElementById('confirm-delete-entry');
+            const cancelDeleteEntryBtn = document.getElementById('cancel-delete-entry');
+            const confirmDeleteAllBtn = document.getElementById('confirm-delete-all');
+            const cancelDeleteAllBtn = document.getElementById('cancel-delete-all');
 
-        deleteAllBtn?.addEventListener('click', () => {
-            console.log('🗑️ Botão "Apagar Todos os Dados" clicado');
-            this.showDeleteAllDataModal();
-        });
+            deleteAllBtn?.addEventListener('click', () => {
+                console.log('🗑️ Botão "Apagar Todos os Dados" clicado');
+                this.showDeleteAllDataModal();
+            });
 
-        confirmDeleteEntryBtn?.addEventListener('click', async () => {
-            const modal = document.getElementById('delete-entry-modal');
-            const entryId = modal?._entryId;
-            if (entryId) {
-                await this.deleteEntry(entryId);
+            confirmDeleteEntryBtn?.addEventListener('click', async () => {
+                const modal = document.getElementById('delete-entry-modal');
+                const entryId = modal?._entryId;
+                if (entryId) {
+                    await this.deleteEntry(entryId);
+                    this.hideDeleteModals();
+                }
+            });
+
+            cancelDeleteEntryBtn?.addEventListener('click', () => {
                 this.hideDeleteModals();
-            }
-        });
+            });
 
-        cancelDeleteEntryBtn?.addEventListener('click', () => {
-            this.hideDeleteModals();
-        });
+            confirmDeleteAllBtn?.addEventListener('click', async () => {
+                await this.deleteAllData();
+                this.hideDeleteModals();
+            });
 
-        confirmDeleteAllBtn?.addEventListener('click', async () => {
-            await this.deleteAllData();
-            this.hideDeleteModals();
-        });
+            cancelDeleteAllBtn?.addEventListener('click', () => {
+                this.hideDeleteModals();
+            });
 
-        cancelDeleteAllBtn?.addEventListener('click', () => {
-            this.hideDeleteModals();
-        });
+            console.log('✅ Todos os event listeners configurados com sucesso!');
         } catch (error) {
             console.error('❌ Erro ao configurar event listeners:', error);
         }
+    }
+
+    removeExistingListeners() {
+        console.log('🧹 Removendo listeners duplicados...');
+
+        // Remove any existing listeners from common buttons
+        const buttonsToClean = [
+            'btn-primary', 'mood-continue-btn', 'generate-report',
+            'backup-data', 'connect-google-drive', 'backup-now-btn'
+        ];
+
+        buttonsToClean.forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                // Clone and replace to remove all listeners
+                const clone = btn.cloneNode(true);
+                btn.parentNode.replaceChild(clone, btn);
+                console.log(`🧹 Limpo listeners de #${id}`);
+            }
+        });
+
+        // Clean class-based buttons
+        const classButtons = ['btn-primary', 'primary-feeling-btn'];
+        classButtons.forEach(className => {
+            const buttons = document.querySelectorAll(`.${className}`);
+            buttons.forEach(btn => {
+                const clone = btn.cloneNode(true);
+                btn.parentNode.replaceChild(clone, btn);
+            });
+            console.log(`🧹 Limpo listeners de .${className}`);
+        });
+
+        console.log('✅ Listeners duplicados removidos');
     }
 
     setupAdminKeyListener() {
@@ -1178,6 +1221,10 @@ class MentalIA {
             // Success feedback
             console.log('✅ [APP] Save successful, showing success toast');
             this.showToast('Humor registrado com sucesso! 🎉', 'success');
+
+            // Reload data to update stats and chart
+            console.log('🔄 [APP] Reloading data to update UI...');
+            await this.loadData();
 
             // Reset form and go to history
             console.log('🔄 [APP] Resetting form and navigating to history...');
@@ -2720,3 +2767,93 @@ window.addEventListener('unhandledrejection', function(event) {
 window.addEventListener('error', function(event) {
     console.error('❌ Erro não capturado:', event.error);
 });
+
+// ===== INICIALIZAÇÃO DA APLICAÇÃO =====
+console.log('🚀 Inicializando MentalIA 3.1...');
+
+// Inicializar quando DOM estiver pronto
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
+
+async function initApp() {
+    console.log('📱 DOM pronto, iniciando aplicação...');
+    
+    try {
+        // Criar instância global da aplicação
+        window.mentalIA = new MentalIA();
+        
+        // Aguardar inicialização completa
+        await window.mentalIA.init();
+        
+        console.log('✅ MentalIA 3.1 inicializado com sucesso!');
+        
+    } catch (error) {
+        console.error('❌ Erro fatal na inicialização:', error);
+        console.error('❌ Stack trace:', error.stack);
+        
+        // Mostrar erro na tela para o usuário
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 20px;
+            text-align: center;
+            font-family: system-ui, -apple-system, sans-serif;
+        `;
+        errorDiv.innerHTML = `
+            <h1 style="color: #ff6b6b; margin-bottom: 20px;">🚨 Erro na Inicialização</h1>
+            <p style="margin-bottom: 20px; max-width: 600px; line-height: 1.6;">
+                Ocorreu um erro ao carregar o MentalIA. Isso pode ser causado por:
+            </p>
+            <ul style="text-align: left; margin-bottom: 30px; max-width: 500px;">
+                <li>• Problemas de conectividade</li>
+                <li>• Dados corrompidos no navegador</li>
+                <li>• Conflito com extensões</li>
+                <li>• Versão desatualizada do navegador</li>
+            </ul>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
+                <button onclick="location.reload()" style="
+                    background: #6366f1;
+                    color: white;
+                    border: none;
+                    padding: 12px 24px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 16px;
+                ">🔄 Recarregar Página</button>
+                <button onclick="localStorage.clear(); location.reload()" style="
+                    background: #ff6b6b;
+                    color: white;
+                    border: none;
+                    padding: 12px 24px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 16px;
+                ">🗑️ Limpar Dados e Recarregar</button>
+            </div>
+            <details style="margin-top: 30px; max-width: 600px;">
+                <summary style="cursor: pointer; color: #888;">Detalhes técnicos (clique para expandir)</summary>
+                <pre style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 6px; margin-top: 10px; text-align: left; font-size: 12px; overflow: auto;">${error.message}\n\n${error.stack}</pre>
+            </details>
+        `;
+        document.body.appendChild(errorDiv);
+    }
+}
+
+// Exportar para uso global
+window.MentalIA = MentalIA;
+
+console.log('🎯 MentalIA 3.1 setup completo!');
