@@ -37,6 +37,7 @@ class MentalIA {
         this.selectedFeelings = new Set();
         this.currentUser = null;
         this.isPremium = true; // Todos os recursos gratuitos
+        this.moodFormInitialized = false; // Flag to prevent double initialization
         // setupEventListeners() will be called in init() after DOM is ready
     }
 
@@ -501,6 +502,9 @@ class MentalIA {
             }
         });
 
+        // Initialize mood form components
+        this.initMoodForm();
+
         console.log('✅ Event listeners configurados');
         } catch (error) {
             console.error('❌ Erro ao configurar event listeners:', error);
@@ -536,6 +540,9 @@ class MentalIA {
 
     // ===== MOOD SLIDER =====
     initMoodForm() {
+        if (this.moodFormInitialized) return;
+        this.moodFormInitialized = true;
+
         console.log('🎚️ Inicializando slider de humor...');
 
         // Setup mood slider with input listener and color gradient
@@ -749,6 +756,7 @@ class MentalIA {
                 if (checkbox) {
                     console.log('🎭 Checkbox encontrado, toggling:', checkbox.checked);
                     checkbox.checked = !checkbox.checked;
+                    item.classList.toggle('selected', checkbox.checked);
                     console.log('🎭 Checkbox novo estado:', checkbox.checked);
                     this.updateSelectedFeelings();
                 } else {
@@ -1722,7 +1730,13 @@ class MentalIA {
         if (window.googleDriveBackup) {
             await window.googleDriveBackup.handleBackupClick();
         } else {
-            this.showToast('Sistema de backup não disponível', 'error');
+            // Try to open Google One Tap if available
+            if (window.google && google.accounts) {
+                google.accounts.id.prompt();
+                this.showToast('Faça login com Google para fazer backup', 'info');
+            } else {
+                this.showToast('Sistema de backup não disponível', 'error');
+            }
         }
     }
 
