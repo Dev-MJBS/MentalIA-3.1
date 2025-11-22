@@ -487,10 +487,39 @@ class MentalIA {
             }
         });
 
-        // Initialize mood form components
-        this.initMoodForm();
+        // Delete buttons
+        const deleteAllBtn = document.getElementById('delete-all-data');
+        const confirmDeleteEntryBtn = document.getElementById('confirm-delete-entry');
+        const cancelDeleteEntryBtn = document.getElementById('cancel-delete-entry');
+        const confirmDeleteAllBtn = document.getElementById('confirm-delete-all');
+        const cancelDeleteAllBtn = document.getElementById('cancel-delete-all');
 
-        console.log('✅ Event listeners configurados');
+        deleteAllBtn?.addEventListener('click', () => {
+            console.log('🗑️ Botão "Apagar Todos os Dados" clicado');
+            this.showDeleteAllDataModal();
+        });
+
+        confirmDeleteEntryBtn?.addEventListener('click', async () => {
+            const modal = document.getElementById('delete-entry-modal');
+            const entryId = modal?._entryId;
+            if (entryId) {
+                await this.deleteEntry(entryId);
+                this.hideDeleteModals();
+            }
+        });
+
+        cancelDeleteEntryBtn?.addEventListener('click', () => {
+            this.hideDeleteModals();
+        });
+
+        confirmDeleteAllBtn?.addEventListener('click', async () => {
+            await this.deleteAllData();
+            this.hideDeleteModals();
+        });
+
+        cancelDeleteAllBtn?.addEventListener('click', () => {
+            this.hideDeleteModals();
+        });
         } catch (error) {
             console.error('❌ Erro ao configurar event listeners:', error);
         }
@@ -1575,10 +1604,22 @@ class MentalIA {
                 <div class="entry-header">
                     <span class="entry-mood">${this.getMoodData(entry.mood).emoji} ${entry.mood}/5</span>
                     <span class="entry-date">${new Date(entry.timestamp).toLocaleDateString('pt-BR')}</span>
+                    <button class="btn-delete-entry" data-entry-id="${entry.id}" title="Excluir este registro">
+                        🗑️
+                    </button>
                 </div>
                 ${entry.diary ? `<div class="entry-text">${entry.diary.substring(0, 100)}${entry.diary.length > 100 ? '...' : ''}</div>` : ''}
             </div>
         `).join('');
+
+        // Adicionar event listeners para os botões de delete
+        container.querySelectorAll('.btn-delete-entry').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const entryId = parseInt(btn.dataset.entryId);
+                this.showDeleteEntryModal(entryId);
+            });
+        });
     }
 
     // ===== REPORT =====
@@ -1767,18 +1808,71 @@ class MentalIA {
         }
     }
 
-    // ===== BACKUP =====
-    async backupData() {
-        if (window.googleDriveBackup) {
-            await window.googleDriveBackup.handleBackupClick();
-        } else {
-            // Try to open Google One Tap if available
-            if (window.google && google.accounts) {
-                google.accounts.id.prompt();
-                this.showToast('Faça login com Google para fazer backup', 'info');
-            } else {
-                this.showToast('Sistema de backup não disponível', 'error');
+    // ===== MODALS =====
+    showDeleteEntryModal(entryId) {
+        const modal = document.getElementById('delete-entry-modal');
+        if (!modal) return;
+
+        modal.classList.add('active');
+        modal._entryId = entryId; // Store entry ID for confirmation
+    }
+
+    showDeleteAllDataModal() {
+        const modal = document.getElementById('delete-all-modal');
+        if (!modal) return;
+
+        modal.classList.add('active');
+    }
+
+    hideDeleteModals() {
+        document.querySelectorAll('.delete-modal').forEach(modal => {
+            modal.classList.remove('active');
+        });
+    }
+
+    async deleteEntry(entryId) {
+        try {
+            console.log('🗑️ Deletando entrada:', entryId);
+            await window.mentalStorage.deleteEntry(entryId);
+
+            this.showToast('Dados excluídos com sucesso. Respeitamos seu direito à privacidade.', 'success', 5000);
+
+            // Reload data and update UI
+            await this.loadData();
+
+        } catch (error) {
+            console.error('❌ Erro ao deletar entrada:', error);
+            this.showToast('Erro ao excluir dados. Tente novamente.', 'error');
+        }
+    }
+
+    async deleteAllData() {
+        try {
+            console.log('🗑️ Deletando TODOS os dados...');
+
+            // Show loading state
+            this.showToast('Excluindo todos os dados...', 'info');
+
+            await window.mentalStorage.deleteAllEntries();
+
+            this.showToast('Todos os dados foram excluídos permanentemente. Respeitamos seu direito à privacidade.', 'success', 6000);
+
+            // Clear chart and reload data (will show empty state)
+            if (this.chart) {
+                this.chart.destroy();
+                this.chart = null;
             }
+
+            await this.loadData();
+
+            // Redirect to welcome screen
+            setTimeout(() => {
+                this.showScreen('welcome');
+            }, 2000);
+
+        } catch (error) {
+            console.error('❌ Erro ao deletar todos os dados:', error);
+            this.showToast('Erro ao excluir dados. Tente novamente.', 'error');
         }
     }
 

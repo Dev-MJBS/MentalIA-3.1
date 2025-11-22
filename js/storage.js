@@ -364,9 +364,53 @@ class MentalStorage {
         });
     }
 
-    async ensureInitialized() {
-        if (!this.initialized) {
-            await this.init();
+    async deleteEntry(entryId) {
+        try {
+            console.log('🗑️ [STORAGE] deleteEntry called for ID:', entryId);
+            await this.ensureInitialized();
+
+            const transaction = this.db.transaction(['moodEntries'], 'readwrite');
+            const store = transaction.objectStore('moodEntries');
+
+            return new Promise((resolve, reject) => {
+                const request = store.delete(entryId);
+                request.onsuccess = () => {
+                    console.log('✅ [STORAGE] Entry deleted successfully:', entryId);
+                    resolve(true);
+                };
+                request.onerror = (event) => {
+                    console.error('❌ [STORAGE] Error deleting entry:', request.error, event);
+                    reject(request.error);
+                };
+            });
+        } catch (error) {
+            console.error('❌ [STORAGE] deleteEntry failed:', error);
+            throw error;
+        }
+    }
+
+    async deleteAllEntries() {
+        try {
+            console.log('🗑️ [STORAGE] deleteAllEntries called - DELETING ALL DATA');
+            await this.ensureInitialized();
+
+            const transaction = this.db.transaction(['moodEntries'], 'readwrite');
+            const store = transaction.objectStore('moodEntries');
+
+            return new Promise((resolve, reject) => {
+                const request = store.clear();
+                request.onsuccess = () => {
+                    console.log('✅ [STORAGE] All entries deleted successfully');
+                    resolve(true);
+                };
+                request.onerror = (event) => {
+                    console.error('❌ [STORAGE] Error deleting all entries:', request.error, event);
+                    reject(request.error);
+                };
+            });
+        } catch (error) {
+            console.error('❌ [STORAGE] deleteAllEntries failed:', error);
+            throw error;
         }
     }
 

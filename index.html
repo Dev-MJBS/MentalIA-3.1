@@ -836,6 +836,10 @@
                         <span class="btn-icon">📥</span>
                         Restaurar
                     </button>
+                    <button id="delete-all-data" class="btn-delete-all">
+                        <span class="btn-icon">🗑️</span>
+                        <span class="btn-text">Apagar Todos os Dados</span>
+                    </button>
                     <button id="debug-logs" class="btn-secondary debug-btn admin-only hidden" onclick="window.exportDebugLogs()">
                         <span class="btn-icon">🐛</span>
                         Debug Logs
@@ -859,6 +863,37 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Delete Entry Modal -->
+            <div class="delete-modal" id="delete-entry-modal">
+                <div class="delete-modal-content">
+                    <h3>🗑️ Excluir Registro</h3>
+                    <p>Tem certeza que deseja excluir este registro de humor? Esta ação não pode ser desfeita.</p>
+                    <div class="delete-modal-actions">
+                        <button class="modal-btn delete" id="confirm-delete-entry">Excluir</button>
+                        <button class="modal-btn secondary" id="cancel-delete-entry">Cancelar</button>
+                    </div>
+                    <div class="lgpd-notice">
+                        <small>🔒 Direito à exclusão garantido pela LGPD (Art. 18, VI)</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delete All Data Modal -->
+            <div class="delete-modal" id="delete-all-modal">
+                <div class="delete-modal-content">
+                    <h3>⚠️ Apagar Todos os Dados</h3>
+                    <p><strong>Atenção:</strong> Esta ação irá excluir permanentemente todos os seus registros de humor, sentimentos e dados pessoais armazenados localmente.</p>
+                    <p>Você pode registrar novos dados quando quiser, mas os dados atuais serão perdidos para sempre.</p>
+                    <div class="delete-modal-actions">
+                        <button class="modal-btn delete-all" id="confirm-delete-all">Apagar Tudo</button>
+                        <button class="modal-btn secondary" id="cancel-delete-all">Cancelar</button>
+                    </div>
+                    <div class="lgpd-notice">
+                        <small>🔒 Direito ao esquecimento garantido pela LGPD (Art. 18, VI)</small>
+                    </div>
+                </div>
+            </div>
         </section>
     </main>
 
@@ -877,6 +912,7 @@
     <script src="js/google_drive_backup.js?v=1141"></script>     <!-- 3º -->
     <script src="js/app.js?v=1149"></script>                     <!-- 4º e último -->
     <script src="test-storage.js"></script>                      <!-- Test script -->
+    <script src="test-modals.js"></script>                      <!-- Test modals script -->
 
     <!-- Service Worker + Inicialização Segura -->
     <script>
