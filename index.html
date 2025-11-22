@@ -262,29 +262,38 @@
                 <!-- Mood Slider Section -->
                 <div class="mood-slider-section">
                     <div class="slider-container">
-                        <input type="range" id="mood-slider" min="1" max="5" value="3" class="mood-slider" step="0.5" 
-                               aria-label="Nível de humor de 1 a 5" title="Deslize para ajustar seu humor">
+                        <!-- BIG emoji shown prominently -->
+                        <div class="big-mood-wrapper">
+                            <div id="big-mood-emoji" class="big-mood-emoji" aria-hidden="true">😐</div>
+                        </div>
+
+                        <!-- Slider: 1.0 - 10.0 per spec -->
+                        <input type="range" id="mood-slider" min="1" max="10" value="5" class="mood-slider" step="0.1"
+                               aria-label="Nível de humor de 1 a 10" title="Deslize para ajustar seu humor">
                     </div>
-                    
+
                     <div class="mood-indicators">
                         <div class="mood-indicator" data-value="1">
                             <div class="indicator-emoji">😢</div>
                             <div class="indicator-label">Muito Baixo</div>
                         </div>
-                        <div class="mood-indicator" data-value="3">
+                        <div class="mood-indicator" data-value="4">
                             <div class="indicator-emoji">😐</div>
                             <div class="indicator-label">Neutro</div>
                         </div>
-                        <div class="mood-indicator" data-value="5">
+                        <div class="mood-indicator" data-value="7">
                             <div class="indicator-emoji">😊</div>
+                            <div class="indicator-label">Alto</div>
+                        </div>
+                        <div class="mood-indicator" data-value="10">
+                            <div class="indicator-emoji">🥰</div>
                             <div class="indicator-label">Muito Alto</div>
                         </div>
                     </div>
-                    
+
                     <div class="current-mood">
-                        <div class="current-mood-emoji" id="current-mood-emoji">😐</div>
                         <div class="current-mood-text" id="current-mood-text">Neutro</div>
-                        <div class="current-mood-value" id="current-mood-value">3.0</div>
+                        <div class="current-mood-value" id="current-mood-value">5.0</div>
                     </div>
                 </div>
 
@@ -728,148 +737,56 @@
 
         <!-- Report Screen -->
         <section id="report-screen" class="screen">
-            <div class="screen-header">
-                <h2>Relatório de IA</h2>
-                <p>Análise profissional do seu bem-estar mental</p>
-            </div>
-
-            <!-- AI Mode Toggle -->
-            <div class="ai-mode-toggle">
-                <div class="toggle-header">
-                    <h3>Modo de Análise</h3>
-                    <div class="mode-switch">
-                        <input type="radio" id="mode-private" name="ai-mode" value="private" checked>
-                        <input type="radio" id="mode-fast" name="ai-mode" value="fast">
-                        <div class="switch-slider"></div>
-                        <label for="mode-private" class="mode-label">
-                            <span class="mode-icon">🔒</span>
-                            <span class="mode-text">
-                                <strong>Modo Privado</strong>
-                                <small>MedGemma-4B local (mais lento)</small>
-                            </span>
-                        </label>
-                        <label for="mode-fast" class="mode-label">
-                            <span class="mode-icon">⚡</span>
-                            <span class="mode-text">
-                                <strong>Modo Rápido</strong>
-                                <small>API externa (Claude/Gemini)</small>
-                            </span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Generate Report Button -->
-            <button id="generate-report" class="btn-primary btn-full">
-                🧠 Gerar Relatório de IA
-            </button>
-
-            <!-- PDF Download Button -->
-            <button id="generate-pdf-report" class="btn-secondary btn-full pdf-btn">
-                📄 Baixar Relatório em PDF
-            </button>
-
-            <!-- Recursos Avançados (Gratuitos) -->
-            <div class="advanced-actions">
-                <div class="action-group">
-                    <button id="export-pdf" class="btn-secondary">
-                        📄 Exportar PDF
-                    </button>
-                    <button id="advanced-analysis" class="btn-secondary">
-                        🧠 Análise Avançada
-                    </button>
-                </div>
-            </div>
-
-            <!-- Report Content -->
-            <div id="report-content" class="report-content hidden">
+            <div class="screen-inner">
                 <div class="report-header">
-                    <h3>📋 Relatório Gerado</h3>
-                    <span class="report-date" id="report-date"></span>
-                </div>
-                
-                <div class="report-section">
-                    <h4>🎯 Análise Geral</h4>
-                    <div id="general-analysis" class="analysis-content">
-                        <!-- Dynamic content -->
-                    </div>
+                    <h2>Relatório</h2>
+                    <p class="report-subtitle">Análise clínica resumida do seu período selecionado</p>
                 </div>
 
-                <div class="report-section">
-                    <h4>📊 Padrões Identificados</h4>
-                    <div id="patterns-analysis" class="analysis-content">
-                        <!-- Dynamic content -->
-                    </div>
-                </div>
-
-                <div class="report-section">
-                    <h4>💡 Recomendações</h4>
-                    <div id="recommendations" class="analysis-content">
-                        <!-- Dynamic content -->
-                    </div>
-                </div>
-
-                <div class="report-disclaimer">
-                    <h4>⚠️ Importante</h4>
-                    <p>Este relatório é baseado em análise de IA e não substitui o acompanhamento profissional. Se você está passando por dificuldades, procure ajuda de um psicólogo ou psiquiatra qualificado.</p>
-                </div>
-                
-                <!-- Report Actions -->
-                <div class="report-actions">
-                    <button id="download-pdf" class="btn-secondary btn-full" onclick="window.aiAnalysis.downloadReport()">
-                        📄 Baixar Relatório em PDF
-                    </button>
-                </div>
-            </div>
-
-            <!-- Backup Section -->
-            <div class="backup-section">
-                <h3>💾 Backup de Dados</h3>
-                <p>Seus dados ficam seguros localmente. Sincronize com Google Drive quando quiser:</p>
-                
-                <!-- Google Drive Status -->
-                <div class="drive-status" id="drive-status">
-                    <div class="status-indicator offline" id="status-indicator">
-                        <span class="status-icon">🔴</span>
-                        <span class="status-text">Faça login primeiro</span>
-                    </div>
-                    <button id="disconnect-drive" class="disconnect-btn">Desconectar</button>
-                </div>
-                
-                <div class="backup-controls">
-                    <!-- Google Drive Status -->
-                    <div id="google-backup-status" class="backup-status">🔴 Backup Google Drive não conectado</div>
-                    <div id="google-backup-btn" class="google-one-tap-btn"></div>
-                    
-                    <button id="backup-data" class="btn-secondary backup-btn">
-                        <span class="btn-icon">☁️</span>
-                        <span class="btn-text">Backup Seguro</span>
-                        <span class="btn-loading">⏳</span>
-                    </button>
-                    <button id="restore-data" class="btn-secondary">
-                        <span class="btn-icon">📥</span>
-                        Restaurar
-                    </button>
-                    <button id="debug-logs" class="btn-secondary debug-btn admin-only hidden" onclick="window.exportDebugLogs()">
-                        <span class="btn-icon">🐛</span>
-                        Debug Logs
-                    </button>
-                </div>
-                
-                <!-- Login Prompt -->
-                <div class="login-prompt" id="login-prompt">
-                    <p class="prompt-text">🔐 Para fazer backup, conecte-se ao Google Drive</p>
-                </div>
-                
-                <!-- Backup Confirmation Modal -->
-                <div class="backup-modal" id="backup-modal">
-                    <div class="backup-modal-content">
-                        <h3>🔒 Backup Criptografado</h3>
-                        <p>Vamos salvar seus dados criptografados no seu Google Drive? Nada fica armazenado lá sem sua chave.</p>
-                        <div class="backup-modal-actions">
-                            <button class="modal-btn primary" id="confirm-backup">Sim, fazer backup</button>
-                            <button class="modal-btn secondary" id="cancel-backup">Cancelar</button>
+                <div class="report-body">
+                    <div class="report-controls">
+                        <div class="mode-select">
+                            <label><input type="radio" name="ai-mode" value="private" checked> Modo Privado (local)</label>
+                            <label><input type="radio" name="ai-mode" value="fast"> Modo Rápido (externo)</label>
                         </div>
+                        <div class="report-actions-top">
+                            <button id="generate-report" class="btn-primary">🧠 Gerar Relatório</button>
+                            <button id="generate-pdf-report" class="btn-secondary">📄 Baixar PDF</button>
+                        </div>
+                    </div>
+
+                    <div id="report-content" class="report-content hidden">
+                        <div class="report-card" id="report-card">
+                            <div class="report-card-header">
+                                <h3>📋 Relatório Gerado</h3>
+                                <span id="report-date" class="report-date"></span>
+                            </div>
+
+                            <div class="report-section">
+                                <h4>🎯 Análise Geral</h4>
+                                <div id="general-analysis" class="analysis-content">Carregando...</div>
+                            </div>
+
+                            <div class="report-section">
+                                <h4>📊 Padrões Identificados</h4>
+                                <div id="patterns-analysis" class="analysis-content">—</div>
+                            </div>
+
+                            <div class="report-section">
+                                <h4>💡 Recomendações</h4>
+                                <div id="recommendations" class="analysis-content">—</div>
+                            </div>
+
+                            <div class="report-disclaimer">
+                                <strong>⚠️ Importante:</strong>
+                                <p>Este relatório é informativo e não substitui avaliação profissional.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="report-bottom-bar">
+                        <button id="export-report" class="btn">Exportar</button>
+                        <button id="share-report" class="btn">Compartilhar</button>
                     </div>
                 </div>
             </div>
@@ -906,11 +823,6 @@
     <script src="js/ai_analysis.js?v=1148"></script>             <!-- 2º -->
     <script src="js/google_drive_backup.js?v=1141"></script>     <!-- 3º -->
     <script src="js/app.js?v=1149"></script>                     <!-- 4º e último -->
-<<<<<<< HEAD
-=======
-    <script src="test-storage.js"></script>                      <!-- Test script -->
-    <script src="test-modals.js"></script>                      <!-- Test modals script -->
->>>>>>> parent of 6c8feb6 (Fix button)
 
     <!-- Service Worker + Inicialização Segura -->
     <script>

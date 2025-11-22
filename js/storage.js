@@ -146,9 +146,10 @@ class MentalStorage {
     async saveMoodEntry(moodData) {
         await this.ensureInitialized();
 
-        // Validate input
-        if (typeof moodData.mood !== 'number' || moodData.mood < 1 || moodData.mood > 5) {
-            throw new Error('Valor de humor deve ser um número entre 1 e 5');
+        // Validate input (mood scale 1..10)
+        // Note: The UI uses a 1..10 slider so storage must accept that range.
+        if (typeof moodData.mood !== 'number' || moodData.mood < 1 || moodData.mood > 10) {
+            throw new Error('Valor de humor deve ser um número entre 1 e 10');
         }
 
         const entry = {

@@ -1551,6 +1551,71 @@ body {
   margin-bottom: 0.5rem;
 }
 
+/* Report UI improvements: card layout, actions alignment and subtle shadows */
+.report-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+}
+
+.report-actions-top {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.report-actions-top .btn-primary,
+.report-actions-top .btn-secondary {
+  padding: 0.6rem 1rem;
+  font-size: 0.95rem;
+}
+
+.report-bottom-bar {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.report-chart-container {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.03);
+}
+
+.analysis-content.empty-fallback {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Expand icon rotate helper when toggled via JS */
+.expand-icon.rotated {
+  transform: rotate(180deg);
+}
+
+/* Make report bottom bar sticky above the bottom navigation for easier access */
+.report-screen .report-bottom-bar {
+  position: sticky;
+  bottom: 88px; /* leave space for bottom nav */
+  z-index: 40;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 8px;
+  background: transparent;
+}
+
+.report-bottom-bar .btn {
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+}
+
 /* Backup Section */
 .backup-section {
   background: var(--bg-secondary);
@@ -3129,4 +3194,66 @@ html, body {
   .modal-actions button {
     width: 100%;
   }
+}
+
+/* Big Mood Emoji (slider visual) */
+.big-mood-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0.5rem 0 0;
+}
+
+.big-mood-emoji {
+  font-size: clamp(48px, 12vw, 140px);
+  line-height: 1;
+  display: inline-block;
+  text-align: center;
+  transition: transform 0.25s ease, filter 0.25s ease, opacity 0.2s ease;
+  will-change: transform, filter;
+  margin-bottom: 0.5rem;
+}
+
+/* Report card & bottom bar styles */
+.report-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+}
+
+.report-actions-top {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.report-bottom-bar {
+  position: sticky;
+  bottom: 72px; /* above bottom nav */
+  left: 0;
+  width: 100%;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(90deg, rgba(0,0,0,0.02), rgba(0,0,0,0.01));
+  border-top: 1px solid var(--border);
+  margin-top: 1rem;
+}
+
+/* Small helpers for mood value display */
+.current-mood-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* Make sure big mood emoji scales down on small screens */
+@media (max-width: 480px) {
+  .big-mood-emoji { font-size: 56px; }
+  .report-actions-top { justify-content: center; }
+  .report-bottom-bar { bottom: 86px; }
 }

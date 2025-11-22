@@ -1,2316 +1,543 @@
-/*
-    Clean, minimal `app.js` for MentalIA 3.1
-    - Restores interactivity (navigation, slider, feelings, save, delete, report)
-    - Uses `window.mentalStorage` and `window.aiAnalysis` provided elsewhere
-    - Keeps implementation focused so it's easy to audit and avoids merge markers
+﻿/*
+  Full clean `app.js` for MentalIA 3.1
 */
 
 class MentalIA {
-    constructor() {
-        this.currentScreen = 'welcome';
-        this.currentMood = 3.0;
-        this.selectedFeelings = new Set();
-        this.pendingDelete = null;
+  constructor() {
+    this.currentScreen = 'welcome';
+    this.currentMood = 5.0;
+    this.selectedFeelings = new Set();
+    this.pendingDelete = null;
+    this.chart = null;
+  }
+
+  async init() {
+    await this.waitForReady();
+    this.setupEventListeners();
+    this.initTheme();
+    this.updateMoodDisplay(this.currentMood);
+    await this.loadData();
+    this.showScreen('welcome');
+  }
+
+  async waitForReady(timeout = 5000) {
+    const start = Date.now();
+    while ((typeof window.mentalStorage === 'undefined' || typeof window.aiAnalysis === 'undefined') && (Date.now() - start) < timeout) {
+      await new Promise(r => setTimeout(r, 100));
+    }
+    if (window.mentalStorage && typeof window.mentalStorage.ensureInitialized === 'function') {
+      await window.mentalStorage.ensureInitialized();
+    }
+  }
+
+  setupEventListeners() {
+    document.querySelectorAll('[data-screen]').forEach(btn => {
+      const screen = btn.dataset.screen;
+      const handler = (e) => { e.preventDefault(); this.showScreen(screen); };
+      btn.removeEventListener('click', btn._mh);
+      btn._mh = handler;
+      btn.addEventListener('click', handler);
+      btn.addEventListener('touchend', handler);
+    });
+
+    const slider = document.getElementById('mood-slider');
+    if (slider) {
+      slider.addEventListener('input', (e) => this.updateMoodDisplay(parseFloat(e.target.value)));
+      slider.addEventListener('change', (e) => this.updateMoodDisplay(parseFloat(e.target.value)));
     }
 
-    async init() {
-        // Wait for storage and AI modules to be available
-        await this.waitForReady();
-
-        this.setupEventListeners();
-        this.initTheme();
-        this.updateMoodDisplay(this.currentMood);
-        await this.loadData();
-        this.showScreen('welcome');
-    }
-
-    async waitForReady(timeout = 5000) {
-        const start = Date.now();
-        while ((typeof window.mentalStorage === 'undefined' || typeof window.aiAnalysis === 'undefined') && (Date.now() - start) < timeout) {
-            await new Promise(r => setTimeout(r, 100));
+    // Delegated clicks: handle sub-feelings selection and delete buttons
+    document.addEventListener('click', (e) => {
+      const item = e.target.closest('.sub-feeling-item');
+      if (item) {
+        // If the actual input was clicked, let the browser toggle it.
+        // If another part of the label was clicked, toggle manually but avoid double-toggle.
+        const cb = item.querySelector('input[type="checkbox"]');
+        if (cb) {
+          const targetTag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+          if (targetTag === 'input') {
+            // input already toggled by browser
+          } else {
+            // toggle manually
+            cb.checked = !cb.checked;
+          }
         }
-        if (window.mentalStorage && typeof window.mentalStorage.ensureInitialized === 'function') {
-            await window.mentalStorage.ensureInitialized();
-        }
-    }
+        // Update selection UI after a tick to ensure checkbox state is settled
+        setTimeout(() => this.updateSelectedFeelings(), 0);
+      }
 
-    setupEventListeners() {
-        // Navigation buttons (data-screen)
-        document.querySelectorAll('[data-screen]').forEach(btn => {
-            const screen = btn.dataset.screen;
-            const handler = (e) => { e.preventDefault(); this.showScreen(screen); };
-            btn.removeEventListener('click', btn._mh);
-            btn._mh = handler;
-            btn.addEventListener('click', handler);
-            btn.addEventListener('touchend', handler);
-        });
-
-        // Slider
-        const slider = document.getElementById('mood-slider');
-        if (slider) {
-            slider.addEventListener('input', (e) => this.updateMoodDisplay(parseFloat(e.target.value)));
-            slider.addEventListener('change', (e) => this.updateMoodDisplay(parseFloat(e.target.value)));
-        }
-
-        // Toggle primary feeling cards
-        document.querySelectorAll('.primary-feeling-card .primary-feeling-btn, .primary-feeling-card .expand-icon').forEach(el => {
-            el.addEventListener('click', (e) => {
-                const card = e.currentTarget.closest('.primary-feeling-card');
-                if (card) this.toggleFeelingCategory(card);
-            });
-        });
-
-        // Sub-feeling items (delegated)
-        document.addEventListener('click', (e) => {
-            const item = e.target.closest('.sub-feeling-item');
-            if (item) {
-                const cb = item.querySelector('input[type="checkbox"]');
-                if (cb) cb.checked = !cb.checked;
-                this.updateSelectedFeelings();
-            }
-
-            // Delete single entry
-            const del = e.target.closest('.delete-entry-btn');
-            if (del) {
-                e.preventDefault();
-                const id = del.dataset.entryId ? Number(del.dataset.entryId) : null;
-                this.showDeleteModal(id, false);
-            }
-        });
-
-        // Delete all
-        const deleteAllBtn = document.getElementById('delete-all-data');
-        if (deleteAllBtn) deleteAllBtn.addEventListener('click', (e) => { e.preventDefault(); this.showDeleteModal(null, true); });
-
-        // Confirm / cancel delete modal
-        document.getElementById('confirm-delete')?.addEventListener('click', () => this.confirmDelete());
-        document.getElementById('cancel-delete')?.addEventListener('click', () => this.hideDeleteModal());
-
-        // Mood form
-        document.getElementById('mood-form')?.addEventListener('submit', (e) => this.handleMoodSubmit(e));
-
-        // Generate report
-        document.getElementById('generate-report')?.addEventListener('click', (e) => { e.preventDefault(); this.generateReport(); });
-
-        // Backup visual toggle
-        document.getElementById('backup-data')?.addEventListener('click', (e) => { e.preventDefault(); this.backupData(); });
-    }
-
-    initTheme() {
-        const t = localStorage.getItem('mental-ia-theme') || 'dark';
-        document.documentElement.setAttribute('data-theme', t);
-    }
-
-    showScreen(name) {
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        const target = document.getElementById(`${name}-screen`);
-        if (target) target.classList.add('active');
-        this.currentScreen = name;
-        if (name === 'mood') this.updateMoodDisplay(this.currentMood);
-        if (name === 'history') this.loadData();
-    }
-
-    updateMoodDisplay(value) {
-        this.currentMood = Number(value) || 3.0;
-        this.currentMood = Math.max(1, Math.min(5, this.currentMood));
-        const emojiEl = document.getElementById('current-mood-emoji');
-        const textEl = document.getElementById('current-mood-text');
-        const valueEl = document.getElementById('current-mood-value');
-        const mood = this.getMoodData(this.currentMood);
-        if (emojiEl) emojiEl.textContent = mood.emoji;
-        if (textEl) textEl.textContent = mood.text;
-        if (valueEl) valueEl.textContent = this.currentMood.toFixed(1);
-        const slider = document.getElementById('mood-slider'); if (slider) slider.value = this.currentMood;
-        // set css var
-        document.documentElement.style.setProperty('--current-mood-color', mood.color || '#6366f1');
-    }
-
-    getMoodData(value) {
-        if (value <= 1.5) return { emoji: '😢', text: 'Muito Baixo', color: '#d32f2f' };
-        if (value <= 2.5) return { emoji: '😕', text: 'Baixo', color: '#f59e0b' };
-        if (value <= 3.5) return { emoji: '😐', text: 'Neutro', color: '#64748b' };
-        if (value <= 4.5) return { emoji: '😊', text: 'Alto', color: '#10b981' };
-        return { emoji: '😄', text: 'Muito Alto', color: '#06b6d4' };
-    }
-
-    toggleFeelingCategory(card) {
-        if (!card) return;
-        const was = card.classList.contains('expanded');
-        document.querySelectorAll('.primary-feeling-card').forEach(c => c.classList.remove('expanded'));
-        if (!was) card.classList.add('expanded');
-    }
-
-    updateSelectedFeelings() {
-        const checked = Array.from(document.querySelectorAll('.sub-feeling-item input[type="checkbox"]:checked'));
-        this.selectedFeelings = new Set(checked.map(cb => ({ value: cb.value, label: cb.dataset.label || cb.value })));
-        const list = document.getElementById('selected-feelings-list');
-        if (list) list.innerHTML = Array.from(this.selectedFeelings).map(f => `<span class="selected-feeling-tag">${f.label}</span>`).join('');
-    }
-
-    clearAllFeelings() { document.querySelectorAll('.sub-feeling-item input').forEach(cb => cb.checked = false); this.selectedFeelings.clear(); this.updateSelectedFeelings(); }
-
-    async handleMoodSubmit(e) {
+      const del = e.target.closest('.delete-entry-btn');
+      if (del) {
         e.preventDefault();
-        try {
-            const diary = document.getElementById('diary-entry')?.value?.trim() || '';
-            const entry = { id: Date.now(), mood: Math.round(this.currentMood * 10) / 10, feelings: Array.from(this.selectedFeelings), diary, timestamp: new Date().toISOString() };
-            if (!window.mentalStorage) throw new Error('Storage não disponível');
-            await window.mentalStorage.saveMoodEntry(entry);
-            this.showToast('Humor registrado com sucesso!', 'success');
-            this.resetMoodForm();
-            this.showScreen('history');
-            await this.loadData();
-        } catch (err) {
-            console.error('Erro ao salvar:', err);
-            this.showToast('Erro ao salvar: ' + (err.message || err), 'error');
+        const id = del.dataset.entryId ? Number(del.dataset.entryId) : null;
+        this.showDeleteModal(id, false);
+      }
+    });
+
+    // Toggle sub-feelings panel when clicking the primary feeling button
+    // Clicking the whole button or the arrow should open/close the panel by toggling the
+    // `expanded` class on the `.primary-feeling-card`. CSS handles the visual transition
+    // (panel max-height and icon rotation) based on that class.
+    document.querySelectorAll('.primary-feeling-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const card = btn.closest('.primary-feeling-card');
+        if (!card) return;
+        // Toggle class - CSS will rotate the arrow and expand the panel
+        const expanded = card.classList.toggle('expanded');
+        // Ensure the expand-icon reflects the state (only via class, avoid inline styles)
+        const icon = btn.querySelector('.expand-icon');
+        if (icon) {
+          if (expanded) icon.classList.add('rotated'); else icon.classList.remove('rotated');
         }
+      });
+    });
+
+    // Also allow clicking the arrow itself (if it's tapped directly). Stop propagation
+    // so the handler above doesn't double-toggle.
+    document.querySelectorAll('.expand-icon').forEach(ic => {
+      ic.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const card = ic.closest('.primary-feeling-card');
+        if (!card) return;
+        const expanded = card.classList.toggle('expanded');
+        if (expanded) ic.classList.add('rotated'); else ic.classList.remove('rotated');
+      });
+    });
+
+    // Clear selected feelings button
+    document.getElementById('clear-feelings')?.addEventListener('click', (e) => {
+      e?.preventDefault();
+      this.clearAllFeelings();
+      this.showToast('Seleção de sentimentos limpa', 'info');
+    });
+
+    document.getElementById('confirm-delete')?.addEventListener('click', () => this.confirmDelete());
+    document.getElementById('cancel-delete')?.addEventListener('click', () => this.hideDeleteModal());
+    document.getElementById('mood-form')?.addEventListener('submit', (e) => this.handleMoodSubmit(e));
+    document.getElementById('generate-report')?.addEventListener('click', (e) => { e.preventDefault(); this.generateReport(); });
+    document.getElementById('export-report')?.addEventListener('click', (e) => { e.preventDefault(); this.exportReportAsPDF(); });
+    document.getElementById('share-report')?.addEventListener('click', (e) => { e.preventDefault(); this.shareReport(); });
+    document.getElementById('generate-pdf-report')?.addEventListener('click', (e) => { e.preventDefault(); window.aiAnalysis.downloadReport(); });
+    document.getElementById('delete-all-data')?.addEventListener('click', (e) => { e.preventDefault(); this.showDeleteModal(null, true); });
+    document.getElementById('backup-data')?.addEventListener('click', (e) => { e.preventDefault(); this.backupData(); });
+  }
+
+  // Initialize Chart.js for the report screen (canvas id: report-chart)
+  initChart() {
+    try {
+      const canvas = document.getElementById('report-chart');
+      if (!canvas || typeof Chart === 'undefined') return;
+      const ctx = canvas.getContext('2d');
+      // create gradient (left red -> right blue)
+      const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+      grad.addColorStop(0, '#d32f2f');
+      grad.addColorStop(1, '#06b6d4');
+
+      this.chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Humor',
+            data: [],
+            borderColor: grad,
+            backgroundColor: 'rgba(0,0,0,0)',
+            tension: 0.35,
+            pointRadius: 3,
+            fill: false
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: { ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') || '#fff' } },
+            y: { beginAtZero: false, min: 1, max: 10, ticks: { stepSize: 1 } }
+          }
+        }
+      });
+    } catch (err) {
+      console.warn('Erro ao inicializar gráfico:', err);
     }
+  }
 
-    resetMoodForm() { this.currentMood = 3.0; this.updateMoodDisplay(3.0); this.clearAllFeelings(); const ta = document.getElementById('diary-entry'); if (ta) ta.value = ''; }
-
-    async loadData() {
-        try {
-            if (!window.mentalStorage) await this.waitForReady();
-            const entries = await window.mentalStorage.getAllMoodEntries();
-            const stats = await window.mentalStorage.getStats?.() || {};
-            this.updateStats(stats);
-            this.updateRecentEntries(entries || []);
-        } catch (err) { console.error('Erro ao carregar dados:', err); }
+  // Update the report chart with entries: expects array of entries with timestamp and mood
+  async updateChart(entries) {
+    try {
+      if (!this.chart) this.initChart();
+      const data = entries && Array.isArray(entries) ? entries.slice().sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp)) : [];
+      const labels = data.map(e => new Date(e.timestamp).toLocaleDateString('pt-BR'));
+      const values = data.map(e => Number(e.mood));
+      if (!this.chart) return;
+      this.chart.data.labels = labels;
+      this.chart.data.datasets[0].data = values;
+      // update gradient in case canvas resized
+      try {
+        const canvas = this.chart.ctx.canvas;
+        const ctx = this.chart.ctx;
+        const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+        grad.addColorStop(0, '#d32f2f');
+        grad.addColorStop(1, '#06b6d4');
+        this.chart.data.datasets[0].borderColor = grad;
+      } catch(e) {}
+      this.chart.update();
+    } catch (err) {
+      console.warn('Erro ao atualizar gráfico:', err);
     }
+  }
 
-    updateStats(stats) {
-        const avg = document.getElementById('avg-mood'); if (avg) avg.textContent = (stats.averageMood || 0).toFixed ? (stats.averageMood || 0).toFixed(1) : (stats.averageMood || 0);
-        const total = document.getElementById('total-entries'); if (total) total.textContent = stats.totalEntries || 0;
-        const streak = document.getElementById('streak-days'); if (streak) streak.textContent = stats.streak || 0;
+  initTheme() { const t = localStorage.getItem('mental-ia-theme') || 'dark'; document.documentElement.setAttribute('data-theme', t); }
+
+  showScreen(name) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const target = document.getElementById(`${name}-screen`);
+    if (target) target.classList.add('active');
+    this.currentScreen = name;
+    if (name === 'mood') this.updateMoodDisplay(this.currentMood);
+    if (name === 'history') this.loadData();
+  }
+
+  updateMoodDisplay(value) {
+    this.currentMood = Number(value) || 5.0;
+    // clamp to 1..10
+    this.currentMood = Math.max(1, Math.min(10, this.currentMood));
+    const bigEmojiEl = document.getElementById('big-mood-emoji');
+    const textEl = document.getElementById('current-mood-text');
+    const valueEl = document.getElementById('current-mood-value');
+    const mood = this.getMoodData(this.currentMood);
+    if (bigEmojiEl) {
+      bigEmojiEl.textContent = mood.emoji;
+      // subtle animation feedback
+      bigEmojiEl.style.transform = 'scale(1.06)';
+      setTimeout(() => { try { bigEmojiEl.style.transform = ''; } catch(e){} }, 160);
     }
+    if (textEl) textEl.textContent = mood.text;
+    if (valueEl) valueEl.textContent = this.currentMood.toFixed(1);
+    const slider = document.getElementById('mood-slider'); if (slider) slider.value = this.currentMood;
+    document.documentElement.style.setProperty('--current-mood-color', mood.color || '#6366f1');
+  }
 
-    updateRecentEntries(entries) {
-        const container = document.getElementById('recent-list'); if (!container) return;
-        container.innerHTML = '';
-        if (!entries || entries.length === 0) { container.innerHTML = `<div class="empty-state"><h3>📝 Nenhum registro ainda</h3><p>Registre seu primeiro humor para ver o histórico aqui!</p></div>`; return; }
-        entries.slice(0, 10).forEach(entry => {
-            const feelings = Array.isArray(entry.feelings) ? entry.feelings.map(f => typeof f === 'string' ? f : (f.label || f.value || '')).filter(Boolean) : [];
-            const el = document.createElement('div'); el.className = 'recent-entry'; el.innerHTML = `
-                <div class="entry-content">
-                    <div class="entry-date">${new Date(entry.timestamp).toLocaleDateString('pt-BR')}</div>
-                    <div class="entry-mood">${this.getMoodEmoji(entry.mood)} ${entry.mood.toFixed(1)}</div>
-                    <div class="entry-feelings">${feelings.slice(0,3).join(', ') || 'Nenhum sentimento selecionado'}</div>
-                    ${entry.diary ? `<div class="entry-diary">"${entry.diary.substring(0,100)}${entry.diary.length>100?'...':''}"</div>` : ''}
-                </div>
-                <button class="delete-entry-btn" data-entry-id="${entry.id}" title="Excluir registro">🗑️</button>
-            `; container.appendChild(el);
-        });
+  getMoodData(value) {
+    const v = Number(value);
+    if (isNaN(v)) return { emoji: '😐', text: 'Neutro', color: '#64748b' };
+    if (v <= 2.0) return { emoji: '😢', text: 'Muito Baixo', color: '#d32f2f' };
+    if (v <= 4.0) return { emoji: '😕', text: 'Baixo', color: '#fb923c' };
+    if (v <= 6.0) return { emoji: '😊', text: 'Neutro', color: '#f59e0b' };
+    if (v <= 8.0) return { emoji: '🤗', text: 'Alto', color: '#10b981' };
+    return { emoji: '🥰', text: 'Muito Alto', color: '#06b6d4' };
+  }
+
+  updateSelectedFeelings() {
+    // Find checked inputs inside .sub-feeling-item
+    const checked = Array.from(document.querySelectorAll('.sub-feeling-item input[type="checkbox"]:checked'));
+    const arr = checked.map(cb => {
+      const container = cb.closest('.sub-feeling-item');
+      const labelEl = container?.querySelector('.sub-label');
+      const label = labelEl ? labelEl.textContent.trim() : (cb.value || '');
+      return { value: cb.value, label };
+    });
+    // keep a Set of serialized items to maintain uniqueness
+    this.selectedFeelings = new Set(arr.map(a => JSON.stringify(a)));
+    const list = document.getElementById('selected-feelings-list');
+    if (list) list.innerHTML = arr.map(f => `<span class="selected-feeling-tag">${f.label}</span>`).join('');
+    // show/hide the summary box
+    const summary = document.querySelector('.selected-feelings-summary');
+    if (summary) {
+      if (arr.length > 0) summary.classList.add('has-selections'); else summary.classList.remove('has-selections');
     }
+  }
 
-    getMoodEmoji(mood) { if (mood <= 1.5) return '😢'; if (mood <= 2.5) return '😕'; if (mood <= 3.5) return '😐'; if (mood <= 4.5) return '😊'; return '😄'; }
+  clearAllFeelings() { document.querySelectorAll('.sub-feeling-item input').forEach(cb => cb.checked = false); this.selectedFeelings.clear(); this.updateSelectedFeelings(); }
 
-    showDeleteModal(entryId, isAll) {
-        this.pendingDelete = { entryId, isAll };
-        const modal = document.getElementById('delete-modal');
-        const title = document.getElementById('modal-title');
-        const msg = document.getElementById('modal-message');
-        if (!modal) return;
-        title.textContent = isAll ? 'Apagar Todos os Dados' : 'Excluir Registro';
-        msg.textContent = isAll ? 'Isso vai apagar TODOS os seus registros permanentemente. Tem certeza?' : 'Tem certeza que quer excluir este registro? Isso é permanente.';
-        modal.classList.remove('hidden');
+  async handleMoodSubmit(e) {
+    e.preventDefault();
+    try {
+      // Build the diary and feelings payload for storage
+      const diary = document.getElementById('diary-entry')?.value?.trim() || '';
+      const feelingsParsed = Array.from(this.selectedFeelings).map(s => {
+        try { return JSON.parse(s); } catch(_) { return s; }
+      });
+
+      // Entry object conforms to storage.saveMoodEntry expectations
+      const entry = {
+        id: Date.now(),
+        mood: Math.round(this.currentMood * 10) / 10,
+        feelings: feelingsParsed,
+        diary,
+        timestamp: new Date().toISOString()
+      };
+
+      if (!window.mentalStorage) throw new Error('Storage não disponível');
+
+      // Save encrypted entry to IndexedDB via MentalStorage
+      await window.mentalStorage.saveMoodEntry(entry);
+
+      this.showToast('Humor registrado com sucesso!', 'success');
+      this.resetMoodForm();
+      this.showScreen('history');
+      await this.loadData();
+    } catch (err) {
+      console.error('Erro ao salvar:', err);
+      this.showToast('Erro ao salvar: ' + (err.message || err), 'error');
     }
+  }
 
-    hideDeleteModal() { document.getElementById('delete-modal')?.classList.add('hidden'); this.pendingDelete = null; }
+  resetMoodForm() { this.currentMood = 5.0; this.updateMoodDisplay(5.0); this.clearAllFeelings(); const ta = document.getElementById('diary-entry'); if (ta) ta.value = ''; }
 
-    async confirmDelete() {
-        if (!this.pendingDelete) return;
-        const { entryId, isAll } = this.pendingDelete;
-        try {
-            if (isAll) { await window.mentalStorage.deleteAllEntries(); this.showToast('Todos os dados foram excluídos.', 'success'); this.showScreen('welcome'); }
-            else { await window.mentalStorage.deleteEntry(entryId); this.showToast('Registro excluído', 'success'); await this.loadData(); }
-        } catch (err) { console.error('Erro ao excluir:', err); this.showToast('Erro ao excluir: ' + (err.message || err), 'error'); }
-        finally { this.hideDeleteModal(); }
+  async loadData() {
+    try {
+      if (!window.mentalStorage) await this.waitForReady();
+      const entries = await window.mentalStorage.getAllMoodEntries();
+      const stats = await window.mentalStorage.getStats?.() || {};
+      this.updateStats(stats);
+      this.updateRecentEntries(entries || []);
+    } catch (err) { console.error('Erro ao carregar dados:', err); }
+  }
+
+  updateStats(stats) {
+    const avg = document.getElementById('avg-mood'); if (avg) avg.textContent = (stats.averageMood || 0).toFixed ? (stats.averageMood || 0).toFixed(1) : (stats.averageMood || 0);
+    const total = document.getElementById('total-entries'); if (total) total.textContent = stats.totalEntries || 0;
+    const streak = document.getElementById('streak-days'); if (streak) streak.textContent = stats.streak || 0;
+  }
+
+  updateRecentEntries(entries) {
+    const container = document.getElementById('recent-list'); if (!container) return;
+    container.innerHTML = '';
+    if (!entries || entries.length === 0) { container.innerHTML = `<div class=\"empty-state\"><h3> Nenhum registro ainda</h3><p>Registre seu primeiro humor para ver o histórico aqui!</p></div>`; return; }
+    entries.slice(0, 10).forEach(entry => {
+      const feelings = Array.isArray(entry.feelings) ? entry.feelings.map(f => typeof f === 'string' ? f : (f.label || f.value || '')).filter(Boolean) : [];
+      const el = document.createElement('div'); el.className = 'recent-entry'; el.innerHTML = `
+        <div class=\"entry-content\">
+          <div class=\"entry-date\">${new Date(entry.timestamp).toLocaleDateString('pt-BR')}</div>
+          <div class=\"entry-mood\">${this.getMoodEmoji(entry.mood)} ${entry.mood.toFixed(1)}</div>
+          <div class=\"entry-feelings\">${feelings.slice(0,3).join(', ') || 'Nenhum sentimento selecionado'}</div>
+          ${entry.diary ? `<div class=\"entry-diary\">\"${entry.diary.substring(0,100)}${entry.diary.length>100?'...':''}\"</div>` : ''}
+        </div>
+          <button class=\"delete-entry-btn\" data-entry-id=\"${entry.id}\" title=\"Excluir registro\">🗑️</button>
+      `; container.appendChild(el);
+    });
+  }
+
+  getMoodEmoji(mood) {
+    const v = Number(mood);
+    if (isNaN(v)) return '';
+    if (v <= 2.0) return '😢';
+    if (v <= 4.0) return '😕';
+    if (v <= 6.0) return '😊';
+    if (v <= 8.0) return '🤗';
+    return '🥰';
+  }
+
+  showDeleteModal(entryId, isAll) {
+    this.pendingDelete = { entryId, isAll };
+    const modal = document.getElementById('delete-modal');
+    const title = document.getElementById('modal-title');
+    const msg = document.getElementById('modal-message');
+    if (!modal) return;
+    title.textContent = isAll ? 'Apagar Todos os Dados' : 'Excluir Registro';
+    msg.textContent = isAll ? 'Isso vai apagar TODOS os seus registros permanentemente. Tem certeza?' : 'Tem certeza que quer excluir este registro? Isso é permanente.';
+    modal.classList.remove('hidden');
+  }
+
+  hideDeleteModal() { document.getElementById('delete-modal')?.classList.add('hidden'); this.pendingDelete = null; }
+
+  async confirmDelete() {
+    if (!this.pendingDelete) return;
+    const { entryId, isAll } = this.pendingDelete;
+    try {
+      if (isAll) { await window.mentalStorage.deleteAllEntries(); this.showToast('Todos os dados foram excluídos.', 'success'); this.showScreen('welcome'); }
+      else { await window.mentalStorage.deleteEntry(entryId); this.showToast('Registro excluído', 'success'); await this.loadData(); }
+    } catch (err) { console.error('Erro ao excluir:', err); this.showToast('Erro ao excluir: ' + (err.message || err), 'error'); }
+    finally { this.hideDeleteModal(); }
+  }
+
+  async generateReport() {
+    try {
+      const btn = document.getElementById('generate-report'); if (btn) { btn.disabled = true; }
+      const entries = await window.mentalStorage.getAllMoodEntries();
+      if (!entries || entries.length === 0) { this.displayEmptyReport(); this.showToast('Adicione registros para gerar relatório', 'info'); return; }
+      const report = await window.aiAnalysis.generateReport(entries);
+      await this.displayReport(report, entries);
+      this.showToast('Relatório gerado!', 'success');
+    } catch (err) {
+      console.error('Erro no relatório:', err);
+      this.showToast('Erro ao gerar relatório: ' + (err.message || err), 'error');
+    } finally {
+      const btn = document.getElementById('generate-report'); if (btn) { setTimeout(()=>btn.disabled = false, 800); }
     }
+  }
 
-    async generateReport() {
-        try {
-            const btn = document.getElementById('generate-report'); if (btn) { btn.disabled = true; }
-            const entries = await window.mentalStorage.getAllMoodEntries();
-            if (!entries || entries.length === 0) { this.displayEmptyReport(); this.showToast('Adicione registros para gerar relatório', 'info'); return; }
-            const report = await window.aiAnalysis.generateReport(entries);
-            this.displayReport(report);
-            this.showToast('Relatório gerado!', 'success');
-        } catch (err) { console.error('Erro no relatório:', err); this.showToast('Erro ao gerar relatório', 'error'); }
-        finally { const btn = document.getElementById('generate-report'); if (btn) { setTimeout(()=>btn.disabled = false, 800); } }
+  displayEmptyReport() {
+    const content = document.getElementById('report-content');
+    if (content) {
+      content.classList.remove('hidden');
+      content.innerHTML = '<div class="analysis-content">Adicione registros para gerar um relatório.</div>';
     }
+  }
 
-    displayEmptyReport() { const content = document.getElementById('report-content'); if (content) content.innerHTML = '<p>Adicione registros para gerar um relatório.</p>'; }
+  // Render report object into HTML (converts Markdown -> HTML) and updates chart
+  async displayReport(report, entries = []) {
+    const content = document.getElementById('report-content'); if (!content) return;
+    content.classList.remove('hidden');
 
-    displayReport(report) { const content = document.getElementById('report-content'); if (!content) return; content.classList.remove('hidden'); content.innerHTML = typeof report === 'string' ? `<div class="analysis-content">${report}</div>` : `<h3>${report.title||'Relatório'}</h3><div>${report.analysis||JSON.stringify(report)}</div>`; }
+    const title = report.title || 'Relatório';
+    const subtitle = report.subtitle || '';
+    const analysisMd = String(report.analysis || '');
+    const analysisHtml = this.markdownToHtml(analysisMd);
+    const recommendations = Array.isArray(report.recommendations) ? report.recommendations : [];
+    const insights = Array.isArray(report.insights) ? report.insights : [];
 
-    async backupData() { this.showToast('Backup (simulado)', 'info'); }
+    content.innerHTML = `
+      <div class="report-card" id="report-card">
+        <div class="report-card-header">
+          <h3>${this.escapeHtml(title)}</h3>
+          <div class="report-subtitle">${this.escapeHtml(subtitle)}</div>
+        </div>
 
-    showToast(msg, type='info', duration=3000) {
-        const container = document.getElementById('toast-container');
-        if (!container) return console.log(msg);
-        const t = document.createElement('div'); t.className = `toast toast-${type}`; t.textContent = msg; container.appendChild(t); setTimeout(()=>t.classList.add('visible'),10); setTimeout(()=>{ t.classList.remove('visible'); setTimeout(()=>t.remove(),300); }, duration);
+        <div class="report-chart-container" style="height:220px; margin:12px 0;">
+          <canvas id="report-chart"></canvas>
+        </div>
+
+        <div class="report-section analysis-section">
+          ${analysisHtml}
+        </div>
+
+        <div class="report-section">
+          <h4>💡 Recomendações</h4>
+          <ul>${recommendations.map(r=>`<li>${this.escapeHtml(String(r))}</li>`).join('')}</ul>
+        </div>
+
+        <div class="report-section">
+          <h4>🌟 Insights</h4>
+          <ul>${insights.map(i=>`<li>${this.escapeHtml(String(i))}</li>`).join('')}</ul>
+        </div>
+
+        <div class="report-actions">
+          <button id="download-pdf" class="btn-secondary btn-full">📄 Baixar Relatório em PDF</button>
+        </div>
+      </div>
+    `;
+
+    // Wire internal download to aiAnalysis.downloadReport if available
+    document.getElementById('download-pdf')?.addEventListener('click', () => { window.aiAnalysis.downloadReport(report).catch(err=>this.showToast('Erro ao gerar PDF: '+err.message,'error')); });
+
+    // Initialize / update chart with provided entries
+    try {
+      await this.updateChart(entries || await window.mentalStorage.getAllMoodEntries());
+    } catch(e) { console.warn('Erro ao atualizar gráfico após gerar relatório:', e); }
+  }
+
+  // Minimal, safe markdown -> HTML converter (supports headings, bold, lists, paragraphs)
+  markdownToHtml(md) {
+    if (!md) return '';
+    const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    const lines = String(md).split('\n');
+    let html = '';
+    let inList = false;
+    for (let i=0;i<lines.length;i++){
+      let line = lines[i].trim();
+      if (!line) { if (inList) { html += '</ul>'; inList = false; } html += '<p></p>'; continue; }
+      const h6 = /^######\s+(.*)/.exec(line);
+      const h5 = /^#####\s+(.*)/.exec(line);
+      const h4 = /^####\s+(.*)/.exec(line);
+      const h3 = /^###\s+(.*)/.exec(line);
+      const h2 = /^##\s+(.*)/.exec(line);
+      const h1 = /^#\s+(.*)/.exec(line);
+      if (h1) { if (inList) { html += '</ul>'; inList=false;} html += `<h1>${esc(h1[1])}</h1>`; continue; }
+      if (h2) { if (inList) { html += '</ul>'; inList=false;} html += `<h2>${esc(h2[1])}</h2>`; continue; }
+      if (h3) { if (inList) { html += '</ul>'; inList=false;} html += `<h3>${esc(h3[1])}</h3>`; continue; }
+      if (h4) { if (inList) { html += '</ul>'; inList=false;} html += `<h4>${esc(h4[1])}</h4>`; continue; }
+      if (h5) { if (inList) { html += '</ul>'; inList=false;} html += `<h5>${esc(h5[1])}</h5>`; continue; }
+      if (h6) { if (inList) { html += '</ul>'; inList=false;} html += `<h6>${esc(h6[1])}</h6>`; continue; }
+      const listMatch = /^([\-\*•])\s+(.*)/.exec(line);
+      if (listMatch) {
+        if (!inList) { html += '<ul>'; inList = true; }
+        html += `<li>${esc(listMatch[2]).replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')}</li>`;
+        continue;
+      }
+      const bolded = esc(line).replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+      html += `<p>${bolded}</p>`;
     }
+    if (inList) html += '</ul>';
+    return html;
+  }
+
+  // Escape HTML for safe insertion
+  escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // Export the rendered report area as PDF using html2canvas + jsPDF
+  async exportReportAsPDF() {
+    try {
+      const el = document.getElementById('report-card') || document.getElementById('report-content');
+      if (!el) { this.showToast('Área de relatório não encontrada', 'error'); return; }
+      this.showToast('Gerando PDF do relatório...', 'info');
+      const canvas = await html2canvas(el, { scale: 2, useCORS: true });
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const pdf = (window.jspdf && window.jspdf.jsPDF) ? new window.jspdf.jsPDF('p','mm','a4') : (typeof jsPDF !== 'undefined' ? new jsPDF('p','mm','a4') : null);
+      if (!pdf) { this.showToast('Biblioteca de PDF não disponível', 'error'); return; }
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pageWidth - 20;
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      let position = 10;
+      pdf.addImage(imgData, 'JPEG', 10, position, pdfWidth, pdfHeight);
+      let remainingHeight = pdfHeight - (pageHeight - 20);
+      let offset = pageHeight - 20;
+      while (remainingHeight > 0) {
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 10, -offset, pdfWidth, pdfHeight);
+        remainingHeight -= (pageHeight - 20);
+        offset += (pageHeight - 20);
+      }
+      const now = new Date();
+      const filename = `Relatorio_MentalIA_${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}.pdf`;
+      pdf.save(filename);
+      this.showToast('PDF exportado com sucesso!', 'success');
+    } catch (err) {
+      console.error('Erro ao exportar PDF:', err);
+      this.showToast('Erro ao exportar PDF', 'error');
+    }
+  }
+
+  // Share report using Web Share API with clipboard fallback
+  async shareReport() {
+    try {
+      const title = document.querySelector('.report-card h3')?.textContent || 'Meu relatório do MentalIA';
+      const contentEl = document.querySelector('.report-card .analysis-section') || document.getElementById('report-content');
+      const text = title + '\n\n' + (contentEl ? contentEl.innerText.trim() : window.location.href);
+      if (navigator.share) {
+        await navigator.share({ title: 'Meu relatório do MentalIA', text, url: window.location.href });
+        this.showToast('Relatório compartilhado!', 'success');
+        return;
+      }
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(text);
+        this.showToast('Relatório copiado para a área de transferência!', 'success');
+        return;
+      }
+      this.showToast('Compartilhar não suportado neste navegador', 'warning');
+    } catch (err) {
+      console.error('Erro no compartilhamento:', err);
+      this.showToast('Erro ao compartilhar relatório', 'error');
+    }
+  }
+
+  async backupData() { this.showToast('Backup (simulado)', 'info'); }
+
+  showToast(msg, type='info', duration=3000) {
+    const container = document.getElementById('toast-container');
+    if (!container) return console.log(msg);
+    const t = document.createElement('div'); t.className = `toast toast-${type}`; t.textContent = msg; container.appendChild(t); setTimeout(()=>t.classList.add('visible'),10); setTimeout(()=>{ t.classList.remove('visible'); setTimeout(()=>t.remove(),300); }, duration);
+  }
 }
 
 window.mentalIA = new MentalIA();
 document.addEventListener('DOMContentLoaded', async () => { try { await window.mentalIA.init(); } catch (e) { console.error('Erro init MentalIA:', e); } });
 
-console.log('✅ app.js replaced with clean implementation');
-        // Mood form submission
-        const moodForm = document.getElementById('mood-form');
-        console.log('📝 Formulário de humor encontrado:', !!moodForm);
-        moodForm?.addEventListener('submit', (e) => this.handleMoodSubmit(e));
-
-        // Report generation with mobile optimization
-        const reportBtn = document.getElementById('generate-report');
-        console.log('📊 Botão relatório encontrado:', !!reportBtn);
-<<<<<<< HEAD
-
-=======
-        
->>>>>>> parent of 6c8feb6 (Fix button)
-        if (reportBtn) {
-            // 🔥 CORREÇÃO: Múltiplos event listeners para melhor compatibilidade mobile
-            const generateReportHandler = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('📊 Gerando relatório...');
-                this.generateReport();
-            };
-<<<<<<< HEAD
-
-            // Event listeners para diferentes tipos de interação
-            reportBtn.addEventListener('click', generateReportHandler);
-            reportBtn.addEventListener('touchend', generateReportHandler);
-
-=======
-            
-            // Event listeners para diferentes tipos de interação
-            reportBtn.addEventListener('click', generateReportHandler);
-            reportBtn.addEventListener('touchend', generateReportHandler);
-            
->>>>>>> parent of 6c8feb6 (Fix button)
-            // Prevenção de double-tap zoom no iOS
-            reportBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-            });
-<<<<<<< HEAD
-
-=======
-            
->>>>>>> parent of 6c8feb6 (Fix button)
-            // Feedback visual para touch
-            reportBtn.addEventListener('touchstart', () => {
-                reportBtn.style.transform = 'scale(0.98)';
-                reportBtn.style.opacity = '0.8';
-            });
-<<<<<<< HEAD
-
-=======
-            
->>>>>>> parent of 6c8feb6 (Fix button)
-            reportBtn.addEventListener('touchend', () => {
-                setTimeout(() => {
-                    reportBtn.style.transform = 'scale(1)';
-                    reportBtn.style.opacity = '1';
-                }, 150);
-            });
-<<<<<<< HEAD
-
-            reportBtn.addEventListener('touchcancel', () => {
-                reportBtn.style.transform = 'scale(1)';
-                reportBtn.style.opacity = '1';
-            });
-        }
-
-        // PDF generation button
-        const pdfBtn = document.getElementById('generate-pdf-report');
-        console.log('📄 Botão PDF encontrado:', !!pdfBtn);
-
-=======
-            
-            reportBtn.addEventListener('touchcancel', () => {
-                reportBtn.style.transform = 'scale(1)';
-                reportBtn.style.opacity = '1';
-            });
-        }
-
-        // PDF generation button
-        const pdfBtn = document.getElementById('generate-pdf-report');
-        console.log('📄 Botão PDF encontrado:', !!pdfBtn);
-        
->>>>>>> parent of 6c8feb6 (Fix button)
-        if (pdfBtn) {
-            const generatePDFHandler = async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('📄 Gerando PDF...');
-<<<<<<< HEAD
-
-=======
-                
->>>>>>> parent of 6c8feb6 (Fix button)
-                try {
-                    // Disable button during generation
-                    pdfBtn.disabled = true;
-                    pdfBtn.textContent = '📄 Gerando PDF...';
-<<<<<<< HEAD
-
-                    await window.aiAnalysis.downloadReportPDF();
-
-=======
-                    
-                    await window.aiAnalysis.downloadReportPDF();
-                    
->>>>>>> parent of 6c8feb6 (Fix button)
-                } catch (error) {
-                    console.error('Erro ao gerar PDF:', error);
-                    this.showToast('Erro ao gerar PDF: ' + error.message, 'error');
-                } finally {
-                    // Re-enable button
-                    pdfBtn.disabled = false;
-                    pdfBtn.textContent = '📄 Baixar Relatório em PDF';
-                }
-            };
-<<<<<<< HEAD
-
-            // Event listeners for PDF button
-            pdfBtn.addEventListener('click', generatePDFHandler);
-            pdfBtn.addEventListener('touchend', generatePDFHandler);
-
-=======
-            
-            // Event listeners for PDF button
-            pdfBtn.addEventListener('click', generatePDFHandler);
-            pdfBtn.addEventListener('touchend', generatePDFHandler);
-            
->>>>>>> parent of 6c8feb6 (Fix button)
-            // Touch feedback for PDF button
-            pdfBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                pdfBtn.style.transform = 'scale(0.98)';
-                pdfBtn.style.opacity = '0.8';
-            });
-<<<<<<< HEAD
-
-=======
-            
->>>>>>> parent of 6c8feb6 (Fix button)
-            pdfBtn.addEventListener('touchend', () => {
-                setTimeout(() => {
-                    pdfBtn.style.transform = 'scale(1)';
-                    pdfBtn.style.opacity = '1';
-                }, 150);
-            });
-<<<<<<< HEAD
-
-=======
-            
->>>>>>> parent of 6c8feb6 (Fix button)
-            pdfBtn.addEventListener('touchcancel', () => {
-                pdfBtn.style.transform = 'scale(1)';
-                pdfBtn.style.opacity = '1';
-            });
-        }
-<<<<<<< HEAD
-
-        // Backup
-        const backupBtn = document.getElementById('backup-data');
-        console.log('💾 Botão backup encontrado:', !!backupBtn);
-        backupBtn?.addEventListener('click', () => {
-            console.log('💾 Fazendo backup...');
-            this.backupData();
-        });
-
-        // AI mode toggle
-        const modeLabels = document.querySelectorAll('.mode-label');
-        console.log('🤖 Labels de modo AI encontrados:', modeLabels.length);
-        modeLabels.forEach(label => {
-            label.addEventListener('click', (e) => {
-                console.log('🤖 Label clicado:', label);
-                const forAttr = label.getAttribute('for');
-                console.log('🤖 For attribute:', forAttr);
-                const radio = document.getElementById(forAttr);
-                if (radio) {
-                    radio.checked = true;
-                    console.log('🤖 Modo AI alterado para:', radio.value);
-                }
-            });
-        });
-
-        // 🔥 CORREÇÃO: Premium Actions - Análise Avançada e Export PDF
-        const advancedAnalysisBtn = document.getElementById('advanced-analysis');
-        const exportPdfBtn = document.getElementById('export-pdf');
-
-        console.log('🧠 Botão análise avançada encontrado:', !!advancedAnalysisBtn);
-        console.log('📄 Botão export PDF encontrado:', !!exportPdfBtn);
-
-        advancedAnalysisBtn?.addEventListener('click', async () => {
-            console.log('🧠 Análise avançada clicada!');
-
-            try {
-                this.showToast('🤖 Gerando análise avançada...', 'info');
-
-                // Usar o sistema de análise IA
-                if (window.aiAnalysis) {
-                    const analysis = await window.aiAnalysis.generateFullAnalysis(this.data);
-                    this.displayAdvancedAnalysis(analysis);
-                } else {
-                    throw new Error('Sistema de IA não disponível');
-                }
-            } catch (error) {
-                console.error('Erro na análise avançada:', error);
-                this.showToast('Erro ao gerar análise. Tente novamente.', 'error');
-            }
-        });
-
-        exportPdfBtn?.addEventListener('click', async () => {
-            console.log('📄 Export PDF clicado!');
-
-            try {
-                this.showToast('📄 Gerando PDF...', 'info');
-
-                // Usar o sistema de análise IA para PDF
-                if (window.aiAnalysis) {
-                    await window.aiAnalysis.downloadReportPDF();
-                } else {
-                    throw new Error('Sistema de PDF não disponível');
-=======
-
-        // Backup
-        const backupBtn = document.getElementById('backup-data');
-        console.log('💾 Botão backup encontrado:', !!backupBtn);
-        backupBtn?.addEventListener('click', () => {
-            console.log('💾 Fazendo backup...');
-            this.backupData();
-        });
-        const backupBtn = document.getElementById('backup-data');
-        console.log('💾 Botão backup encontrado:', !!backupBtn);
-        backupBtn?.addEventListener('click', () => {
-            console.log('💾 Fazendo backup...');
-            this.backupData();
-        });
-
-        // Connect Google Drive button
-        const connectBtn = document.getElementById('connect-google-drive');
-        console.log('🔗 Botão conectar Google Drive encontrado:', !!connectBtn);
-        connectBtn?.addEventListener('click', () => {
-            console.log('🔗 [BOTÃO] Botão "Conectar Google Drive" clicado!');
-            if (window.googleDriveBackup) {
-                console.log('🔗 [BOTÃO] Chamando showGoogleOneTap...');
-                window.googleDriveBackup.showGoogleOneTap();
-            } else {
-                console.error('🔗 [BOTÃO] Sistema de backup não disponível');
-                this.showToast('Sistema de backup não disponível', 'error');
-            }
-        });
-
-        // Auto backup toggle
-        const autoBackupToggle = document.getElementById('auto-backup-toggle');
-        console.log('🔄 Toggle backup automático encontrado:', !!autoBackupToggle);
-        autoBackupToggle?.addEventListener('change', async (e) => {
-            console.log('🔄 Toggle backup automático alterado:', e.target.checked);
-            const enabled = e.target.checked;
-
-            if (enabled) {
-                // Verificar se está conectado ao Google Drive
-                if (!window.googleDriveBackup?.isSignedIn) {
-                    this.showToast('Conecte-se ao Google Drive primeiro', 'warning');
-                    e.target.checked = false;
-                    return;
->>>>>>> parent of 6c8feb6 (Fix button)
-                }
-            } catch (error) {
-                console.error('Erro no export PDF:', error);
-                this.showToast('Erro ao gerar PDF. Tente novamente.', 'error');
-            }
-        });
-
-<<<<<<< HEAD
-        // Delete entry buttons (dynamic, added after entries are loaded)
-        document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('delete-entry-btn')) {
-                e.preventDefault();
-                const entryId = parseInt(e.target.dataset.entryId);
-                this.showDeleteModal(entryId, false);
-            }
-        });
-
-        // Delete all data button
-        const deleteAllBtn = document.getElementById('delete-all-data');
-        console.log('🗑️ Botão apagar todos encontrado:', !!deleteAllBtn);
-        deleteAllBtn?.addEventListener('click', () => {
-            console.log('🗑️ Botão apagar todos clicado');
-            this.showDeleteModal(null, true);
-        });
-
-        // Delete modal buttons
-        const confirmDeleteBtn = document.getElementById('confirm-delete');
-        const cancelDeleteBtn = document.getElementById('cancel-delete');
-
-        confirmDeleteBtn?.addEventListener('click', () => {
-            this.confirmDelete();
-        });
-
-        cancelDeleteBtn?.addEventListener('click', () => {
-            this.hideDeleteModal();
-        });
-
-        console.log('✅ Event listeners configurados');
-        } catch (error) {
-            console.error('❌ Erro ao configurar event listeners:', error);
-        }
-    }    showAdminElements() {
-        console.log('👑 Mostrando elementos administrativos...');
-=======
-                const success = await window.googleDriveBackup.enableAutoBackup();
-                if (!success) {
-                    e.target.checked = false;
-                }
-            } else {
-                await window.googleDriveBackup.disableAutoBackup();
-            }
-
-            // Atualizar status na UI
-            this.updateAutoBackupStatus();
-        });
-
-        // Manual backup button
-        const manualBackupBtn = document.getElementById('backup-now-btn');
-        console.log('💾 Botão backup manual encontrado:', !!manualBackupBtn);
-        manualBackupBtn?.addEventListener('click', async () => {
-            console.log('💾 Botão backup manual clicado');
-
-            // Verificar se o sistema de backup está disponível
-            if (!window.googleDriveBackup) {
-                this.showToast('Sistema de backup não disponível', 'error');
-                return;
-            }
-
-            // Verificar se o usuário está conectado ao Google Drive
-            if (!window.googleDriveBackup.isSignedIn) {
-                this.showToast('🔗 Conecte-se ao Google Drive primeiro usando o botão "Conectar Google Drive"', 'warning');
-                return;
-            }
-
-            // Mostrar feedback visual - botão em loading
-            const btn = document.getElementById('backup-now-btn');
-            const btnText = btn.querySelector('.btn-text');
-            const btnLoading = btn.querySelector('.btn-loading');
-
-            if (btn && btnText && btnLoading) {
-                btn.classList.add('loading');
-                btn.disabled = true;
-            }
-
-            try {
-                // Mostrar feedback
-                this.showToast('🔄 Fazendo backup manual...', 'info');
-
-                // Executar backup
-                await window.googleDriveBackup.backupToDrive();
-
-                // Feedback de sucesso
-                this.showToast('✅ Backup manual realizado com sucesso!', 'success');
-
-                // Atualizar status do último backup
-                this.updateAutoBackupStatus();
-
-            } catch (error) {
-                console.error('❌ Erro no backup manual:', error);
-                this.showToast('❌ Erro no backup manual: ' + error.message, 'error');
-            } finally {
-                // Restaurar botão
-                if (btn && btnText && btnLoading) {
-                    btn.classList.remove('loading');
-                    btn.disabled = false;
-                }
-            }
-        });
-
-        // AI mode toggle
-        const modeLabels = document.querySelectorAll('.mode-label');
-        console.log('🤖 Labels de modo AI encontrados:', modeLabels.length);
-        modeLabels.forEach(label => {
-            label.addEventListener('click', (e) => {
-                console.log('🤖 Label clicado:', label);
-                const forAttr = label.getAttribute('for');
-                console.log('🤖 For attribute:', forAttr);
-                const radio = document.getElementById(forAttr);
-                if (radio) {
-                    radio.checked = true;
-                    console.log('🤖 Modo AI alterado para:', radio.value);
-                }
-            });
-        });
-
-        // 🔥 CORREÇÃO: Premium Actions - Análise Avançada e Export PDF
-        const advancedAnalysisBtn = document.getElementById('advanced-analysis');
-        const exportPdfBtn = document.getElementById('export-pdf');
-        
-        console.log('🧠 Botão análise avançada encontrado:', !!advancedAnalysisBtn);
-        console.log('📄 Botão export PDF encontrado:', !!exportPdfBtn);
-        
-        advancedAnalysisBtn?.addEventListener('click', async () => {
-            console.log('🧠 Análise avançada clicada!');
-            
-            try {
-                this.showToast('🤖 Gerando análise avançada...', 'info');
-                
-                // Usar o sistema de análise IA
-                if (window.aiAnalysis) {
-                    const analysis = await window.aiAnalysis.generateFullAnalysis(this.data);
-                    this.displayAdvancedAnalysis(analysis);
-                } else {
-                    throw new Error('Sistema de IA não disponível');
-                }
-            } catch (error) {
-                console.error('Erro na análise avançada:', error);
-                this.showToast('Erro ao gerar análise. Tente novamente.', 'error');
-            }
-        });
-        
-        exportPdfBtn?.addEventListener('click', async () => {
-            console.log('📄 Export PDF clicado!');
-            
-            try {
-                this.showToast('📄 Gerando PDF...', 'info');
-                
-                // Usar o sistema de análise IA para PDF
-                if (window.aiAnalysis) {
-                    await window.aiAnalysis.downloadReportPDF();
-                } else {
-                    throw new Error('Sistema de PDF não disponível');
-                }
-            } catch (error) {
-                console.error('Erro no export PDF:', error);
-                this.showToast('Erro ao gerar PDF. Tente novamente.', 'error');
-            }
-        });
-
-        // Delete buttons
-        const deleteAllBtn = document.getElementById('delete-all-data');
-        const confirmDeleteEntryBtn = document.getElementById('confirm-delete-entry');
-        const cancelDeleteEntryBtn = document.getElementById('cancel-delete-entry');
-        const confirmDeleteAllBtn = document.getElementById('confirm-delete-all');
-        const cancelDeleteAllBtn = document.getElementById('cancel-delete-all');
-
-        deleteAllBtn?.addEventListener('click', () => {
-            console.log('🗑️ Botão "Apagar Todos os Dados" clicado');
-            this.showDeleteAllDataModal();
-        });
-
-        confirmDeleteEntryBtn?.addEventListener('click', async () => {
-            const modal = document.getElementById('delete-entry-modal');
-            const entryId = modal?._entryId;
-            if (entryId) {
-                await this.deleteEntry(entryId);
-                this.hideDeleteModals();
-            }
-        });
-
-        cancelDeleteEntryBtn?.addEventListener('click', () => {
-            this.hideDeleteModals();
-        });
-
-        confirmDeleteAllBtn?.addEventListener('click', async () => {
-            await this.deleteAllData();
-            this.hideDeleteModals();
-        });
-
-        cancelDeleteAllBtn?.addEventListener('click', () => {
-            this.hideDeleteModals();
-        });
-        } catch (error) {
-            console.error('❌ Erro ao configurar event listeners:', error);
-        }
-    }
-
-    setupAdminKeyListener() {
-        let keySequence = [];
-        const adminSequence = ['Control', 'Shift', 'd', 'e', 'v'];
->>>>>>> parent of 6c8feb6 (Fix button)
-        
-        // Create admin panel if it doesn't exist
-        let adminPanel = document.getElementById('admin-panel');
-        if (!adminPanel) {
-            adminPanel = document.createElement('div');
-            adminPanel.id = 'admin-panel';
-            adminPanel.innerHTML = `
-                <div style="
-                    position: fixed;
-                    top: 10px;
-                    right: 10px;
-                    background: rgba(255, 0, 0, 0.9);
-                    color: white;
-                    padding: 10px;
-                    border-radius: 8px;
-                    z-index: 10000;
-                    font-size: 12px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                ">
-                    <div><strong>🚀 MODO DESENVOLVEDOR</strong></div>
-                    <div>Versão: MentalIA 3.1</div>
-                    <div>Timestamp: ${Date.now()}</div>
-                    <button onclick="this.parentElement.parentElement.remove()" style="
-                        margin-top: 5px;
-                        background: white;
-                        color: red;
-                        border: none;
-                        padding: 2px 6px;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        font-size: 10px;
-                    ">Fechar</button>
-                </div>
-            `;
-            document.body.appendChild(adminPanel);
-        }
-        
-        // Show debug elements
-        const debugElements = document.querySelectorAll('[data-debug-only]');
-        debugElements.forEach(el => el.style.display = 'block');
-        
-        console.log('👑 Elementos administrativos exibidos');
-    }
-    initMoodForm() {
-        console.log('🎚️ Inicializando slider de humor...');
-
-        // Setup mood slider with input listener and color gradient
-        const slider = document.getElementById('mood-slider');
-        console.log('🎚️ Slider encontrado:', !!slider, slider);
-
-        if (slider) {
-            // Force enable interaction
-            slider.style.pointerEvents = 'auto';
-            slider.style.cursor = 'pointer';
-            slider.disabled = false;
-            slider.style.opacity = '1'; // Make sure it's visible for debugging
-
-            console.log('🎚️ Propriedades do slider:', {
-                value: slider.value,
-                min: slider.min,
-                max: slider.max,
-                step: slider.step,
-                disabled: slider.disabled,
-                style: {
-                    pointerEvents: slider.style.pointerEvents,
-                    cursor: slider.style.cursor,
-                    opacity: slider.style.opacity
-                }
-            });
-
-            // Remove existing listeners to avoid duplicates
-            slider.removeEventListener('input', this.handleSliderInput);
-            slider.removeEventListener('change', this.handleSliderChange);
-            slider.removeEventListener('touchstart', this.handleTouchStart);
-            slider.removeEventListener('touchmove', this.handleTouchMove);
-            slider.removeEventListener('touchend', this.handleTouchEnd);
-
-            // Add new listeners
-            this.handleSliderInput = (e) => {
-                console.log('🎚️ Slider input:', e.target.value);
-                const newValue = parseFloat(e.target.value);
-                this.updateMoodValue(newValue);
-            };
-
-            this.handleSliderChange = (e) => {
-                console.log('🎚️ Slider change:', e.target.value);
-                const newValue = parseFloat(e.target.value);
-                this.updateMoodValue(newValue);
-            };
-
-            // Touch events for mobile - Improved
-            this.handleTouchStart = (e) => {
-                console.log('🎚️ Touch start on slider');
-                slider.focus(); // Ensure slider gets focus
-                // Don't prevent default to allow native slider behavior
-            };
-
-            this.handleTouchMove = (e) => {
-                console.log('🎚️ Touch move on slider');
-                // Allow native touch behavior for better responsiveness
-                // Only prevent if we need to stop page scrolling
-                if (Math.abs(e.touches[0].clientY - e.target.getBoundingClientRect().top) < 50) {
-                    e.preventDefault();
-                }
-            };
-
-            this.handleTouchEnd = (e) => {
-                console.log('🎚️ Touch end on slider');
-                // Force update after touch
-                const currentValue = parseFloat(slider.value);
-                this.updateMoodValue(currentValue);
-            };
-
-            // Add pointer events for better touch support
-            this.handlePointerDown = (e) => {
-                console.log('🎚️ Pointer down on slider');
-                slider.setPointerCapture(e.pointerId);
-            };
-
-            this.handlePointerMove = (e) => {
-                console.log('🎚️ Pointer move on slider');
-                if (slider.hasPointerCapture(e.pointerId)) {
-                    const currentValue = parseFloat(slider.value);
-                    this.updateMoodValue(currentValue);
-                }
-            };
-
-            this.handlePointerUp = (e) => {
-                console.log('🎚️ Pointer up on slider');
-                slider.releasePointerCapture(e.pointerId);
-                const currentValue = parseFloat(slider.value);
-                this.updateMoodValue(currentValue);
-            };
-
-            // Event listener principal para input contínuo
-            slider.addEventListener('input', (e) => {
-                const value = parseFloat(e.target.value);
-                this.updateMoodValue(value);
-                console.log('🎚️ Slider input:', value);
-            });
-            
-            slider.addEventListener('change', this.handleSliderChange);
-            
-            // Touch events with improved handling
-            slider.addEventListener('touchstart', this.handleTouchStart, { passive: true });
-            slider.addEventListener('touchmove', this.handleTouchMove, { passive: false });
-            slider.addEventListener('touchend', this.handleTouchEnd, { passive: true });
-            
-            // Pointer events for modern touch devices
-            if (window.PointerEvent) {
-                slider.addEventListener('pointerdown', this.handlePointerDown);
-                slider.addEventListener('pointermove', this.handlePointerMove);
-                slider.addEventListener('pointerup', this.handlePointerUp);
-            }
-
-            console.log('🎚️ Event listeners adicionados ao slider');
-
-            // Set initial value
-            this.updateMoodValue(3.0);
-        } else {
-            console.error('❌ Slider não encontrado!');
-        }
-
-        // Setup feelings wheel
-        this.initFeelingsWheel();
-
-        // Setup diary textarea
-        this.initDiaryTextarea();
-    }
-
-    updateMoodValue(value) {
-        console.log('🎨 Atualizando valor do humor:', value);
-        this.currentMood = Math.max(1, Math.min(5, value));
-
-        // Update slider
-        const slider = document.getElementById('mood-slider');
-        if (slider) {
-            slider.value = this.currentMood;
-            console.log('🎚️ Slider value set to:', this.currentMood);
-        }
-
-        // Update color gradient (red to blue)
-        const percentage = (this.currentMood - 1) / 4; // 0 to 1
-        const red = Math.round(211 - (211 - 0) * percentage);   // #d32f2f to #00bcd4
-        const green = Math.round(47 + (188 - 47) * percentage);
-        const blue = Math.round(47 + (212 - 47) * percentage);
-        const color = `rgb(${red}, ${green}, ${blue})`;
-
-        // Apply color to slider thumb
-        document.documentElement.style.setProperty('--current-mood-color', color);
-
-        // Update display
-        const emojiEl = document.getElementById('current-mood-emoji');
-        const textEl = document.getElementById('current-mood-text');
-        const valueEl = document.getElementById('current-mood-value');
-
-        const moodData = this.getMoodData(this.currentMood);
-        if (emojiEl) emojiEl.textContent = moodData.emoji;
-        if (textEl) textEl.textContent = moodData.text;
-        if (valueEl) valueEl.textContent = this.currentMood.toFixed(1);
-
-        console.log('✅ Display atualizado:', moodData.emoji, moodData.text, this.currentMood.toFixed(1));
-    }
-
-    getMoodData(value) {
-        if (value <= 1.5) return { emoji: '😢', text: 'Muito Baixo' };
-        if (value <= 2.5) return { emoji: '😕', text: 'Baixo' };
-        if (value <= 3.5) return { emoji: '😐', text: 'Neutro' };
-        if (value <= 4.5) return { emoji: '😊', text: 'Alto' };
-        return { emoji: '😄', text: 'Muito Alto' };
-    }
-
-    // ===== FEELINGS WHEEL =====
-    initFeelingsWheel() {
-        console.log('🎭 Inicializando feelings wheel...');
-
-        // Primary feeling cards with expand icons
-        const primaryCards = document.querySelectorAll('.primary-feeling-card');
-        console.log('🎭 Primary feeling cards encontrados:', primaryCards.length);
-
-        primaryCards.forEach((card, index) => {
-            const header = card.querySelector('.primary-feeling-btn');
-            const expandIcon = card.querySelector('.expand-icon');
-            
-            console.log(`🎭 Card ${index}:`, !!header, !!expandIcon);
-            
-            if (header) {
-                header.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    console.log(`🎭 Primary card clicado:`, card);
-                    this.toggleFeelingCategory(card);
-                });
-            }
-            
-            // Event listener específico para a seta de expansão
-            if (expandIcon) {
-                expandIcon.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log(`🎭 Expand icon clicado:`, card);
-                    this.toggleFeelingCategory(card);
-                });
-            }
-        });
-
-        // Sub feeling items
-        const subFeelings = document.querySelectorAll('.sub-feeling-item');
-        console.log('🎭 Sub feeling items encontrados:', subFeelings.length);
-
-        subFeelings.forEach((item, index) => {
-            console.log(`🎭 Sub feeling ${index}:`, item);
-            item.addEventListener('click', (e) => {
-                console.log(`🎭 Sub feeling clicado:`, item);
-                const checkbox = item.querySelector('input[type="checkbox"]');
-                if (checkbox) {
-                    console.log('🎭 Checkbox encontrado, toggling:', checkbox.checked);
-                    checkbox.checked = !checkbox.checked;
-                    console.log('🎭 Checkbox novo estado:', checkbox.checked);
-                    this.updateSelectedFeelings();
-                } else {
-                    console.error('🎭 Checkbox não encontrado em:', item);
-                }
-            });
-        });
-
-        // Clear button
-        const clearBtn = document.getElementById('clear-feelings');
-        console.log('🎭 Clear button encontrado:', !!clearBtn);
-        if (clearBtn) {
-            clearBtn.addEventListener('click', () => {
-                console.log('🎭 Clear button clicado');
-                this.clearAllFeelings();
-            });
-        }
-
-        console.log('✅ Feelings wheel inicializado');
-    }
-
-    toggleFeelingCategory(card) {
-        const wasExpanded = card.classList.contains('expanded');
-        const icon = card.querySelector('.expand-icon');
-        const subPanel = card.querySelector('.sub-feelings-panel');
-
-        console.log('🎭 Toggle category:', { wasExpanded, hasIcon: !!icon, hasPanel: !!subPanel });
-
-        // Close all other categories
-        document.querySelectorAll('.primary-feeling-card').forEach(c => {
-            if (c !== card) {
-                c.classList.remove('expanded');
-                const otherIcon = c.querySelector('.expand-icon');
-                const otherPanel = c.querySelector('.sub-feelings-panel');
-                if (otherIcon) {
-                    otherIcon.textContent = '▼';
-                    otherIcon.style.transform = 'rotate(0deg)';
-                }
-                if (otherPanel) {
-                    otherPanel.style.display = 'none';
-                }
-            }
-        });
-
-        // Toggle current category
-        if (wasExpanded) {
-            card.classList.remove('expanded');
-            if (icon) {
-                icon.textContent = '▼';
-                icon.style.transform = 'rotate(0deg)';
-            }
-            if (subPanel) {
-                subPanel.style.display = 'none';
-            }
-        } else {
-            card.classList.add('expanded');
-            if (icon) {
-                icon.textContent = '▲';
-                icon.style.transform = 'rotate(180deg)';
-            }
-            if (subPanel) {
-                subPanel.style.display = 'block';
-            }
-        }
-        
-        console.log('🎭 Category toggled:', card.classList.contains('expanded'));
-    }
-
-    updateSelectedFeelings() {
-        console.log('🎭 Atualizando sentimentos selecionados...');
-        const selected = document.querySelectorAll('.sub-feeling-item input:checked');
-        console.log('🎭 Sentimentos checados encontrados:', selected.length, selected);
-        this.selectedFeelings.clear();
-
-        // Check if more than 5 feelings selected
-        if (selected.length > 5) {
-            alert('Você pode selecionar no máximo 5 sentimentos. Os extras foram removidos automaticamente.');
-            
-            // Keep only the first 5 checked items and uncheck the rest
-            selected.forEach((cb, index) => {
-                if (index >= 5) {
-                    cb.checked = false;
-                }
-            });
-            
-            // Update selected to only include the first 5
-            const limitedSelected = Array.from(selected).slice(0, 5);
-            
-            limitedSelected.forEach(cb => {
-                this.selectedFeelings.add({
-                    value: cb.value,
-                    category: cb.dataset.category,
-                    emoji: cb.parentElement.querySelector('.sub-emoji')?.textContent || '',
-                    label: cb.parentElement.querySelector('.sub-label')?.textContent || ''
-                });
-            });
-        } else {
-            selected.forEach(cb => {
-                this.selectedFeelings.add({
-                    value: cb.value,
-                    category: cb.dataset.category,
-                    emoji: cb.parentElement.querySelector('.sub-emoji')?.textContent || '',
-                    label: cb.parentElement.querySelector('.sub-label')?.textContent || ''
-                });
-            });
-        }
-
-        this.updateFeelingsDisplay();
-    }
-
-    updateFeelingsDisplay() {
-        const container = document.querySelector('.selected-feelings-summary');
-        const list = document.getElementById('selected-feelings-list');
-
-        if (!container || !list) return;
-
-        if (this.selectedFeelings.size > 0) {
-            container.classList.add('has-selections');
-            list.innerHTML = Array.from(this.selectedFeelings).map(feeling =>
-                `<span class="selected-feeling-tag">${feeling.emoji} ${feeling.label}</span>`
-            ).join('');
-        } else {
-            container.classList.remove('has-selections');
-            list.innerHTML = '';
-        }
-    }
-
-    clearAllFeelings() {
-        document.querySelectorAll('.sub-feeling-item input').forEach(cb => cb.checked = false);
-        this.selectedFeelings.clear();
-        this.updateFeelingsDisplay();
-
-        // Close all categories
-        document.querySelectorAll('.primary-feeling-card').forEach(card => {
-            card.classList.remove('expanded');
-            const icon = card.querySelector('.expand-icon');
-            if (icon) {
-                icon.textContent = '▼';
-                icon.style.transform = 'rotate(0deg)';
-            }
-        });
-    }
-
-    // ===== DIARY TEXTAREA =====
-    initDiaryTextarea() {
-        const textarea = document.getElementById('diary-entry');
-        if (!textarea) {
-            console.warn('⚠️ Textarea diary-entry não encontrado');
-            return;
-        }
-
-        console.log('📝 Inicializando diary textarea...');
-
-        // Character counter and auto-resize
-        textarea.addEventListener('input', (e) => {
-            const length = e.target.value.length;
-            this.updateCharCount(length);
-            this.autoResizeTextarea(textarea);
-            console.log('📝 Diary input:', length, 'chars');
-        });
-
-        // Initial setup
-        this.updateCharCount(textarea.value.length);
-        this.autoResizeTextarea(textarea);
-        
-        console.log('✅ Diary textarea inicializado');
-    }
-
-    updateCharCount(count) {
-        let counter = document.querySelector('.char-count');
-        if (!counter) {
-            // Create counter if it doesn't exist
-            const textarea = document.getElementById('diary-entry');
-            if (textarea && textarea.parentNode) {
-                counter = document.createElement('div');
-                counter.className = 'char-count';
-                counter.style.cssText = `
-                    font-size: 0.8rem;
-                    color: var(--text-secondary);
-                    text-align: right;
-                    margin-top: 0.5rem;
-                    opacity: 0.7;
-                `;
-                textarea.parentNode.appendChild(counter);
-            }
-        }
-        
-        if (counter) {
-            const maxChars = 2000;
-            counter.textContent = `${count}/${maxChars} caracteres`;
-            
-            // Color coding based on character count
-            if (count > maxChars * 0.9) {
-                counter.style.color = 'var(--danger)';
-            } else if (count > maxChars * 0.75) {
-                counter.style.color = 'var(--warning)';
-            } else {
-                counter.style.color = 'var(--text-secondary)';
-            }
-        }
-    }
-    
-    autoResizeTextarea(textarea) {
-        if (!textarea) return;
-        
-        // Reset height to auto to get the correct scrollHeight
-        textarea.style.height = 'auto';
-        
-        // Set height based on content, with min and max constraints
-        const minHeight = 120; // minimum height in pixels
-        const maxHeight = 400; // maximum height in pixels
-        const scrollHeight = textarea.scrollHeight;
-        
-        const newHeight = Math.max(minHeight, Math.min(maxHeight, scrollHeight));
-        textarea.style.height = newHeight + 'px';
-        
-        // Add scrollbar if content exceeds max height
-        if (scrollHeight > maxHeight) {
-            textarea.style.overflowY = 'auto';
-        } else {
-            textarea.style.overflowY = 'hidden';
-        }
-    }
-
-    // ===== SAVE MOOD =====
-    async handleMoodSubmit(e) {
-        e.preventDefault();
-        console.log('💾 Salvando registro...');
-
-        try {
-            // Validate data
-            if (this.currentMood < 1 || this.currentMood > 5) {
-                throw new Error('Humor inválido: ' + this.currentMood);
-            }
-
-            // Prepare data
-            const moodData = {
-                id: Date.now(),
-                mood: Math.round(this.currentMood * 10) / 10,
-                feelings: Array.from(this.selectedFeelings),
-                diary: document.getElementById('diary-entry')?.value?.trim() || '',
-                timestamp: new Date().toISOString(),
-                date: new Date().toDateString(),
-                version: '3.1'
-            };
-
-            console.log('📊 Dados para salvar:', {
-                id: moodData.id,
-                mood: moodData.mood,
-                feelingsCount: moodData.feelings.length,
-                diaryLength: moodData.diary.length
-            });
-
-            // Ensure storage is ready
-            if (!window.mentalStorage) {
-                await this.ensureStorageReady();
-            }
-
-            // Save to encrypted storage
-            const result = await window.mentalStorage.saveMoodEntry(moodData);
-            console.log('✅ Dados salvos criptografados:', result);
-
-            // Success feedback
-            this.showToast('Humor registrado com sucesso! 🎉', 'success');
-
-            // Reset form and go to history
-            this.resetMoodForm();
-            setTimeout(() => this.showScreen('history'), 1000);
-
-        } catch (error) {
-            console.error('❌ Erro ao salvar:', error);
-            this.showToast('Erro ao salvar: ' + error.message, 'error');
-        }
-    }
-
-    resetMoodForm() {
-        // Reset slider
-        this.currentMood = 3.0;
-        this.updateMoodValue(3.0);
-
-        // Reset feelings
-        this.clearAllFeelings();
-
-        // Reset diary
-        const textarea = document.getElementById('diary-entry');
-        if (textarea) {
-            textarea.value = '';
-            this.updateCharCount(0);
-            this.autoResizeTextarea(textarea);
-        }
-    }
-
-    // ===== HISTORY =====
-    async loadData() {
-        try {
-            console.log('📊 Carregando dados do storage...');
-
-            // Ensure storage is ready
-            if (!window.mentalStorage) {
-                console.log('🔄 Aguardando storage...');
-                await this.ensureStorageReady();
-            }
-
-            console.log('📊 Buscando entradas...');
-            const entries = await window.mentalStorage.getAllMoodEntries();
-            console.log('📊 Calculando estatísticas...');
-            const stats = await window.mentalStorage.getStats();
-
-            console.log('📊 Dados carregados:', {
-                entriesCount: entries?.length || 0,
-                firstEntry: entries?.[0] ? {
-                    id: entries[0].id,
-                    mood: entries[0].mood,
-                    date: entries[0].date
-                } : null,
-                stats: {
-                    total: stats?.totalEntries || 0,
-                    average: stats?.averageMood || 0,
-                    streak: stats?.streak || 0
-                }
-            });
-
-            this.updateStats(stats);
-            this.updateChart(entries);
-            this.updateRecentEntries(entries);
-
-            console.log('✅ Dados carregados e exibidos');
-        } catch (error) {
-            console.error('❌ Erro ao carregar dados:', error);
-            console.error('❌ Stack trace:', error.stack);
-            this.showToast('Erro ao carregar dados: ' + error.message, 'error');
-            
-            // Show empty state if no data
-            this.updateStats({ totalEntries: 0, averageMood: 0, streak: 0 });
-            this.updateChart([]);
-            this.updateRecentEntries([]);
-        }
-    }
-
-    updateStats(stats) {
-        console.log('📊 Atualizando estatísticas:', stats);
-        const elements = {
-            'avg-mood': stats?.averageMood?.toFixed(1) || '0.0',
-            'total-entries': stats?.totalEntries || 0,
-            'streak-days': stats?.streak || 0
-        };
-
-        Object.entries(elements).forEach(([id, value]) => {
-            const el = document.getElementById(id);
-            if (el) {
-                el.textContent = value;
-                console.log(`📊 Atualizado ${id}: ${value}`);
-            } else {
-                console.warn(`⚠️ Elemento não encontrado: ${id}`);
-            }
-        });
-    }
-
-    updateChart(entries) {
-        console.log('📈 Atualizando gráfico com', entries?.length || 0, 'entradas');
-        
-        // Se não há entradas, mostrar estado vazio
-        if (!entries || entries.length === 0) {
-            const chartContainer = document.querySelector('.chart-container');
-            if (chartContainer) {
-                chartContainer.innerHTML = '<div class="empty-chart">📊 Nenhum dado para exibir</div>';
-            }
-            return;
-        }
-
-        // Implementação básica do gráfico pode ser adicionada aqui
-        // Por enquanto, apenas log para debug
-        console.log('📈 Primeiras 3 entradas para gráfico:', entries.slice(0, 3));
-    }
-
-    updateRecentEntries(entries) {
-        console.log('📅 Atualizando entradas recentes:', entries?.length || 0);
-        // O container no HTML tem id `recent-list` (dentro da div .recent-entries)
-        const container = document.getElementById('recent-list');
-        if (!container) {
-            console.warn('⚠️ Container recent-entries não encontrado');
-            return;
-        }
-
-        // Limpar container
-        container.innerHTML = '';
-
-        // Se não há entradas, mostrar estado vazio
-        if (!entries || entries.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <h3>📝 Nenhum registro ainda</h3>
-                    <p>Registre seu primeiro humor para ver o histórico aqui!</p>
-                </div>
-            `;
-            return;
-        }
-
-        // Mostrar últimas 5 entradas
-        const recentEntries = entries.slice(0, 5);
-        recentEntries.forEach(entry => {
-            const entryEl = document.createElement('div');
-            entryEl.className = 'recent-entry';
-            
-                const moodEmoji = this.getMoodEmoji(entry.mood);
-                // Normalize feelings (may be strings or objects { label, value })
-                const feelingsArr = Array.isArray(entry.feelings) ? entry.feelings : [];
-                const mappedFeelings = feelingsArr.map(f => {
-                    if (!f) return '';
-                    if (typeof f === 'string') return f;
-                    return f.label || f.value || f.name || '';
-                }).filter(Boolean);
-
-                const feelingsText = mappedFeelings.length > 0
-                    ? mappedFeelings.slice(0, 3).join(', ') + (mappedFeelings.length > 3 ? '...' : '')
-                    : 'Nenhum sentimento selecionado';
-            
-            entryEl.innerHTML = `
-                <div class="entry-content">
-                    <div class="entry-date">${new Date(entry.timestamp).toLocaleDateString('pt-BR')}</div>
-                    <div class="entry-mood">${moodEmoji} ${entry.mood.toFixed(1)}</div>
-                    <div class="entry-feelings">${feelingsText}</div>
-                    ${entry.diary ? `<div class="entry-diary">"${entry.diary.substring(0, 100)}${entry.diary.length > 100 ? '...' : ''}"</div>` : ''}
-                </div>
-                <button class="delete-entry-btn" data-entry-id="${entry.id}" title="Excluir registro">
-                    🗑️
-                </button>
-            `;
-            
-            container.appendChild(entryEl);
-        });
-
-        console.log('✅ Entradas recentes atualizadas');
-    }
-
-    getMoodEmoji(mood) {
-        if (mood <= 1.5) return '😢';
-        if (mood <= 2.5) return '😕';
-        if (mood <= 3.5) return '😐';
-        if (mood <= 4.5) return '😊';
-        return '😁';
-    }
-
-    initChart() {
-        console.log('📊 Inicializando gráfico...');
-
-        // Destroy existing chart if it exists
-        if (this.chart) {
-            this.chart.destroy();
-            this.chart = null;
-        }
-
-        const ctx = document.getElementById('mood-chart');
-        console.log('📊 Canvas encontrado:', !!ctx);
-
-        if (!ctx) {
-            console.error('❌ Canvas do gráfico não encontrado!');
-            this.showChartFallback();
-            return false;
-        }
-
-        if (typeof Chart === 'undefined') {
-            console.error('❌ Chart.js não carregado!');
-            this.showChartFallback();
-            return false;
-        }
-
-        try {
-            this.chart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Humor Diário',
-                        data: [],
-                        borderColor: '#6366f1',
-                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                        borderWidth: 3,
-                        pointBackgroundColor: '#6366f1',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 3,
-                        pointRadius: 7,
-                        pointHoverRadius: 10,
-                        pointHoverBorderWidth: 4,
-                        tension: 0.4,
-                        fill: true,
-                        cubicInterpolationMode: 'monotone'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        intersect: false,
-                        mode: 'index'
-                    },
-                    elements: {
-                        point: {
-                            hoverBorderWidth: 4
-                        }
-                    },
-                    plugins: {
-                        legend: { 
-                            display: false 
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(26, 26, 46, 0.95)',
-                            titleColor: '#ffffff',
-                            bodyColor: '#ffffff',
-                            borderColor: '#6366f1',
-                            borderWidth: 1,
-                            cornerRadius: 8,
-                            displayColors: false,
-                            callbacks: {
-                                title: function(context) {
-                                    return '📅 ' + context[0].label;
-                                },
-                                label: function(context) {
-                                    const value = context.parsed.y;
-                                    const emoji = value <= 1.5 ? '😢' : value <= 2.5 ? '😕' : value <= 3.5 ? '😐' : value <= 4.5 ? '😊' : '😁';
-                                    return `${emoji} Humor: ${value.toFixed(1)}/5`;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            display: true,
-                            title: {
-                                display: true,
-                                text: 'Data'
-                            },
-                            grid: {
-                                display: false
-                            }
-                        },
-                        y: {
-                            beginAtZero: true,
-                            max: 5,
-                            ticks: {
-                                stepSize: 1,
-                                callback: function(value) {
-                                    return value + '/5';
-                                }
-                            },
-                            title: {
-                                display: true,
-                                text: 'Nível de Humor'
-                            }
-                        }
-                    }
-                },
-                plugins: [{
-                    id: 'emptyChart',
-                    afterDraw: function(chart) {
-                        if (chart.data.datasets[0].data.length === 0) {
-                            const { ctx, chartArea: { left, top, right, bottom, width, height } } = chart;
-
-                            // Draw background gradient
-                            ctx.save();
-                            const gradient = ctx.createLinearGradient(left, top, left, bottom);
-                            gradient.addColorStop(0, 'rgba(99, 102, 241, 0.05)');
-                            gradient.addColorStop(1, 'rgba(99, 102, 241, 0.02)');
-                            ctx.fillStyle = gradient;
-                            ctx.fillRect(left, top, width, height);
-
-                            // Draw demo line with sample points
-                            ctx.strokeStyle = 'rgba(99, 102, 241, 0.3)';
-                            ctx.lineWidth = 3;
-                            ctx.setLineDash([10, 5]);
-                            
-                            // Create a more realistic mood curve
-                            const points = [
-                                { x: left + width * 0.1, y: top + height * 0.8 },  // Low mood
-                                { x: left + width * 0.25, y: top + height * 0.6 }, // Improving
-                                { x: left + width * 0.4, y: top + height * 0.3 },  // Good mood
-                                { x: left + width * 0.55, y: top + height * 0.4 }, // Slight dip
-                                { x: left + width * 0.7, y: top + height * 0.25 }, // Very good
-                                { x: left + width * 0.85, y: top + height * 0.35 } // Stable
-                            ];
-                            
-                            ctx.beginPath();
-                            ctx.moveTo(points[0].x, points[0].y);
-                            for (let i = 1; i < points.length; i++) {
-                                const cp1x = points[i-1].x + (points[i].x - points[i-1].x) * 0.4;
-                                const cp1y = points[i-1].y;
-                                const cp2x = points[i].x - (points[i].x - points[i-1].x) * 0.4;
-                                const cp2y = points[i].y;
-                                ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, points[i].x, points[i].y);
-                            }
-                            ctx.stroke();
-                            
-                            // Draw sample points with gradient
-                            points.forEach((point, index) => {
-                                const pointGradient = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, 6);
-                                pointGradient.addColorStop(0, '#6366f1');
-                                pointGradient.addColorStop(1, 'rgba(99, 102, 241, 0.6)');
-                                ctx.fillStyle = pointGradient;
-                                ctx.beginPath();
-                                ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI);
-                                ctx.fill();
-                                
-                                // Add white border
-                                ctx.strokeStyle = '#ffffff';
-                                ctx.lineWidth = 2;
-                                ctx.setLineDash([]);
-                                ctx.stroke();
-                            });
-                            
-                            ctx.restore();
-
-                            // Draw main placeholder text with better styling
-                            ctx.save();
-                            ctx.fillStyle = '#6366f1';
-                            ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
-                            ctx.textAlign = 'center';
-                            ctx.textBaseline = 'middle';
-                            ctx.fillText('📊 Registre seu primeiro humor', left + width / 2, top + height / 2 - 35);
-                            
-                            // Draw subtitle
-                            ctx.fillStyle = 'rgba(107, 114, 128, 0.9)';
-                            ctx.font = '15px system-ui, -apple-system, sans-serif';
-                            ctx.fillText('Seu gráfico de progresso emocional aparecerá aqui', left + width / 2, top + height / 2 - 8);
-                            
-                            // Draw call to action
-                            ctx.fillStyle = 'rgba(99, 102, 241, 0.7)';
-                            ctx.font = '13px system-ui, -apple-system, sans-serif';
-                            ctx.fillText('👆 Clique em "Registrar Humor" para começar', left + width / 2, top + height / 2 + 18);
-                            
-                            // Draw small help text
-                            ctx.fillStyle = 'rgba(107, 114, 128, 0.6)';
-                            ctx.font = '11px system-ui, -apple-system, sans-serif';
-                            ctx.fillText('Os últimos 30 registros aparecerão neste gráfico', left + width / 2, top + height / 2 + 38);
-                            
-                            ctx.restore();
-                        }
-                    }
-                }]
-            });
-
-            console.log('✅ Gráfico inicializado com sucesso');
-            return true;
-        } catch (error) {
-            console.error('❌ Erro ao inicializar gráfico:', error);
-            return false;
-        }
-    }
-
-
-    
-    // Helper function for when chart canvas is not available
-    showChartFallback() {
-        const chartContainer = document.querySelector('.chart-container') || 
-                              document.querySelector('#mood-chart')?.parentElement;
-        
-        if (chartContainer) {
-            chartContainer.innerHTML = `
-                <div class="chart-fallback" style="
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    height: 300px;
-                    background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(99, 102, 241, 0.02));
-                    border-radius: 12px;
-                    border: 2px dashed rgba(99, 102, 241, 0.2);
-                    text-align: center;
-                    padding: 20px;
-                ">
-                    <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
-                    <h3 style="color: #6366f1; margin-bottom: 0.5rem;">Gráfico Não Disponível</h3>
-                    <p style="color: rgba(107, 114, 128, 0.9); margin-bottom: 1rem;">Chart.js não foi carregado ou canvas não encontrado</p>
-                    <button onclick="location.reload()" style="
-                        background: #6366f1;
-                        color: white;
-                        border: none;
-                        padding: 8px 16px;
-                        border-radius: 6px;
-                        cursor: pointer;
-                        font-size: 0.9rem;
-                    ">Recarregar Página</button>
-                </div>
-            `;
-        }
-    }
-
-
-
-    // ===== REPORT =====
-    async generateReport() {
-        try {
-            console.log('📊 Gerando relatório...');
-            
-            // 🔥 CORREÇÃO: Feedback visual imediato para mobile
-            const reportBtn = document.getElementById('generate-report');
-            const originalText = reportBtn?.textContent;
-            
-            if (reportBtn) {
-                reportBtn.disabled = true;
-                reportBtn.textContent = '⏳ Gerando...';
-                reportBtn.style.opacity = '0.7';
-            }
-
-            if (!window.aiAnalysis) {
-                throw new Error('Sistema de IA não disponível');
-            }
-
-            const entries = await window.mentalStorage.getAllMoodEntries();
-            
-            // 🔥 CORREÇÃO: Tratar caso sem dados de forma amigável
-            if (!entries?.length) {
-                this.displayEmptyReport();
-                this.showToast('📝 Adicione alguns registros de humor para gerar um relatório completo!', 'info', 6000);
-                return;
-            }
-
-            const report = await window.aiAnalysis.generateReport(entries);
-            this.displayReport(report);
-
-            this.showToast('Relatório gerado! 📋', 'success');
-            
-            // Scroll suave para o relatório (melhor no mobile)
-            setTimeout(() => {
-                const reportContent = document.getElementById('report-content');
-                if (reportContent) {
-                    reportContent.scrollIntoView({ 
-                        behavior: 'smooth', 
-                        block: 'start',
-                        inline: 'nearest'
-                    });
-                }
-            }, 500);
-
-        } catch (error) {
-            console.error('❌ Erro no relatório:', error);
-            
-            // Display a fallback report
-            this.displayReport({
-                title: 'Relatório MentalIA - Modo Seguro',
-                subtitle: 'Análise básica disponível',
-                analysis: '⚠️ Houve um problema técnico ao gerar seu relatório completo, mas seus dados estão seguros. Continue registrando seu humor regularmente para obter insights valiosos sobre seu bem-estar emocional.',
-                recommendations: [
-                    'Continue registrando seu humor diariamente',
-                    'Tente gerar o relatório novamente em alguns minutos',
-                    'Verifique se tem uma conexão estável com a internet'
-                ],
-                insights: [
-                    'Sistema funcionando em modo seguro',
-                    'Seus dados estão protegidos'
-                ],
-                disclaimer: 'Relatório gerado em modo seguro devido a erro técnico temporário.',
-                error: true
-            });
-            
-            this.showToast('⚠️ Relatório em modo seguro gerado', 'warning');
-        } finally {
-            // 🔥 CORREÇÃO: Restaurar botão sempre
-            const reportBtn = document.getElementById('generate-report');
-            if (reportBtn && originalText) {
-                setTimeout(() => {
-                    reportBtn.disabled = false;
-                    reportBtn.textContent = originalText;
-                    reportBtn.style.opacity = '1';
-                }, 1000);
-            }
-        }
-    }
-
-    // Convert markdown to HTML
-    markdownToHtml(markdown) {
-        if (!markdown) return '';
-        
-        let html = markdown
-            // Headers
-            .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-            .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-            .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-            
-            // Bold text
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/__(.*?)__/g, '<strong>$1</strong>')
-            
-            // Italic text
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/_(.*?)_/g, '<em>$1</em>')
-            
-            // Lists
-            .replace(/^\• (.*$)/gim, '<li>$1</li>')
-            .replace(/^- (.*$)/gim, '<li>$1</li>')
-            .replace(/^\* (.*$)/gim, '<li>$1</li>')
-            
-            // Line breaks
-            .replace(/\n\n/g, '</p><p>')
-            .replace(/\n/g, '<br>');
-            
-        // Wrap lists in ul tags
-        html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
-        
-        // Wrap paragraphs
-        if (!html.includes('<p>') && !html.includes('<h')) {
-            html = `<p>${html}</p>`;
-        }
-        
-        return html;
-    }
-
-    displayReport(report) {
-        const content = document.getElementById('report-content');
-        if (content) {
-            content.classList.remove('hidden');
-
-            // Handle different report formats
-            let htmlContent = '';
-            if (typeof report === 'string') {
-                // Convert markdown string to HTML
-                const convertedContent = this.markdownToHtml(report);
-                htmlContent = `<div class="report-section"><div class="analysis-content">${convertedContent}</div></div>`;
-            } else if (report.analysis) {
-                // Convert markdown analysis to HTML
-                const convertedAnalysis = this.markdownToHtml(report.analysis);
-                
-                htmlContent = `
-                    <div class="report-section">
-                        <div class="report-header">
-                            <h2 class="report-title">${report.title || 'Análise de Humor'}</h2>
-                            ${report.subtitle ? `<p class="report-subtitle">${report.subtitle}</p>` : ''}
-                        </div>
-                        <div class="analysis-content">${convertedAnalysis}</div>
-                        ${report.recommendations && report.recommendations.length > 0 ? `
-                            <div class="recommendations">
-                                <h3>💡 Recomendações Personalizadas</h3>
-                                <ul class="recommendation-list">
-                                    ${report.recommendations.map(r => `<li>${this.markdownToHtml(r)}</li>`).join('')}
-                                </ul>
-                            </div>
-                        ` : ''}
-                        ${report.insights && report.insights.length > 0 ? `
-                            <div class="insights">
-                                <h3>🌟 Insights Importantes</h3>
-                                <ul class="insight-list">
-                                    ${report.insights.map(i => `<li>${this.markdownToHtml(i)}</li>`).join('')}
-                                </ul>
-                            </div>
-                        ` : ''}
-                        ${report.disclaimer ? `
-                            <div class="disclaimer">
-                                <h4>⚠️ Importante</h4>
-                                <p>${this.markdownToHtml(report.disclaimer)}</p>
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
-            } else {
-                htmlContent = `<div class="report-section"><div class="analysis-content">${JSON.stringify(report, null, 2)}</div></div>`;
-            }
-
-            content.innerHTML = htmlContent;
-            console.log('📊 Relatório exibido e formatado:', report);
-        } else {
-            console.error('❌ Elemento report-content não encontrado');
-        }
-    }
-
-    // ===== BACKUP =====
-    async backupData() {
-        if (window.googleDriveBackup) {
-            await window.googleDriveBackup.handleBackupClick();
-        } else {
-            this.showToast('Sistema de backup não disponível', 'error');
-        }
-    }
-
-    // ===== NAVIGATION & THEME =====
-    initNavigation() {
-        console.log('🧭 Inicializando navegação...');
-        // Navigation is already handled in setupEventListeners
-        // This method ensures navigation is ready when app initializes
-        console.log('✅ Navegação inicializada');
-    }
-
-    showScreen(screenName) {
-        console.log('🧭 showScreen chamado com:', screenName, 'Timestamp:', Date.now());
-        console.log('🧭 Estado atual da aplicação:', {
-            currentScreen: this.currentScreen,
-            isPremium: this.isPremium,
-            dataLoaded: !!this.data
-        });
-
-        // Hide all screens
-        document.querySelectorAll('.screen').forEach(screen => {
-            console.log('🧭 Escondendo tela:', screen.id);
-            screen.classList.remove('active');
-        });
-
-        // Show target screen
-        const target = document.getElementById(`${screenName}-screen`);
-        console.log('🧭 Tela alvo encontrada:', !!target, `${screenName}-screen`, target);
-
-        if (target) {
-            console.log('🧭 Ativando tela:', screenName);
-            target.classList.add('active');
-            this.currentScreen = screenName;
-            console.log('✅ Tela ativada:', screenName);
-
-            // Initialize mood form when mood screen is shown
-            if (screenName === 'mood') {
-                console.log('🎭 Tela de humor mostrada, inicializando formulário...');
-                // Use requestAnimationFrame to ensure DOM is fully rendered
-                requestAnimationFrame(() => {
-                    this.initMoodForm();
-                });
-            }
-        } else {
-            console.error('❌ Tela não encontrada:', `${screenName}-screen`);
-            console.log('🧭 Telas disponíveis no DOM:', Array.from(document.querySelectorAll('.screen')).map(s => s.id));
-        }
-
-        // Update navigation
-        document.querySelectorAll('.nav-btn').forEach(btn => {
-            const isActive = btn.dataset.screen === screenName;
-            console.log('🧭 Atualizando botão nav:', btn.dataset.screen, 'ativo:', isActive);
-            btn.classList.toggle('active', isActive);
-        });
-
-        // Load screen data
-        if (screenName === 'history') {
-            console.log('📊 Carregando dados do histórico...');
-            // Ensure chart is initialized before loading data
-            if (!this.chart) {
-                console.log('📊 Inicializando gráfico na navegação...');
-                this.initChart();
-            }
-            // Load data after a short delay to ensure chart is ready
-            setTimeout(() => this.loadData(), 100);
-        }
-
-        console.log('🧭 Navegação concluída para:', screenName);
-    }
-
-    initTheme() {
-        const theme = localStorage.getItem('mental-ia-theme') || 'dark';
-        this.setTheme(theme);
-    }
-
-    toggleTheme() {
-        const current = document.documentElement.getAttribute('data-theme');
-        const newTheme = current === 'dark' ? 'light' : 'dark';
-        this.setTheme(newTheme);
-    }
-
-    setTheme(theme) {
-        document.documentElement.setAttribute('data-theme', theme);
-        localStorage.setItem('mental-ia-theme', theme);
-
-        const toggle = document.getElementById('theme-toggle');
-        if (toggle) {
-            toggle.querySelector('.theme-icon').textContent = theme === 'dark' ? '🌙' : '☀️';
-        }
-    }
-
-    // ===== PWA =====
-    initPWA() {
-        // Register service worker
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js')
-                .then(reg => console.log('✅ SW registrado:', reg.scope))
-                .catch(err => console.error('❌ SW erro:', err));
-        }
-    }
-
-    // ===== UTILITIES =====
-    async ensureStorageReady() {
-        console.log('🔄 Garantindo que storage está pronto...');
-        
-        if (!window.mentalStorage) {
-            console.log('🔄 Storage não encontrado, aguardando inicialização...');
-            
-            // Wait for storage to be initialized
-            let attempts = 0;
-            const maxAttempts = 50; // 5 seconds max
-            
-            while (!window.mentalStorage && attempts < maxAttempts) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-                attempts++;
-            }
-            
-            if (!window.mentalStorage) {
-                throw new Error('Storage não pôde ser inicializado');
-            }
-        }
-        
-        console.log('✅ Storage está pronto');
-        return window.mentalStorage;
-    }
-
-    // 🔥 CORREÇÃO: Função para exibir relatório quando não há dados
-    displayEmptyReport() {
-        console.log('📝 Exibindo relatório vazio...');
-        
-        const reportContent = document.getElementById('report-content');
-        if (!reportContent) {
-            console.error('❌ Container de relatório não encontrado');
-            return;
-        }
-        
-        // Limpar conteúdo anterior
-        reportContent.innerHTML = '';
-        
-        // Criar relatório vazio amigável
-        const emptyReport = document.createElement('div');
-        emptyReport.className = 'empty-report';
-        emptyReport.innerHTML = `
-            <div class="empty-report-header">
-                <h3>📝 Seu Relatório de Bem-Estar</h3>
-                <p class="empty-report-subtitle">Comece registrando seu humor para receber análises personalizadas</p>
-                <span class="empty-report-date">${new Date().toLocaleDateString('pt-BR')}</span>
-            </div>
-            
-            <div class="empty-report-content">
-                <div class="empty-state">
-                    <div class="empty-icon">🌟</div>
-                    <h4>Primeiro passo para uma vida mais equilibrada</h4>
-                    <p>Registre como você está se sentindo hoje para começar a construir seu histórico de bem-estar mental.</p>
-                    
-                    <div class="quick-start-guide">
-                        <h5>Como funciona:</h5>
-                        <ol>
-                            <li><strong>Registre seu humor</strong> - Use a tela inicial para anotar como está se sentindo</li>
-                            <li><strong>Adicione detalhes</strong> - Descreva o que aconteceu no seu dia</li>
-                            <li><strong>Receba análises</strong> - Nossa IA criará relatórios personalizados para você</li>
-                        </ol>
-                    </div>
-                    
-                    <div class="empty-actions">
-                        <button class="btn-primary" onclick="window.mentalIA?.showScreen('welcome')" style="margin: 10px;">
-                            📊 Registrar Primeiro Humor
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="empty-report-footer">
-                <p><small>💡 <strong>Dica:</strong> Registre seu humor regularmente para obter insights mais precisos sobre seus padrões emocionais.</small></p>
-            </div>
-        `;
-        
-        // Adicionar estilos inline para garantir boa aparência
-        const style = document.createElement('style');
-        style.textContent = `
-            .empty-report {
-                padding: 20px;
-                text-align: center;
-                background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-                border-radius: 12px;
-                margin: 10px 0;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            }
-            
-            .empty-report-header h3 {
-                color: #2c3e50;
-                margin-bottom: 5px;
-            }
-            
-            .empty-report-subtitle {
-                color: #7f8c8d;
-                margin-bottom: 10px;
-            }
-            
-            .empty-state {
-                background: white;
-                padding: 30px 20px;
-                border-radius: 8px;
-                margin: 20px 0;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            }
-            
-            .empty-icon {
-                font-size: 48px;
-                margin-bottom: 15px;
-            }
-            
-            .quick-start-guide {
-                text-align: left;
-                max-width: 400px;
-                margin: 20px auto;
-                padding: 15px;
-                background: #f8f9fa;
-                border-radius: 6px;
-            }
-            
-            .quick-start-guide ol {
-                margin: 10px 0;
-                padding-left: 20px;
-            }
-            
-            .quick-start-guide li {
-                margin: 8px 0;
-                line-height: 1.4;
-            }
-            
-            .empty-actions {
-                margin: 20px 0;
-            }
-            
-            .empty-report-footer {
-                margin-top: 20px;
-                padding-top: 15px;
-                border-top: 1px solid rgba(0,0,0,0.1);
-            }
-            
-            @media (max-width: 768px) {
-                .empty-report {
-                    padding: 15px;
-                    margin: 5px 0;
-                }
-                
-                .empty-state {
-                    padding: 20px 15px;
-                }
-                
-                .quick-start-guide {
-                    max-width: none;
-                }
-            }
-        `;
-        
-        // Adicionar estilo e conteúdo
-        document.head.appendChild(style);
-        reportContent.appendChild(emptyReport);
-        
-        // Mostrar o container
-        reportContent.classList.remove('hidden');
-        
-        console.log('📝 Relatório vazio exibido com sucesso');
-    }
-
-    // 🔥 CORREÇÃO: Função para exibir análise avançada
-    displayAdvancedAnalysis(analysis) {
-        console.log('🧠 Exibindo análise avançada:', analysis);
-        
-        const reportContent = document.getElementById('report-content');
-        if (!reportContent) {
-            console.error('❌ Container de relatório não encontrado');
-            return;
-        }
-        
-        // Limpar conteúdo anterior
-        reportContent.innerHTML = '';
-        
-        // Criar header da análise
-        const header = document.createElement('div');
-        header.className = 'analysis-header';
-        header.innerHTML = `
-            <h3>🧠 Análise Avançada por IA</h3>
-            <p class="analysis-subtitle">${analysis.subtitle || 'Relatório Personalizado'}</p>
-            <span class="analysis-date">${new Date().toLocaleDateString('pt-BR')}</span>
-        `;
-        
-        // Criar conteúdo da análise
-        const content = document.createElement('div');
-        content.className = 'analysis-content';
-        content.innerHTML = analysis.content || analysis.analysis || 'Análise em processamento...';
-        
-        // Adicionar disclaimer
-        const disclaimer = document.createElement('div');
-        disclaimer.className = 'analysis-disclaimer';
-        disclaimer.innerHTML = `
-            <p><strong>⚠️ Importante:</strong> ${analysis.disclaimer || 'Esta análise foi gerada por IA e não substitui acompanhamento profissional de saúde mental.'}</p>
-        `;
-        
-        // Montar tudo
-        reportContent.appendChild(header);
-        reportContent.appendChild(content);
-        reportContent.appendChild(disclaimer);
-        
-        // Mostrar o container
-        reportContent.classList.remove('hidden');
-        
-        // Scroll para o relatório
-        reportContent.scrollIntoView({ behavior: 'smooth' });
-        
-        this.showToast('✅ Análise avançada gerada com sucesso!', 'success');
-    }
-
-    // ===== DELETE FUNCTIONALITY =====
-    showDeleteModal(entryId, isDeleteAll) {
-        console.log('🗑️ Mostrando modal de exclusão:', { entryId, isDeleteAll });
-        
-        this.pendingDelete = { entryId, isDeleteAll };
-        
-        const modal = document.getElementById('delete-modal');
-        const title = document.getElementById('modal-title');
-        const message = document.getElementById('modal-message');
-        
-        if (isDeleteAll) {
-            title.textContent = 'Apagar Todos os Dados';
-            message.textContent = 'Isso vai apagar TODOS os seus registros permanentemente. Tem certeza?';
-        } else {
-            title.textContent = 'Excluir Registro';
-            message.textContent = 'Tem certeza que quer excluir este registro? Isso é permanente.';
-        }
-        
-        modal.classList.remove('hidden');
-    }
-
-    hideDeleteModal() {
-        console.log('🗑️ Escondendo modal de exclusão');
-        const modal = document.getElementById('delete-modal');
-        modal.classList.add('hidden');
-        this.pendingDelete = null;
-    }
-
-    async confirmDelete() {
-        if (!this.pendingDelete) return;
-        
-        const { entryId, isDeleteAll } = this.pendingDelete;
-        
-        try {
-            if (isDeleteAll) {
-                console.log('🗑️ Confirmando exclusão de todos os dados');
-                await window.mentalStorage.deleteAllEntries();
-                this.showToast('Todos os dados foram excluídos. Respeitamos seu direito à privacidade (LGPD Art. 18)', 'success', 5000);
-                // Go back to welcome screen
-                setTimeout(() => this.showScreen('welcome'), 1000);
-            } else {
-                console.log('🗑️ Confirmando exclusão do registro:', entryId);
-                await window.mentalStorage.deleteEntry(entryId);
-                this.showToast('Registro excluído', 'success');
-                // Reload history
-                await this.loadData();
-            }
-        } catch (error) {
-            console.error('❌ Erro ao excluir:', error);
-            this.showToast('Erro ao excluir: ' + error.message, 'error');
-        } finally {
-            this.hideDeleteModal();
-        }
-    }
-}
-
-// ===== API CONFIGURATION FUNCTIONS =====
-// Função global para configurar API keys facilmente
-window.configureGoogleAPI = async (apiKey) => {
-    if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === '') {
-        console.error('❌ Erro: API key inválida');
-        return false;
-    }
-    
-    try {
-        await window.mentalStorage.saveSetting('google-api-key', apiKey.trim());
-        console.log('✅ API key do Google Cloud configurada com sucesso!');
-        console.log('🔄 Recarregue a página para aplicar as mudanças.');
-        return true;
-    } catch (error) {
-        console.error('❌ Erro ao salvar API key:', error);
-        return false;
-    }
-};
-
-window.configureClaudeAPI = async (apiKey) => {
-    if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === '') {
-        console.error('❌ Erro: API key inválida');
-        return false;
-    }
-    
-    try {
-        await window.mentalStorage.saveSetting('claude-api-key', apiKey.trim());
-        console.log('✅ API key do Claude configurada com sucesso!');
-        console.log('🔄 Recarregue a página para aplicar as mudanças.');
-        return true;
-    } catch (error) {
-        console.error('❌ Erro ao salvar API key:', error);
-        return false;
-    }
-};
-
-window.configureGeminiAPI = async (apiKey) => {
-    if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === '') {
-        console.error('❌ Erro: API key inválida');
-        return false;
-    }
-    
-    try {
-        await window.mentalStorage.saveSetting('gemini-api-key', apiKey.trim());
-        console.log('✅ API key do Gemini configurada com sucesso!');
-        console.log('🔄 Recarregue a página para aplicar as mudanças.');
-        return true;
-    } catch (error) {
-        console.error('❌ Erro ao salvar API key:', error);
-        return false;
-    }
-};
-
-// Função para verificar APIs configuradas
-window.checkAPIs = async () => {
-    try {
-        const googleKey = await window.mentalStorage.getSetting('google-api-key');
-        const claudeKey = await window.mentalStorage.getSetting('claude-api-key');
-        const geminiKey = await window.mentalStorage.getSetting('gemini-api-key');
-        
-        console.log('🔍 Status das APIs:');
-        console.log('🌐 Google Cloud API:', googleKey ? '✅ Configurada' : '❌ Não configurada');
-        console.log('🤖 Claude API:', claudeKey ? '✅ Configurada' : '❌ Não configurada');
-        console.log('🤖 Gemini API:', geminiKey ? '✅ Configurada' : '❌ Não configurada');
-        
-        return {
-            google: !!googleKey,
-            claude: !!claudeKey,
-            gemini: !!geminiKey
-        };
-    } catch (error) {
-        console.error('❌ Erro ao verificar APIs:', error);
-        return null;
-    }
-};
-
-// Tratamento global de promises rejeitadas
-window.addEventListener('unhandledrejection', function(event) {
-    console.warn('⚠️ Promise rejeitada não tratada:', event.reason);
-    // Previne que o erro apareça no console como não tratado
-    event.preventDefault();
-});
-
-// Tratamento global de erros não capturados
-window.addEventListener('error', function(event) {
-    console.error('❌ Erro não capturado:', event.error);
-});
+console.log(' app.js fully replaced')
