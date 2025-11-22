@@ -945,40 +945,157 @@ Seja sempre empático, acolhedor e profissional. Lembre que esta análise não s
                 pdf.text(footerRight, pageWidth - margin - pdf.getTextWidth(footerRight), pageHeight - 10);
             }
 
-            // 📥 DOWNLOAD DO PDF
+            // 📥 DOWNLOAD DO PDF - Otimizado para mobile
             const now = new Date();
             const filename = `Relatorio_MentalIA_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.pdf`;
 
             console.log('📄 [PDF] Salvando arquivo:', filename);
 
-            try {
-                // Download direto
-                pdf.save(filename);
+            // 🔥 CORREÇÃO: Detectar se estamos em dispositivo móvel
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                            (window.innerWidth <= 768 && window.innerHeight <= 1024);
 
-                this.showToast('📄 PDF gerado com sucesso!', 'success');
+            // Detectar iOS especificamente (Safari tem restrições especiais)
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+            console.log('📱 [PDF] Dispositivo móvel detectado:', isMobile, 'iOS:', isIOS);
+
+            try {
+                if (isIOS) {
+                    // 🍎 ESTRATÉGIA ESPECÍFICA PARA iOS/SAFARI
+                    console.log('🍎 [PDF] Usando estratégia iOS/Safari');
+
+                    // Para iOS, usar data URI que abre diretamente no Safari
+                    const pdfDataUri = pdf.output('datauristring');
+
+                    // Criar uma página temporária que força o download
+                    const newWindow = window.open('', '_blank');
+                    if (newWindow) {
+                        newWindow.document.write(`
+                            <!DOCTYPE html>
+                            <html>
+                                <head>
+                                    <meta charset="UTF-8">
+                                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                                    <title>Download PDF - MentalIA</title>
+                                    <style>
+                                        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px; text-align: center; }
+                                        .download-btn { background: #4F46E5; color: white; padding: 15px 30px; border: none; border-radius: 8px; font-size: 16px; margin: 20px; text-decoration: none; display: inline-block; }
+                                        .instructions { background: #F3F4F6; padding: 15px; border-radius: 8px; margin: 20px 0; }
+                                    </style>
+                                </head>
+                                <body>
+                                    <h2>📄 Seu Relatório MentalIA está pronto!</h2>
+                                    <div class="instructions">
+                                        <p><strong>Instruções para iOS/Safari:</strong></p>
+                                        <p>1. Toque no botão "Download PDF" abaixo</p>
+                                        <p>2. Selecione "Download Linked File" ou toque e segure para salvar</p>
+                                    </div>
+                                    <a href="${pdfDataUri}" class="download-btn" download="${filename}">📥 Download PDF</a>
+                                    <p><small>Se o download não funcionar, copie este link e abra no Safari: <br><code>${pdfDataUri.substring(0, 50)}...</code></small></p>
+                                </body>
+                            </html>
+                        `);
+                        newWindow.document.close();
+
+                        this.showToast('📄 PDF preparado! Siga as instruções na nova aba.', 'info');
+                    } else {
+                        throw new Error('Popup bloqueado - permita popups para este site');
+                    }
+
+                } else if (isMobile) {
+                    // 📱 ESTRATÉGIA PARA OUTROS DISPOSITIVOS MÓVEIS (Android, etc)
+                    console.log('📱 [PDF] Usando estratégia mobile genérica');
+
+                    const pdfBlob = pdf.output('blob');
+                    const pdfUrl = URL.createObjectURL(pdfBlob);
+
+                    const link = document.createElement('a');
+                    link.href = pdfUrl;
+                    link.download = filename;
+                    link.style.display = 'none';
+
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+
+                    setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000);
+
+                    this.showToast('📄 PDF baixado! Verifique seus downloads.', 'success');
+
+                } else {
+                    // 💻 ESTRATÉGIA PARA DESKTOP
+                    console.log('💻 [PDF] Usando estratégia desktop');
+                    pdf.save(filename);
+                    this.showToast('📄 PDF gerado com sucesso!', 'success');
+                }
+
                 console.log('✅ [PDF] Download concluído');
 
             } catch (downloadError) {
-                console.warn('⚠️ [PDF] Erro no download direto, tentando alternativa:', downloadError);
+                console.warn('⚠️ [PDF] Erro no download principal, tentando fallback:', downloadError);
 
-                // Fallback: abrir em nova aba
+                // Fallback universal: abrir em nova aba
                 try {
                     const pdfOutput = pdf.output('blob');
                     const pdfUrl = URL.createObjectURL(pdfOutput);
-                    const newWindow = window.open(pdfUrl, '_blank');
 
-                    if (newWindow) {
-                        this.showToast('📄 PDF aberto em nova aba', 'info');
+                    // Para mobile, tentar abrir diretamente
+                    if (isMobile) {
+                        // Tentar download forçado para mobile
+                        const link = document.createElement('a');
+                        link.href = pdfUrl;
+                        link.download = filename;
+                        link.target = '_blank';
+                        link.rel = 'noopener noreferrer';
+
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+
+                        this.showToast('📄 PDF sendo baixado...', 'info');
                     } else {
-                        throw new Error('Popup bloqueado');
+                        // Desktop: abrir em nova aba
+                        const newWindow = window.open(pdfUrl, '_blank');
+                        if (newWindow) {
+                            this.showToast('📄 PDF aberto em nova aba', 'info');
+                        } else {
+                            throw new Error('Popup bloqueado');
+                        }
                     }
 
-                    // Limpeza após 5 segundos
-                    setTimeout(() => URL.revokeObjectURL(pdfUrl), 5000);
+                    // Limpeza após delay
+                    setTimeout(() => URL.revokeObjectURL(pdfUrl), 30000);
 
                 } catch (fallbackError) {
                     console.error('❌ [PDF] Todas as tentativas de download falharam:', fallbackError);
-                    this.showToast('❌ Erro ao baixar PDF. Tente novamente.', 'error');
+
+                    // Último recurso: mostrar instruções manuais
+                    this.showToast('❌ Erro no download automático. Toque e segure para salvar o PDF.', 'warning');
+
+                    // Tentar abrir o PDF em uma nova aba como último recurso
+                    try {
+                        const pdfDataUri = pdf.output('datauristring');
+                        const newWindow = window.open('', '_blank');
+                        if (newWindow) {
+                            newWindow.document.write(`
+                                <html>
+                                    <head><title>Relatório MentalIA</title></head>
+                                    <body style="margin:0; padding:20px; font-family:Arial, sans-serif;">
+                                        <h2>Relatório MentalIA</h2>
+                                        <p>Seu PDF foi gerado! Use os controles do navegador para salvar ou imprimir.</p>
+                                        <embed src="${pdfDataUri}" width="100%" height="600px" type="application/pdf">
+                                        <p>Se o PDF não carregou, <a href="${pdfDataUri}" download="${filename}">clique aqui para baixar</a></p>
+                                    </body>
+                                </html>
+                            `);
+                            newWindow.document.close();
+                        }
+                    } catch (finalError) {
+                        console.error('❌ [PDF] Mesmo o fallback final falhou:', finalError);
+                        this.showToast('❌ Erro crítico no download. Tente novamente mais tarde.', 'error');
+                    }
                 }
             }
 
