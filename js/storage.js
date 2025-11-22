@@ -8,6 +8,7 @@ class MentalStorage {
         this.db = null;
         this.encryptionKey = null;
         this.initialized = false;
+        this.saveMutex = false; // 🔥 NOVO: Mutex para prevenir saves simultâneos
     }
 
     async init() {
@@ -146,21 +147,31 @@ class MentalStorage {
     async saveMoodEntry(moodData) {
         await this.ensureInitialized();
 
-        // Validate input (mood scale 1..10)
-        // Note: The UI uses a 1..10 slider so storage must accept that range.
-        if (typeof moodData.mood !== 'number' || moodData.mood < 1 || moodData.mood > 10) {
-            throw new Error('Valor de humor deve ser um número entre 1 e 10');
+        // 🔥 NOVO: Mutex para prevenir saves simultâneos
+        if (this.saveMutex) {
+            console.log('🔒 Save em andamento, aguardando...');
+            while (this.saveMutex) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
         }
+        this.saveMutex = true;
 
-        const entry = {
-            id: moodData.id || Date.now(),
-            mood: parseFloat(moodData.mood),
-            feelings: Array.isArray(moodData.feelings) ? moodData.feelings : [],
-            diary: (moodData.diary || '').trim(),
-            timestamp: moodData.timestamp || new Date().toISOString(),
-            date: moodData.date || new Date().toDateString(),
-            version: '3.1'
-        };
+        try {
+            // Validate input (mood scale 1..10)
+            // Note: The UI uses a 1..10 slider so storage must accept that range.
+            if (typeof moodData.mood !== 'number' || moodData.mood < 1 || moodData.mood > 10) {
+                throw new Error('Valor de humor deve ser um número entre 1 e 10');
+            }
+
+            const entry = {
+                id: moodData.id || Date.now(),
+                mood: parseFloat(moodData.mood),
+                feelings: Array.isArray(moodData.feelings) ? moodData.feelings : [],
+                diary: (moodData.diary || '').trim(),
+                timestamp: moodData.timestamp || new Date().toISOString(),
+                date: moodData.date || new Date().toDateString(),
+                version: '3.1'
+            };
 
             console.log('💾 Salvando entrada de humor:', { id: entry.id, mood: entry.mood });
 
@@ -187,28 +198,31 @@ class MentalStorage {
 
             const encryptedData = await this.encrypt(entry);
 
-        const dbEntry = {
-            id: entry.id,
-            timestamp: entry.timestamp,
-            date: entry.date,
-            mood: entry.mood, // Keep unencrypted for queries
-            encryptedData: encryptedData
-        };
-
-        const transaction = this.db.transaction(['moodEntries'], 'readwrite');
-        const store = transaction.objectStore('moodEntries');
-
-        return new Promise((resolve, reject) => {
-            const request = store.put(dbEntry);
-            request.onsuccess = () => {
-                console.log('✅ Entrada salva com ID:', entry.id);
-                resolve(entry);
+            const dbEntry = {
+                id: entry.id,
+                timestamp: entry.timestamp,
+                date: entry.date,
+                mood: entry.mood, // Keep unencrypted for queries
+                encryptedData: encryptedData
             };
-            request.onerror = () => {
-                console.error('❌ Erro ao salvar entrada:', request.error);
-                reject(request.error);
-            };
-        });
+
+            const transaction = this.db.transaction(['moodEntries'], 'readwrite');
+            const store = transaction.objectStore('moodEntries');
+
+            return new Promise((resolve, reject) => {
+                const request = store.put(dbEntry);
+                request.onsuccess = () => {
+                    console.log('✅ Entrada salva com ID:', entry.id);
+                    resolve(entry);
+                };
+                request.onerror = () => {
+                    console.error('❌ Erro ao salvar entrada:', request.error);
+                    reject(request.error);
+                };
+            });
+        } finally {
+            this.saveMutex = false; // 🔥 NOVO: Liberar mutex
+        }
     }
 
     async deleteEntry(entryId) {

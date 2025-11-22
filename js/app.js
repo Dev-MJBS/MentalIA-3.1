@@ -10,6 +10,8 @@ class MentalIA {
     this.pendingDelete = null;
     this.chart = null; // report chart
     this.historyChart = null; // small chart used on history screen
+    this.currentReport = null; // 🔥 NOVO: Armazenar relatório atual para export PDF
+    this.currentEntries = null; // 🔥 NOVO: Armazenar entradas atuais
   }
 
   async init() {
@@ -507,6 +509,10 @@ class MentalIA {
     const content = document.getElementById('report-content'); if (!content) return;
     content.classList.remove('hidden');
 
+    // 🔥 NOVO: Armazenar relatório e entradas para export PDF
+    this.currentReport = report;
+    this.currentEntries = entries;
+
     // Parse the analysis content and split into sections
     const analysisMd = String(report.analysis || '');
     const analysisHtml = this.markdownToHtml(analysisMd);
@@ -608,14 +614,41 @@ class MentalIA {
     return html;
   }
 
-  // Escape HTML for safe insertion
-  escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  // Extract specific section from markdown analysis
+  extractSection(analysis, keywords) {
+    if (!analysis) return '';
+    const lines = analysis.split('\n');
+    let inSection = false;
+    let sectionContent = [];
 
-  // Export the rendered report area as PDF using html2canvas + jsPDF
+    for (const line of lines) {
+      const lowerLine = line.toLowerCase();
+      const isHeader = keywords.some(keyword => lowerLine.includes(keyword));
+      if (isHeader && (line.startsWith('#') || line.startsWith('##') || line.startsWith('###'))) {
+        inSection = true;
+        continue;
+      }
+      if (inSection) {
+        if (line.startsWith('#') && !keywords.some(keyword => lowerLine.includes(keyword))) {
+          break; // Next section
+        }
+        if (line.trim()) {
+          sectionContent.push(line);
+        }
+      }
+    }
+
+    return sectionContent.join('\n').trim();
+  }
+
+  // Export the rendered report area as PDF using jsPDF directly with structured content
   async exportReportAsPDF() {
     try {
-      const el = document.getElementById('report-screen');
-      if (!el) { this.showToast('Área de relatório não encontrada', 'error'); return; }
+      if (!this.currentReport || !this.currentEntries) {
+        this.showToast('Gere um relatório primeiro antes de exportar', 'error');
+        return;
+      }
+
       this.showToast('Gerando PDF profissional do relatório...', 'info');
 
       // Create professional PDF for therapists
@@ -628,18 +661,33 @@ class MentalIA {
       const margin = 20;
       let yPosition = margin;
 
-      // Add header for therapists
+      // Helper function to add text with word wrapping
+      const addWrappedText = (text, x, y, maxWidth, fontSize = 10) => {
+        pdf.setFontSize(fontSize);
+        const lines = pdf.splitTextToSize(text, maxWidth);
+        for (let i = 0; i < lines.length; i++) {
+          if (y > pageHeight - margin - 20) {
+            pdf.addPage();
+            y = margin;
+          }
+          pdf.text(lines[i], x, y);
+          y += fontSize * 0.4;
+        }
+        return y;
+      };
+
+      // Header
       pdf.setFontSize(20);
       pdf.setTextColor(99, 102, 241); // Accent color
       pdf.text('Relatório de Bem-Estar Mental', margin, yPosition);
-      yPosition += 10;
+      yPosition += 15;
 
       pdf.setFontSize(12);
       pdf.setTextColor(100, 100, 100);
       pdf.text('MentalIA - Análise Personalizada para Profissionais de Saúde', margin, yPosition);
-      yPosition += 5;
+      yPosition += 10;
 
-      // Add date and patient info
+      // Date and stats
       const now = new Date();
       const dateStr = now.toLocaleDateString('pt-BR', {
         year: 'numeric',
@@ -649,101 +697,86 @@ class MentalIA {
         minute: '2-digit'
       });
       pdf.setFontSize(10);
+      pdf.setTextColor(0, 0, 0);
       pdf.text(`Gerado em: ${dateStr}`, margin, yPosition);
-      yPosition += 10;
+      yPosition += 8;
 
-      // Try HTML-based export for better text rendering
-      if (typeof pdf.html === 'function') {
-        try {
-          // Clone the report content and prepare for PDF
-          const reportContent = el.querySelector('#report-content');
-          if (!reportContent) {
-            throw new Error('Conteúdo do relatório não encontrado');
-          }
+      // Stats summary
+      const stats = await window.mentalStorage.getStats();
+      if (stats) {
+        pdf.text(`Total de registros: ${stats.totalEntries || 0}`, margin, yPosition);
+        yPosition += 6;
+        pdf.text(`Média de humor: ${stats.averageMood ? stats.averageMood.toFixed(1) : 'N/A'}`, margin, yPosition);
+        yPosition += 6;
+        pdf.text(`Sequência atual: ${stats.streak || 0} dias`, margin, yPosition);
+        yPosition += 15;
+      }
 
-          const clonedContent = reportContent.cloneNode(true);
+      // Analysis sections
+      const sections = [
+        { title: 'Avaliação Geral', content: this.currentReport.analysis || 'Análise não disponível.' },
+        { title: 'Padrões Identificados', content: this.extractSection(this.currentReport.analysis, ['padrão', 'pattern']) },
+        { title: 'Gatilhos Identificados', content: this.extractSection(this.currentReport.analysis, ['gatilh', 'trigger']) },
+        { title: 'Recomendações', content: this.currentReport.recommendations ? this.currentReport.recommendations.join('\n• ') : 'Recomendações não disponíveis.' }
+      ];
 
-          // Remove interactive elements and styling not suitable for PDF
-          clonedContent.querySelectorAll('button, .report-sticky-bar, .report-controls').forEach(el => el.remove());
+      for (const section of sections) {
+        if (section.content && section.content.trim()) {
+          // Section title
+          pdf.setFontSize(14);
+          pdf.setTextColor(99, 102, 241);
+          pdf.text(section.title, margin, yPosition);
+          yPosition += 10;
 
-          // Add custom CSS for PDF rendering
-          const style = document.createElement('style');
-          style.textContent = `
-            body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
-            .report-section-card { margin-bottom: 20px; border: 1px solid #ddd; padding: 15px; border-radius: 8px; }
-            .section-header { display: flex; align-items: center; margin-bottom: 10px; }
-            .section-icon { margin-right: 10px; font-size: 18px; }
-            .section-title { font-size: 16px; font-weight: bold; color: #6366f1; margin: 0; }
-            .section-content { line-height: 1.6; }
-            .section-content p { margin-bottom: 10px; }
-            .section-content ul { padding-left: 20px; }
-            .section-content li { margin-bottom: 5px; }
-            .report-disclaimer { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 8px; margin-top: 20px; }
-            .report-disclaimer strong { color: #856404; }
-            canvas { max-width: 100%; height: auto; }
-          `;
-          clonedContent.insertBefore(style, clonedContent.firstChild);
-
-          await new Promise((resolve, reject) => {
-            pdf.html(clonedContent, {
-              callback: function(doc) {
-                try {
-                  // Add footer with disclaimer
-                  const pageCount = doc.internal.getNumberOfPages();
-                  for (let i = 1; i <= pageCount; i++) {
-                    doc.setPage(i);
-                    doc.setFontSize(8);
-                    doc.setTextColor(150, 150, 150);
-                    doc.text('MentalIA - Relatório confidencial para uso profissional', margin, pageHeight - 10);
-                    doc.text(`Página ${i} de ${pageCount}`, pageWidth - 40, pageHeight - 10);
-                  }
-
-                  const filename = `Relatorio_MentalIA_Profissional_${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}.pdf`;
-                  doc.save(filename);
-                  resolve();
-                } catch(e) { reject(e); }
-              },
-              x: margin,
-              y: yPosition,
-              width: pageWidth - (2 * margin),
-              windowWidth: 800,
-              html2canvas: {
-                scale: 1.5,
-                useCORS: true,
-                allowTaint: true,
-                backgroundColor: '#ffffff'
-              }
-            });
-          });
-
-          this.showToast('PDF profissional exportado com sucesso!', 'success');
-          return;
-        } catch (htmlError) {
-          console.warn('HTML-based PDF failed, falling back to image-based:', htmlError);
+          // Section content
+          pdf.setFontSize(10);
+          pdf.setTextColor(0, 0, 0);
+          yPosition = addWrappedText(section.content, margin, yPosition, pageWidth - (2 * margin));
+          yPosition += 10;
         }
       }
 
-      // Fallback: Image-based export
-      const canvas = await html2canvas(el, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        width: el.scrollWidth,
-        height: el.scrollHeight
-      });
+      // Recent entries summary
+      if (this.currentEntries && this.currentEntries.length > 0) {
+        pdf.setFontSize(14);
+        pdf.setTextColor(99, 102, 241);
+        pdf.text('Registros Recentes', margin, yPosition);
+        yPosition += 10;
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pageWidth - (2 * margin);
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        const recentEntries = this.currentEntries.slice(0, 10);
+        pdf.setFontSize(9);
+        pdf.setTextColor(0, 0, 0);
 
-      pdf.addImage(imgData, 'JPEG', margin, yPosition, pdfWidth, pdfHeight);
+        for (const entry of recentEntries) {
+          const date = new Date(entry.timestamp).toLocaleDateString('pt-BR');
+          const mood = entry.mood.toFixed(1);
+          const feelings = Array.isArray(entry.feelings) ?
+            entry.feelings.map(f => typeof f === 'string' ? f : (f.label || f.value || '')).filter(Boolean).slice(0, 3).join(', ') :
+            '';
+          const diary = entry.diary ? entry.diary.substring(0, 50) + (entry.diary.length > 50 ? '...' : '') : '';
 
-      // Add footer
+          const entryText = `${date}: Humor ${mood}${feelings ? ` - ${feelings}` : ''}${diary ? ` - "${diary}"` : ''}`;
+          yPosition = addWrappedText(entryText, margin + 5, yPosition, pageWidth - (2 * margin) - 10);
+          yPosition += 2;
+        }
+        yPosition += 10;
+      }
+
+      // Disclaimer
       pdf.setFontSize(8);
       pdf.setTextColor(150, 150, 150);
-      pdf.text('MentalIA - Relatório confidencial para uso profissional', margin, pageHeight - 15);
-      pdf.text(`Página 1 de 1`, pageWidth - 40, pageHeight - 15);
+      const disclaimer = 'Este relatório foi gerado por IA e deve ser usado como ferramenta de apoio, não como diagnóstico médico profissional. Consulte sempre um especialista qualificado.';
+      yPosition = addWrappedText(disclaimer, margin, yPosition, pageWidth - (2 * margin), 8);
+
+      // Footer on all pages
+      const pageCount = pdf.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setTextColor(150, 150, 150);
+        pdf.text('MentalIA - Relatório confidencial para uso profissional', margin, pageHeight - 10);
+        pdf.text(`Página ${i} de ${pageCount}`, pageWidth - 40, pageHeight - 10);
+      }
 
       const filename = `Relatorio_MentalIA_Profissional_${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}.pdf`;
       pdf.save(filename);
@@ -787,7 +820,15 @@ class MentalIA {
   }
 }
 
-window.mentalIA = new MentalIA();
-document.addEventListener('DOMContentLoaded', async () => { try { await window.mentalIA.init(); } catch (e) { console.error('Erro init MentalIA:', e); } });
+// Avoid creating multiple global instances which can register duplicate event listeners
+if (!window.mentalIA) window.mentalIA = new MentalIA();
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    // Initialize only if not already initialized (prevents double init when index.html also creates instance)
+    if (!window.mentalIA.initialized) await window.mentalIA.init();
+  } catch (e) {
+    console.error('Erro init MentalIA:', e);
+  }
+});
 
 console.log(' app.js fully replaced')
