@@ -883,6 +883,8 @@
 
     <!-- Service Worker + Inicialização Segura -->
     <script>
+        console.log('🚀 HTML carregado, iniciando setup...');
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js')
@@ -893,19 +895,38 @@
 
         // ESPERA TUDO CARREGAR ANTES DE INICIAR O APP
         document.addEventListener('DOMContentLoaded', async () => {
+            console.log('📄 DOMContentLoaded disparado - Timestamp:', Date.now());
+            console.log('📄 Estado do DOM:', document.readyState);
+            
             const wait = () => new Promise(r => {
                 const check = () => {
-                    if (window.mentalStorage && window.aiAnalysis && window.googleDriveBackup) r();
-                    else setTimeout(check, 100);
+                    console.log('🔄 Verificando dependências:', {
+                        mentalStorage: !!window.mentalStorage,
+                        aiAnalysis: !!window.aiAnalysis,
+                        googleDriveBackup: !!window.googleDriveBackup
+                    });
+                    
+                    if (window.mentalStorage && window.aiAnalysis && window.googleDriveBackup) {
+                        console.log('✅ Todas as dependências carregadas!');
+                        r();
+                    } else {
+                        setTimeout(check, 100);
+                    }
                 };
                 check();
             });
+            
+            console.log('⏳ Aguardando dependências carregarem...');
             await wait();
+            
+            console.log('🎯 Inicializando MentalIA...');
             window.mentalIA = new MentalIA();
             await window.mentalIA.init();
             
             // Make showScreen globally available for HTML onclick handlers
             window.showScreen = (screenName) => window.mentalIA.showScreen(screenName);
+            
+            console.log('🎉 MentalIA totalmente inicializado!');
         });
     </script>
 </body>

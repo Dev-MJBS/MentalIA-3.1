@@ -3,6 +3,33 @@
 
 console.log('🚀 MentalIA app.js carregado!');
 
+// 🔥 DEBUG: Adicionar listener global para capturar todos os cliques
+document.addEventListener('click', (e) => {
+    console.log('🔥 CLICK GLOBAL capturado:', {
+        target: e.target,
+        targetTag: e.target.tagName,
+        targetClass: e.target.className,
+        targetId: e.target.id,
+        dataScreen: e.target.dataset?.screen,
+        parentDataScreen: e.target.closest('[data-screen]')?.dataset?.screen,
+        timestamp: Date.now()
+    });
+}, true); // Use capture phase
+
+document.addEventListener('touchend', (e) => {
+    console.log('🔥 TOUCH GLOBAL capturado:', {
+        target: e.target,
+        targetTag: e.target.tagName,
+        targetClass: e.target.className,
+        targetId: e.target.id,
+        dataScreen: e.target.dataset?.screen,
+        parentDataScreen: e.target.closest('[data-screen]')?.dataset?.screen,
+        touches: e.touches?.length,
+        changedTouches: e.changedTouches?.length,
+        timestamp: Date.now()
+    });
+}, true); // Use capture phase
+
 class MentalIA {
     constructor() {
         this.currentScreen = 'welcome';
@@ -36,7 +63,7 @@ class MentalIA {
         // Show initial screen
         this.showScreen('welcome');
 
-        console.log('✅ MentalIA 3.1 pronto!');
+        console.log('✅ MentalIA 3.1 pronto! Timestamp final:', Date.now());
         this.showToast('MentalIA 3.1 carregado com sucesso! 🧠', 'success');
     }
 
@@ -219,7 +246,9 @@ class MentalIA {
 
     setupEventListeners() {
         try {
-            console.log('🔧 Configurando event listeners...');
+            console.log('🔧 setupEventListeners() INICIADO - Timestamp:', Date.now());
+            console.log('🔧 DOM readyState:', document.readyState);
+            console.log('🔧 Window loaded:', window.mentalIA ? 'Sim' : 'Não');
 
         // Admin key combination (Ctrl+Shift+D+E+V)
         this.setupAdminKeyListener();
@@ -234,15 +263,78 @@ class MentalIA {
         console.log('🧭 Botões de navegação encontrados:', screenBtns.length, screenBtns);
         screenBtns.forEach(btn => {
             console.log('🧭 Configurando event listener para botão:', btn.dataset.screen, btn);
-            btn.addEventListener('click', (e) => {
-                console.log('🧭 Botão clicado! Event:', e);
-                console.log('🧭 Target:', e.currentTarget);
-                console.log('🧭 Dataset screen:', e.currentTarget.dataset.screen);
+            console.log('🧭 Botão tem pointer-events:', window.getComputedStyle(btn).pointerEvents);
+            console.log('🧭 Botão tem touch-action:', window.getComputedStyle(btn).touchAction);
+            
+            // Remove existing listeners to avoid duplicates
+            btn.removeEventListener('click', btn._screenClickHandler);
+            btn.removeEventListener('touchend', btn._screenTouchHandler);
+            
+            // Create handlers
+            btn._screenClickHandler = (e) => {
+                console.log('🖱️ CLICK EVENT disparado no botão:', e.currentTarget.dataset.screen);
+                console.log('🖱️ Event details:', {
+                    type: e.type,
+                    target: e.target,
+                    currentTarget: e.currentTarget,
+                    screen: e.currentTarget.dataset.screen
+                });
+                e.preventDefault();
+                e.stopPropagation();
                 const screen = e.currentTarget.dataset.screen;
-                console.log('🧭 Navegando para:', screen);
+                console.log('🧭 Navegando para (click):', screen);
                 this.showScreen(screen);
-            });
+            };
+            
+            btn._screenTouchHandler = (e) => {
+                console.log('👆 TOUCH EVENT disparado no botão:', e.currentTarget.dataset.screen);
+                console.log('👆 Touch event details:', {
+                    type: e.type,
+                    target: e.target,
+                    currentTarget: e.currentTarget,
+                    touches: e.touches?.length,
+                    changedTouches: e.changedTouches?.length
+                });
+                e.preventDefault();
+                e.stopPropagation();
+                const screen = e.currentTarget.dataset.screen;
+                console.log('🧭 Navegando para (touch):', screen);
+                this.showScreen(screen);
+            };
+            
+            // Add listeners
+            btn.addEventListener('click', btn._screenClickHandler);
+            btn.addEventListener('touchend', btn._screenTouchHandler);
+            
+            console.log('✅ Event listeners anexados ao botão:', btn.dataset.screen);
         });
+
+        // 🔥 TESTE: Adicionar botão de debug para testar navegação
+        const debugBtn = document.createElement('button');
+        debugBtn.id = 'debug-navigation-btn';
+        debugBtn.textContent = '🧪 Testar Navegação';
+        debugBtn.style.cssText = `
+            position: fixed;
+            bottom: 120px;
+            right: 20px;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            z-index: 9999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        debugBtn.addEventListener('click', () => {
+            console.log('🧪 BOTÃO DE DEBUG CLICADO!');
+            console.log('🧪 Testando navegação para mood screen...');
+            this.showScreen('mood');
+            this.showToast('🧪 Navegação testada!', 'info');
+        });
+        document.body.appendChild(debugBtn);
+        console.log('🧪 Botão de debug adicionado ao DOM');
 
         // Mood form submission
         const moodForm = document.getElementById('mood-form');
@@ -1643,16 +1735,25 @@ class MentalIA {
     }
 
     showScreen(screenName) {
-        console.log('🧭 showScreen chamado com:', screenName);
+        console.log('🧭 showScreen chamado com:', screenName, 'Timestamp:', Date.now());
+        console.log('🧭 Estado atual da aplicação:', {
+            currentScreen: this.currentScreen,
+            isPremium: this.isPremium,
+            dataLoaded: !!this.data
+        });
 
         // Hide all screens
-        document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+        document.querySelectorAll('.screen').forEach(screen => {
+            console.log('🧭 Escondendo tela:', screen.id);
+            screen.classList.remove('active');
+        });
 
         // Show target screen
         const target = document.getElementById(`${screenName}-screen`);
-        console.log('🧭 Tela alvo encontrada:', !!target, `${screenName}-screen`);
+        console.log('🧭 Tela alvo encontrada:', !!target, `${screenName}-screen`, target);
 
         if (target) {
+            console.log('🧭 Ativando tela:', screenName);
             target.classList.add('active');
             this.currentScreen = screenName;
             console.log('✅ Tela ativada:', screenName);
@@ -1667,11 +1768,14 @@ class MentalIA {
             }
         } else {
             console.error('❌ Tela não encontrada:', `${screenName}-screen`);
+            console.log('🧭 Telas disponíveis no DOM:', Array.from(document.querySelectorAll('.screen')).map(s => s.id));
         }
 
         // Update navigation
         document.querySelectorAll('.nav-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.screen === screenName);
+            const isActive = btn.dataset.screen === screenName;
+            console.log('🧭 Atualizando botão nav:', btn.dataset.screen, 'ativo:', isActive);
+            btn.classList.toggle('active', isActive);
         });
 
         // Load screen data
