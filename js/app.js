@@ -67,7 +67,7 @@ class MentalIA {
     // ===== PREMIUM FEATURES =====
     async initPremium() {
         console.log('💎 Todos os recursos liberados gratuitamente!');
-
+        
         // Definir como premium permanentemente (todos os recursos gratuitos)
         this.isPremium = true;
         this.updatePremiumUI();
@@ -76,7 +76,7 @@ class MentalIA {
     updatePremiumUI() {
         // Atualiza classe no body
         document.body.classList.toggle('premium-user', this.isPremium);
-
+        
         // Mostra/esconde elementos premium
         const premiumOnlyElements = document.querySelectorAll('[data-premium-only]');
         premiumOnlyElements.forEach(el => {
@@ -104,6 +104,146 @@ class MentalIA {
         console.log('💎 UI Premium atualizada. Status:', this.isPremium);
     }
 
+<<<<<<< HEAD
+=======
+    // Função removida - todos os recursos são gratuitos
+
+    // Método para obter usuário Google (usado pelo premium)
+    async getGoogleUser() {
+        // Se já temos o usuário cached, retorna
+        if (this.currentUser) {
+            return this.currentUser;
+        }
+
+        // Tenta obter do storage ou Google API
+        try {
+            // Implementar integração com Google OAuth aqui
+            // Por agora, simula um usuário para desenvolvimento
+            if (localStorage.getItem('google_user')) {
+                this.currentUser = JSON.parse(localStorage.getItem('google_user'));
+                return this.currentUser;
+            }
+            
+            // Se não tem usuário, retorna null (usuário precisa fazer login)
+            return null;
+            
+        } catch (error) {
+            console.error('Erro ao obter usuário Google:', error);
+            return null;
+        }
+    }
+
+    // Método para refresh de dados (usado pelo premium)
+    async refreshData() {
+        console.log('🔄 Refreshing data...');
+        await this.loadData();
+        if (this.chart) {
+            this.updateChart();
+        }
+    }
+
+    // ===== STORAGE INITIALIZATION =====
+    async ensureStorageReady() {
+        console.log('🗄️ Verificando storage...');
+        
+        // Wait for storage to be available
+        let attempts = 0;
+        while (!window.mentalStorage && attempts < 50) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+        }
+        
+        if (!window.mentalStorage) {
+            throw new Error('Storage não disponível após aguardar');
+        }
+        
+        // Ensure storage is initialized
+        await window.mentalStorage.ensureInitialized();
+        console.log('✅ Storage pronto e inicializado');
+    }
+
+    // ===== ADMIN FEATURES =====
+    initAdminFeatures() {
+        console.log('👑 Verificando status de administrador...');
+        
+        // Simple admin detection - can be improved later
+        const isAdmin = this.checkAdminStatus();
+        
+        if (isAdmin) {
+            console.log('👑 Usuário administrador detectado - mostrando funcionalidades admin');
+            this.showAdminElements();
+        } else {
+            console.log('👤 Usuário normal - escondendo funcionalidades admin');
+            this.hideAdminElements();
+        }
+    }
+
+    checkAdminStatus() {
+        // Method 1: Check URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('admin') === 'true') {
+            console.log('👑 Admin mode ativado via URL parameter');
+            return true;
+        }
+
+        // Method 2: Check localStorage
+        if (localStorage.getItem('mentalIA_admin') === 'true') {
+            console.log('👑 Admin mode ativado via localStorage');
+            return true;
+        }
+
+        // Method 3: Check for special key combination (Ctrl+Shift+A+D+M)
+        // This will be set up in setupEventListeners
+
+        // Method 4: Check if running on localhost/development
+        if (window.location.hostname === 'localhost' || 
+            window.location.hostname === '127.0.0.1' ||
+            window.location.hostname.includes('dev-mjbs.github.io')) {
+            console.log('👑 Admin mode ativado - desenvolvimento/GitHub Pages');
+            return true;
+        }
+
+        return false;
+    }
+
+    showAdminElements() {
+        const adminElements = document.querySelectorAll('.admin-only');
+        console.log('👑 Mostrando elementos admin:', adminElements.length);
+        
+        adminElements.forEach(element => {
+            element.classList.remove('hidden');
+            element.classList.add('admin-visible');
+        });
+    }
+
+    hideAdminElements() {
+        const adminElements = document.querySelectorAll('.admin-only');
+        console.log('👤 Escondendo elementos admin:', adminElements.length);
+        
+        adminElements.forEach(element => {
+            element.classList.add('hidden');
+            element.classList.remove('admin-visible');
+        });
+    }
+
+    // Toggle admin mode (for testing)
+    toggleAdminMode() {
+        const isCurrentlyAdmin = localStorage.getItem('mentalIA_admin') === 'true';
+        
+        if (isCurrentlyAdmin) {
+            localStorage.removeItem('mentalIA_admin');
+            this.hideAdminElements();
+            this.showToast('👤 Modo usuário ativado', 'info');
+            console.log('👤 Modo admin desativado');
+        } else {
+            localStorage.setItem('mentalIA_admin', 'true');
+            this.showAdminElements();
+            this.showToast('👑 Modo admin ativado', 'success');
+            console.log('👑 Modo admin ativado');
+        }
+    }
+
+>>>>>>> parent of 6c8feb6 (Fix button)
     setupEventListeners() {
         try {
             console.log('🔧 setupEventListeners() INICIADO - Timestamp:', Date.now());
@@ -125,11 +265,19 @@ class MentalIA {
             console.log('🧭 Configurando event listener para botão:', btn.dataset.screen, btn);
             console.log('🧭 Botão tem pointer-events:', window.getComputedStyle(btn).pointerEvents);
             console.log('🧭 Botão tem touch-action:', window.getComputedStyle(btn).touchAction);
+<<<<<<< HEAD
 
             // Remove existing listeners to avoid duplicates
             btn.removeEventListener('click', btn._screenClickHandler);
             btn.removeEventListener('touchend', btn._screenTouchHandler);
 
+=======
+            
+            // Remove existing listeners to avoid duplicates
+            btn.removeEventListener('click', btn._screenClickHandler);
+            btn.removeEventListener('touchend', btn._screenTouchHandler);
+            
+>>>>>>> parent of 6c8feb6 (Fix button)
             // Create handlers
             btn._screenClickHandler = (e) => {
                 console.log('🖱️ CLICK EVENT disparado no botão:', e.currentTarget.dataset.screen);
@@ -145,7 +293,11 @@ class MentalIA {
                 console.log('🧭 Navegando para (click):', screen);
                 this.showScreen(screen);
             };
+<<<<<<< HEAD
 
+=======
+            
+>>>>>>> parent of 6c8feb6 (Fix button)
             btn._screenTouchHandler = (e) => {
                 console.log('👆 TOUCH EVENT disparado no botão:', e.currentTarget.dataset.screen);
                 console.log('👆 Touch event details:', {
@@ -161,6 +313,7 @@ class MentalIA {
                 console.log('🧭 Navegando para (touch):', screen);
                 this.showScreen(screen);
             };
+<<<<<<< HEAD
 
             // Add listeners
             btn.addEventListener('click', btn._screenClickHandler);
@@ -200,11 +353,32 @@ class MentalIA {
         const moodForm = document.getElementById('mood-form');
         console.log('📝 Formulário de humor encontrado:', !!moodForm);
         moodForm?.addEventListener('submit', (e) => this.handleMoodSubmit(e));
+=======
+            
+            // Add listeners
+            btn.addEventListener('click', btn._screenClickHandler);
+            btn.addEventListener('touchend', btn._screenTouchHandler);
+            
+            console.log('✅ Event listeners anexados ao botão:', btn.dataset.screen);
+        });
+
+        // Mood form submission
+        const moodForm = document.getElementById('mood-form');
+        console.log('📝 Formulário de humor encontrado:', !!moodForm);
+        moodForm?.addEventListener('submit', (e) => {
+            console.log('📝 Mood form submit event triggered');
+            this.handleMoodSubmit(e);
+        });
+>>>>>>> parent of 6c8feb6 (Fix button)
 
         // Report generation with mobile optimization
         const reportBtn = document.getElementById('generate-report');
         console.log('📊 Botão relatório encontrado:', !!reportBtn);
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> parent of 6c8feb6 (Fix button)
         if (reportBtn) {
             // 🔥 CORREÇÃO: Múltiplos event listeners para melhor compatibilidade mobile
             const generateReportHandler = (e) => {
@@ -213,28 +387,45 @@ class MentalIA {
                 console.log('📊 Gerando relatório...');
                 this.generateReport();
             };
+<<<<<<< HEAD
 
             // Event listeners para diferentes tipos de interação
             reportBtn.addEventListener('click', generateReportHandler);
             reportBtn.addEventListener('touchend', generateReportHandler);
 
+=======
+            
+            // Event listeners para diferentes tipos de interação
+            reportBtn.addEventListener('click', generateReportHandler);
+            reportBtn.addEventListener('touchend', generateReportHandler);
+            
+>>>>>>> parent of 6c8feb6 (Fix button)
             // Prevenção de double-tap zoom no iOS
             reportBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
             });
+<<<<<<< HEAD
 
+=======
+            
+>>>>>>> parent of 6c8feb6 (Fix button)
             // Feedback visual para touch
             reportBtn.addEventListener('touchstart', () => {
                 reportBtn.style.transform = 'scale(0.98)';
                 reportBtn.style.opacity = '0.8';
             });
+<<<<<<< HEAD
 
+=======
+            
+>>>>>>> parent of 6c8feb6 (Fix button)
             reportBtn.addEventListener('touchend', () => {
                 setTimeout(() => {
                     reportBtn.style.transform = 'scale(1)';
                     reportBtn.style.opacity = '1';
                 }, 150);
             });
+<<<<<<< HEAD
 
             reportBtn.addEventListener('touchcancel', () => {
                 reportBtn.style.transform = 'scale(1)';
@@ -246,19 +437,42 @@ class MentalIA {
         const pdfBtn = document.getElementById('generate-pdf-report');
         console.log('📄 Botão PDF encontrado:', !!pdfBtn);
 
+=======
+            
+            reportBtn.addEventListener('touchcancel', () => {
+                reportBtn.style.transform = 'scale(1)';
+                reportBtn.style.opacity = '1';
+            });
+        }
+
+        // PDF generation button
+        const pdfBtn = document.getElementById('generate-pdf-report');
+        console.log('📄 Botão PDF encontrado:', !!pdfBtn);
+        
+>>>>>>> parent of 6c8feb6 (Fix button)
         if (pdfBtn) {
             const generatePDFHandler = async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 console.log('📄 Gerando PDF...');
+<<<<<<< HEAD
 
+=======
+                
+>>>>>>> parent of 6c8feb6 (Fix button)
                 try {
                     // Disable button during generation
                     pdfBtn.disabled = true;
                     pdfBtn.textContent = '📄 Gerando PDF...';
+<<<<<<< HEAD
 
                     await window.aiAnalysis.downloadReportPDF();
 
+=======
+                    
+                    await window.aiAnalysis.downloadReportPDF();
+                    
+>>>>>>> parent of 6c8feb6 (Fix button)
                 } catch (error) {
                     console.error('Erro ao gerar PDF:', error);
                     this.showToast('Erro ao gerar PDF: ' + error.message, 'error');
@@ -268,30 +482,47 @@ class MentalIA {
                     pdfBtn.textContent = '📄 Baixar Relatório em PDF';
                 }
             };
+<<<<<<< HEAD
 
             // Event listeners for PDF button
             pdfBtn.addEventListener('click', generatePDFHandler);
             pdfBtn.addEventListener('touchend', generatePDFHandler);
 
+=======
+            
+            // Event listeners for PDF button
+            pdfBtn.addEventListener('click', generatePDFHandler);
+            pdfBtn.addEventListener('touchend', generatePDFHandler);
+            
+>>>>>>> parent of 6c8feb6 (Fix button)
             // Touch feedback for PDF button
             pdfBtn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 pdfBtn.style.transform = 'scale(0.98)';
                 pdfBtn.style.opacity = '0.8';
             });
+<<<<<<< HEAD
 
+=======
+            
+>>>>>>> parent of 6c8feb6 (Fix button)
             pdfBtn.addEventListener('touchend', () => {
                 setTimeout(() => {
                     pdfBtn.style.transform = 'scale(1)';
                     pdfBtn.style.opacity = '1';
                 }, 150);
             });
+<<<<<<< HEAD
 
+=======
+            
+>>>>>>> parent of 6c8feb6 (Fix button)
             pdfBtn.addEventListener('touchcancel', () => {
                 pdfBtn.style.transform = 'scale(1)';
                 pdfBtn.style.opacity = '1';
             });
         }
+<<<<<<< HEAD
 
         // Backup
         const backupBtn = document.getElementById('backup-data');
@@ -354,6 +585,50 @@ class MentalIA {
                     await window.aiAnalysis.downloadReportPDF();
                 } else {
                     throw new Error('Sistema de PDF não disponível');
+=======
+
+        // Backup
+        const backupBtn = document.getElementById('backup-data');
+        console.log('💾 Botão backup encontrado:', !!backupBtn);
+        backupBtn?.addEventListener('click', () => {
+            console.log('💾 Fazendo backup...');
+            this.backupData();
+        });
+        const backupBtn = document.getElementById('backup-data');
+        console.log('💾 Botão backup encontrado:', !!backupBtn);
+        backupBtn?.addEventListener('click', () => {
+            console.log('💾 Fazendo backup...');
+            this.backupData();
+        });
+
+        // Connect Google Drive button
+        const connectBtn = document.getElementById('connect-google-drive');
+        console.log('🔗 Botão conectar Google Drive encontrado:', !!connectBtn);
+        connectBtn?.addEventListener('click', () => {
+            console.log('🔗 [BOTÃO] Botão "Conectar Google Drive" clicado!');
+            if (window.googleDriveBackup) {
+                console.log('🔗 [BOTÃO] Chamando showGoogleOneTap...');
+                window.googleDriveBackup.showGoogleOneTap();
+            } else {
+                console.error('🔗 [BOTÃO] Sistema de backup não disponível');
+                this.showToast('Sistema de backup não disponível', 'error');
+            }
+        });
+
+        // Auto backup toggle
+        const autoBackupToggle = document.getElementById('auto-backup-toggle');
+        console.log('🔄 Toggle backup automático encontrado:', !!autoBackupToggle);
+        autoBackupToggle?.addEventListener('change', async (e) => {
+            console.log('🔄 Toggle backup automático alterado:', e.target.checked);
+            const enabled = e.target.checked;
+
+            if (enabled) {
+                // Verificar se está conectado ao Google Drive
+                if (!window.googleDriveBackup?.isSignedIn) {
+                    this.showToast('Conecte-se ao Google Drive primeiro', 'warning');
+                    e.target.checked = false;
+                    return;
+>>>>>>> parent of 6c8feb6 (Fix button)
                 }
             } catch (error) {
                 console.error('Erro no export PDF:', error);
@@ -361,6 +636,7 @@ class MentalIA {
             }
         });
 
+<<<<<<< HEAD
         // Delete entry buttons (dynamic, added after entries are loaded)
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('delete-entry-btn')) {
@@ -396,6 +672,174 @@ class MentalIA {
         }
     }    showAdminElements() {
         console.log('👑 Mostrando elementos administrativos...');
+=======
+                const success = await window.googleDriveBackup.enableAutoBackup();
+                if (!success) {
+                    e.target.checked = false;
+                }
+            } else {
+                await window.googleDriveBackup.disableAutoBackup();
+            }
+
+            // Atualizar status na UI
+            this.updateAutoBackupStatus();
+        });
+
+        // Manual backup button
+        const manualBackupBtn = document.getElementById('backup-now-btn');
+        console.log('💾 Botão backup manual encontrado:', !!manualBackupBtn);
+        manualBackupBtn?.addEventListener('click', async () => {
+            console.log('💾 Botão backup manual clicado');
+
+            // Verificar se o sistema de backup está disponível
+            if (!window.googleDriveBackup) {
+                this.showToast('Sistema de backup não disponível', 'error');
+                return;
+            }
+
+            // Verificar se o usuário está conectado ao Google Drive
+            if (!window.googleDriveBackup.isSignedIn) {
+                this.showToast('🔗 Conecte-se ao Google Drive primeiro usando o botão "Conectar Google Drive"', 'warning');
+                return;
+            }
+
+            // Mostrar feedback visual - botão em loading
+            const btn = document.getElementById('backup-now-btn');
+            const btnText = btn.querySelector('.btn-text');
+            const btnLoading = btn.querySelector('.btn-loading');
+
+            if (btn && btnText && btnLoading) {
+                btn.classList.add('loading');
+                btn.disabled = true;
+            }
+
+            try {
+                // Mostrar feedback
+                this.showToast('🔄 Fazendo backup manual...', 'info');
+
+                // Executar backup
+                await window.googleDriveBackup.backupToDrive();
+
+                // Feedback de sucesso
+                this.showToast('✅ Backup manual realizado com sucesso!', 'success');
+
+                // Atualizar status do último backup
+                this.updateAutoBackupStatus();
+
+            } catch (error) {
+                console.error('❌ Erro no backup manual:', error);
+                this.showToast('❌ Erro no backup manual: ' + error.message, 'error');
+            } finally {
+                // Restaurar botão
+                if (btn && btnText && btnLoading) {
+                    btn.classList.remove('loading');
+                    btn.disabled = false;
+                }
+            }
+        });
+
+        // AI mode toggle
+        const modeLabels = document.querySelectorAll('.mode-label');
+        console.log('🤖 Labels de modo AI encontrados:', modeLabels.length);
+        modeLabels.forEach(label => {
+            label.addEventListener('click', (e) => {
+                console.log('🤖 Label clicado:', label);
+                const forAttr = label.getAttribute('for');
+                console.log('🤖 For attribute:', forAttr);
+                const radio = document.getElementById(forAttr);
+                if (radio) {
+                    radio.checked = true;
+                    console.log('🤖 Modo AI alterado para:', radio.value);
+                }
+            });
+        });
+
+        // 🔥 CORREÇÃO: Premium Actions - Análise Avançada e Export PDF
+        const advancedAnalysisBtn = document.getElementById('advanced-analysis');
+        const exportPdfBtn = document.getElementById('export-pdf');
+        
+        console.log('🧠 Botão análise avançada encontrado:', !!advancedAnalysisBtn);
+        console.log('📄 Botão export PDF encontrado:', !!exportPdfBtn);
+        
+        advancedAnalysisBtn?.addEventListener('click', async () => {
+            console.log('🧠 Análise avançada clicada!');
+            
+            try {
+                this.showToast('🤖 Gerando análise avançada...', 'info');
+                
+                // Usar o sistema de análise IA
+                if (window.aiAnalysis) {
+                    const analysis = await window.aiAnalysis.generateFullAnalysis(this.data);
+                    this.displayAdvancedAnalysis(analysis);
+                } else {
+                    throw new Error('Sistema de IA não disponível');
+                }
+            } catch (error) {
+                console.error('Erro na análise avançada:', error);
+                this.showToast('Erro ao gerar análise. Tente novamente.', 'error');
+            }
+        });
+        
+        exportPdfBtn?.addEventListener('click', async () => {
+            console.log('📄 Export PDF clicado!');
+            
+            try {
+                this.showToast('📄 Gerando PDF...', 'info');
+                
+                // Usar o sistema de análise IA para PDF
+                if (window.aiAnalysis) {
+                    await window.aiAnalysis.downloadReportPDF();
+                } else {
+                    throw new Error('Sistema de PDF não disponível');
+                }
+            } catch (error) {
+                console.error('Erro no export PDF:', error);
+                this.showToast('Erro ao gerar PDF. Tente novamente.', 'error');
+            }
+        });
+
+        // Delete buttons
+        const deleteAllBtn = document.getElementById('delete-all-data');
+        const confirmDeleteEntryBtn = document.getElementById('confirm-delete-entry');
+        const cancelDeleteEntryBtn = document.getElementById('cancel-delete-entry');
+        const confirmDeleteAllBtn = document.getElementById('confirm-delete-all');
+        const cancelDeleteAllBtn = document.getElementById('cancel-delete-all');
+
+        deleteAllBtn?.addEventListener('click', () => {
+            console.log('🗑️ Botão "Apagar Todos os Dados" clicado');
+            this.showDeleteAllDataModal();
+        });
+
+        confirmDeleteEntryBtn?.addEventListener('click', async () => {
+            const modal = document.getElementById('delete-entry-modal');
+            const entryId = modal?._entryId;
+            if (entryId) {
+                await this.deleteEntry(entryId);
+                this.hideDeleteModals();
+            }
+        });
+
+        cancelDeleteEntryBtn?.addEventListener('click', () => {
+            this.hideDeleteModals();
+        });
+
+        confirmDeleteAllBtn?.addEventListener('click', async () => {
+            await this.deleteAllData();
+            this.hideDeleteModals();
+        });
+
+        cancelDeleteAllBtn?.addEventListener('click', () => {
+            this.hideDeleteModals();
+        });
+        } catch (error) {
+            console.error('❌ Erro ao configurar event listeners:', error);
+        }
+    }
+
+    setupAdminKeyListener() {
+        let keySequence = [];
+        const adminSequence = ['Control', 'Shift', 'd', 'e', 'v'];
+>>>>>>> parent of 6c8feb6 (Fix button)
         
         // Create admin panel if it doesn't exist
         let adminPanel = document.getElementById('admin-panel');

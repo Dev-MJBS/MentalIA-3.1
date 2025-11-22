@@ -129,9 +129,14 @@ class AIAnalysis {
 
             console.log('✅ [AI] Entradas válidas:', validEntries.length);
 
-            // SEMPRE usar análise inteligente local com fallback empático
-            console.log('🤖 [AI] Gerando relatório inteligente com análise empática');
-            return this.generateIntelligentFallbackReport(validEntries);
+            // SEMPRE tentar usar análise local primeiro (fallback garantido)
+            console.log('🧠 [AI] Tentando análise local com MedGemma-2B-IT (sempre com fallback)');
+            try {
+                return await this.generateLocalMedGemmaReport(validEntries);
+            } catch (localError) {
+                console.warn('⚠️ [AI] Análise local falhou, usando fallback inteligente:', localError.message);
+                return this.generateIntelligentFallbackReport(validEntries);
+            }
 
         } catch (error) {
             console.error('❌ [AI] Erro geral na geração do relatório:', error);
@@ -139,7 +144,7 @@ class AIAnalysis {
             console.error('❌ [AI] Tipo do erro:', typeof error);
             console.error('❌ [AI] Mensagem do erro:', error.message);
 
-            // Fallback final - SEMPRE retorna algo empático
+            // Fallback final - SEMPRE retorna algo
             return this.generateFallbackReport(entries);
         }
     }

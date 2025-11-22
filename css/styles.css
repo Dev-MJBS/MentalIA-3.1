@@ -2940,3 +2940,193 @@ html, body {
     min-height: 44px !important; /* Acessibilidade mobile */
   }
 }
+
+/* ===== DELETE FUNCTIONALITY STYLES ===== */
+
+/* Delete buttons in recent entries */
+.delete-entry-btn {
+  background: none;
+  border: none;
+  color: var(--error);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  opacity: 0.7;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.delete-entry-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.delete-entry-btn:active {
+  transform: scale(0.95);
+}
+
+/* Data management section */
+.data-management {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: var(--bg-secondary);
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+}
+
+.data-management h3 {
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  font-size: 1.2rem;
+}
+
+.data-management .privacy-note {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.delete-all-btn {
+  background: var(--error);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  justify-content: center;
+}
+
+.delete-all-btn:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.delete-all-btn:active {
+  transform: translateY(0);
+}
+
+/* Delete confirmation modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.modal-overlay:not(.hidden) {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-content {
+  background: var(--bg-primary);
+  border-radius: 1rem;
+  padding: 0;
+  max-width: 90vw;
+  width: 400px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px var(--shadow);
+  transform: scale(0.9) translateY(20px);
+  transition: all 0.3s ease;
+  border: 1px solid var(--border);
+}
+
+.modal-overlay:not(.hidden) .modal-content {
+  transform: scale(1) translateY(0);
+}
+
+.modal-header {
+  padding: 1.5rem 1.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-header h3 {
+  color: var(--text-primary);
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.modal-body p {
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.modal-actions {
+  padding: 1rem 1.5rem 1.5rem;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  border-top: 1px solid var(--border);
+}
+
+.modal-actions .btn-primary {
+  background: var(--error);
+  border-color: var(--error);
+}
+
+.modal-actions .btn-primary:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
+.modal-actions .btn-secondary {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.modal-actions .btn-secondary:hover {
+  background: var(--bg-tertiary);
+}
+
+/* Mobile responsive for delete modal */
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95vw;
+    margin: 1rem;
+  }
+  
+  .modal-header,
+  .modal-body,
+  .modal-actions {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+  }
+  
+  .modal-actions button {
+    width: 100%;
+  }
+}
