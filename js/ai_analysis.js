@@ -75,12 +75,12 @@ class AIAnalysis {
                 console.error(`❌ Tentativa ${attempt} falhou:`, error);
 
                 if (attempt < maxRetries) {
-                    console.log(`⏳ Aguardando antes da próxima tentativa...`);
-                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    console.log(`⏳ Aguardando 1s antes da próxima tentativa...`);
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // Delay reduzido para 1s
                 } else {
-                    console.error('💥 Todas as tentativas falharam. Modelo local indisponível.');
+                    console.error('💥 Todas as tentativas falharam. Usando fallback inteligente.');
                     this.localModel = null;
-                    this.showToast('Modo privado indisponível. Use o modo rápido.', 'error');
+                    this.showToast('Modo privado indisponível. Usando análise inteligente.', 'warning');
                 }
             }
         }
@@ -129,24 +129,22 @@ class AIAnalysis {
 
             console.log('✅ [AI] Entradas válidas:', validEntries.length);
 
-            // Verificar modo de IA e disponibilidade de APIs
-            const hasAPIKey = this.externalAPIs.claude.available || this.externalAPIs.gemini.available;
-            const aiMode = await this.getAIMode();
-
-            if (hasAPIKey && aiMode === 'fast') {
-                console.log('🚀 [AI] Usando API externa (modo rápido)');
-                return await this.generateFastReport(validEntries);
+            // SEMPRE tentar usar análise local primeiro (fallback garantido)
+            console.log('🧠 [AI] Tentando análise local com MedGemma-2B-IT (sempre com fallback)');
+            try {
+                return await this.generateLocalMedGemmaReport(validEntries);
+            } catch (localError) {
+                console.warn('⚠️ [AI] Análise local falhou, usando fallback inteligente:', localError.message);
+                return this.generateIntelligentFallbackReport(validEntries);
             }
 
-            // Usar análise local inteligente (100% privada)
-            console.log('🧠 [AI] Usando análise local com MedGemma-2B-IT');
-            return await this.generateLocalMedGemmaReport(validEntries);
-
         } catch (error) {
-            console.error('❌ [AI] Erro na geração do relatório:', error);
+            console.error('❌ [AI] Erro geral na geração do relatório:', error);
             console.error('❌ [AI] Stack trace:', error.stack);
+            console.error('❌ [AI] Tipo do erro:', typeof error);
+            console.error('❌ [AI] Mensagem do erro:', error.message);
 
-            // Fallback final - sempre retorna algo
+            // Fallback final - SEMPRE retorna algo
             return this.generateFallbackReport(entries);
         }
     }
@@ -177,7 +175,7 @@ class AIAnalysis {
                 }
 
                 if (!this.localModel) {
-                    throw new Error('Modelo MedGemma-2B-IT não pôde ser carregado');
+                    throw new Error('Modelo MedGemma-2B-IT não pôde ser carregado após múltiplas tentativas');
                 }
             }
 
@@ -209,7 +207,8 @@ class AIAnalysis {
 
         } catch (error) {
             console.error('❌ [AI] Erro no MedGemma-2B-IT:', error);
-            return this.generateIntelligentFallbackReport(entries);
+            // SEMPRE lançar erro para acionar fallback
+            throw error;
         }
     }
 
@@ -404,7 +403,7 @@ ${sections[2] || 'Preparando recomendações personalizadas...'}`;
 
     generateIntelligentFallbackReport(entries) {
         try {
-            console.log('🤖 [AI] Gerando relatório inteligente local');
+            console.log('🤖 [AI] Gerando relatório inteligente local (fallback)');
 
             if (!entries || entries.length === 0) {
                 return this.generateEmptyReport();

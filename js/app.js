@@ -1117,16 +1117,51 @@ class MentalIA {
         try {
             console.log('📊 [APP] loadData() iniciado - Carregando dados do storage...');
 
-            // Ensure storage is ready
+            // 🔥 CORREÇÃO: Aguardar storage estar completamente pronto
             if (!window.mentalStorage) {
-                console.log('🔄 [APP] Aguardando storage...');
-                await this.ensureStorageReady();
+                console.error('❌ [APP] Sistema de armazenamento não encontrado!');
+                throw new Error('Sistema de armazenamento não disponível');
+            }
+
+            // Aguardar inicialização com timeout
+            let initAttempts = 0;
+            const maxInitAttempts = 10;
+
+            while (!window.mentalStorage.initialized && initAttempts < maxInitAttempts) {
+                console.log(`🔄 [APP] Aguardando inicialização do storage (tentativa ${initAttempts + 1}/${maxInitAttempts})...`);
+                try {
+                    await window.mentalStorage.ensureInitialized();
+                    break;
+                } catch (initError) {
+                    console.warn(`⚠️ [APP] Tentativa ${initAttempts + 1} falhou:`, initError);
+                    initAttempts++;
+                    if (initAttempts < maxInitAttempts) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+                }
+            }
+
+            if (!window.mentalStorage.initialized) {
+                throw new Error('Falha ao inicializar sistema de armazenamento após múltiplas tentativas');
             }
 
             console.log('📊 [APP] Storage pronto, buscando entradas...');
-            const entries = await window.mentalStorage.getAllMoodEntries();
+
+            // 🔥 CORREÇÃO: Timeout para getAllMoodEntries
+            const entriesPromise = window.mentalStorage.getAllMoodEntries();
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Timeout ao carregar dados')), 10000)
+            );
+
+            const entries = await Promise.race([entriesPromise, timeoutPromise]);
             console.log('📊 [APP] Calculando estatísticas...');
-            const stats = await window.mentalStorage.getStats();
+
+            const statsPromise = window.mentalStorage.getStats();
+            const statsTimeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Timeout ao calcular estatísticas')), 5000)
+            );
+
+            const stats = await Promise.race([statsPromise, statsTimeoutPromise]);
 
             console.log('📊 [APP] Dados carregados:', {
                 entriesCount: entries?.length || 0,
@@ -1147,6 +1182,22 @@ class MentalIA {
             this.updateRecentEntries(entries);
 
             console.log('✅ [APP] Dados carregados e exibidos com sucesso');
+
+            // 🔥 CORREÇÃO: Verificar integridade dos dados periodicamente
+            if (entries && entries.length > 0) {
+                setTimeout(async () => {
+                    try {
+                        const integrity = await window.mentalStorage.verifyDataIntegrity();
+                        if (integrity.corruptedEntries > 0) {
+                            console.warn(`⚠️ [APP] ${integrity.corruptedEntries} entradas corrompidas encontradas`);
+                            this.showToast(`${integrity.corruptedEntries} entrada(s) corrompida(s) encontrada(s) e removida(s)`, 'warning', 5000);
+                        }
+                    } catch (error) {
+                        console.warn('⚠️ [APP] Erro ao verificar integridade:', error);
+                    }
+                }, 2000);
+            }
+
         } catch (error) {
             console.error('❌ [APP] Erro ao carregar dados:', error);
             console.error('❌ [APP] Stack trace:', error.stack);
@@ -1156,13 +1207,34 @@ class MentalIA {
                 cause: error.cause
             });
 
+            // 🔥 CORREÇÃO: Tratamento mais específico de erros
+            let errorMessage = 'Erro ao carregar dados';
+            let errorType = 'error';
+
+            if (error.message.includes('Timeout')) {
+                errorMessage = 'Timeout ao carregar dados. Verifique sua conexão.';
+            } else if (error.message.includes('armazenamento')) {
+                errorMessage = 'Erro no sistema de armazenamento. Tente recarregar a página.';
+                errorType = 'warning';
+            } else if (error.message.includes('criptografar') || error.message.includes('decrypt')) {
+                errorMessage = 'Erro de criptografia. Seus dados podem estar corrompidos.';
+            }
+
             // Show error toast
-            this.showToast('Erro ao carregar dados: ' + error.message, 'error');
+            this.showToast(errorMessage, errorType);
 
             // Show empty state if no data
             this.updateStats({ totalEntries: 0, averageMood: 0, streak: 0 });
             this.updateChart([]);
             this.updateRecentEntries([]);
+
+            // 🔥 CORREÇÃO: Tentar recarregar dados após erro
+            if (!error.message.includes('Timeout')) {
+                setTimeout(() => {
+                    console.log('🔄 [APP] Tentando recarregar dados após erro...');
+                    this.loadData();
+                }, 3000);
+            }
         }
     }
 
@@ -1432,20 +1504,50 @@ class MentalIA {
             // Take last 30 entries or all if less
             const recentEntries = sortedEntries.slice(-30);
 
-            // Create labels with better date formatting
+            // 🔥 CORREÇÃO: Calcular trend baseado nos últimos 7 dias
+            const last7Days = recentEntries.slice(-7);
+            let trend = 'stable';
+            if (last7Days.length >= 2) {
+                const firstHalf = last7Days.slice(0, Math.floor(last7Days.length / 2));
+                const secondHalf = last7Days.slice(Math.floor(last7Days.length / 2));
+
+                const firstAvg = firstHalf.reduce((sum, e) => sum + e.mood, 0) / firstHalf.length;
+                const secondAvg = secondHalf.reduce((sum, e) => sum + e.mood, 0) / secondHalf.length;
+
+                const diff = secondAvg - firstAvg;
+                if (diff > 0.3) trend = 'improving';
+                else if (diff < -0.3) trend = 'declining';
+                else trend = 'stable';
+            }
+
+            console.log('📊 Trend calculado (últimos 7 dias):', trend);
+
+            // 🔥 CORREÇÃO: Placeholder para poucos dados
+            if (entries.length < 3) {
+                console.log('📊 Poucos dados - mostrando placeholder');
+                this.chart.data.labels = ['Registre mais pra ver padrões'];
+                this.chart.data.datasets[0].data = [3.0]; // Valor neutro
+                this.chart.update('active');
+
+                // Mostrar toast informativo
+                this.showToast('📊 Registre mais alguns humores para ver padrões no gráfico!', 'info', 4000);
+                return;
+            }
+
+            // Create labels with better date formatting (PT-BR)
             const labels = recentEntries.map(entry => {
                 const date = new Date(entry.timestamp || entry.date);
-                
+
                 // Handle invalid dates
                 if (isNaN(date.getTime())) {
                     console.warn('⚠️ Data inválida encontrada:', entry);
                     return 'Data inválida';
                 }
-                
+
                 const now = new Date();
                 const diffTime = Math.abs(now - date);
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                
+
                 // Show different formats based on how recent the date is
                 if (diffDays === 0) {
                     return 'Hoje';
@@ -1471,7 +1573,7 @@ class MentalIA {
                 return Math.round(mood * 10) / 10; // Round to 1 decimal place
             });
 
-            console.log('📊 Labels:', labels.slice(0, 5), '... (total:', labels.length, ')');
+            console.log('📊 Labels PT-BR:', labels.slice(0, 5), '... (total:', labels.length, ')');
             console.log('📊 Data:', data.slice(0, 5), '... (total:', data.length, ')');
 
             // Update chart data
@@ -1482,12 +1584,13 @@ class MentalIA {
             this.chart.update('active');
 
             console.log('✅ Gráfico atualizado com', data.length, 'pontos de dados');
-            
+            console.log('📈 Tendência identificada:', trend);
+
             // Show success toast for significant updates
             if (data.length >= 5 && data.length % 5 === 0) {
                 this.showToast(`📊 Gráfico atualizado com ${data.length} registros!`, 'success', 3000);
             }
-            
+
         } catch (error) {
             console.error('❌ Erro ao atualizar gráfico:', error);
             this.showToast('Erro ao atualizar gráfico: ' + error.message, 'error');
@@ -2337,6 +2440,33 @@ class MentalIA {
         
         this.showToast('✅ Análise avançada gerada com sucesso!', 'success');
     }
+
+    // ===== BACKUP SYSTEM =====
+    async backupData() {
+        try {
+            console.log('💾 Iniciando backup de dados...');
+
+            // Verificar se o sistema de backup está disponível
+            if (!window.googleDriveBackup) {
+                throw new Error('Sistema de backup não disponível');
+            }
+
+            // Mostrar feedback visual
+            this.showToast('🔄 Fazendo backup seguro...', 'info');
+
+            // Iniciar backup
+            await window.googleDriveBackup.backupToDrive();
+
+            // Feedback de sucesso
+            this.showToast('✅ Backup realizado com sucesso!', 'success');
+
+        } catch (error) {
+            console.error('❌ Erro no backup:', error);
+
+            // Feedback de erro
+            this.showToast('❌ Erro no backup: ' + error.message, 'error');
+        }
+    }
 }
 
 // ===== API CONFIGURATION FUNCTIONS =====
@@ -2414,33 +2544,6 @@ window.checkAPIs = async () => {
         return null;
     }
 };
-
-// ===== BACKUP SYSTEM =====
-async backupData() {
-    try {
-        console.log('💾 Iniciando backup de dados...');
-        
-        // Verificar se o sistema de backup está disponível
-        if (!window.googleDriveBackup) {
-            throw new Error('Sistema de backup não disponível');
-        }
-        
-        // Mostrar feedback visual
-        this.showToast('🔄 Fazendo backup seguro...', 'info');
-        
-        // Iniciar backup
-        await window.googleDriveBackup.backupToDrive();
-        
-        // Feedback de sucesso
-        this.showToast('✅ Backup realizado com sucesso!', 'success');
-        
-    } catch (error) {
-        console.error('❌ Erro no backup:', error);
-        
-        // Feedback de erro
-        this.showToast('❌ Erro no backup: ' + error.message, 'error');
-    }
-}
 
 // Tratamento global de promises rejeitadas
 window.addEventListener('unhandledrejection', function(event) {
