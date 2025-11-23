@@ -4,11 +4,11 @@
 class MentalStorage {
     constructor() {
         this.dbName = 'MentalIA-DB-v3.1';
-        this.dbVersion = 2; // 🔥 CORREÇÃO: Incrementado para forçar upgrade
+        this.dbVersion = 3; // Incrementado para forçar upgrade e persistência
         this.db = null;
         this.encryptionKey = null;
         this.initialized = false;
-        this.saveMutex = false; // 🔥 NOVO: Mutex para prevenir saves simultâneos
+        this.saveMutex = false;
     }
 
     async init() {
@@ -147,7 +147,7 @@ class MentalStorage {
     async saveMoodEntry(moodData) {
         await this.ensureInitialized();
 
-        // 🔥 NOVO: Mutex para prevenir saves simultâneos
+        // Mutex para prevenir saves simultâneos
         if (this.saveMutex) {
             console.log('🔒 Save em andamento, aguardando...');
             while (this.saveMutex) {
@@ -157,8 +157,7 @@ class MentalStorage {
         this.saveMutex = true;
 
         try {
-            // Validate input (mood scale 1..10)
-            // Note: The UI uses a 1..10 slider so storage must accept that range.
+            // Validate input
             if (typeof moodData.mood !== 'number' || moodData.mood < 1 || moodData.mood > 10) {
                 throw new Error('Valor de humor deve ser um número entre 1 e 10');
             }
@@ -175,11 +174,10 @@ class MentalStorage {
 
             console.log('💾 Salvando entrada de humor:', { id: entry.id, mood: entry.mood });
 
-            // Deduplicate: check if an identical (or same-timestamp) entry already exists.
+            // Check for duplicates
             try {
                 const existing = await this.getAllMoodEntries();
                 const found = existing.find(e => {
-                    // same timestamp OR (same mood + same diary content within a few seconds)
                     if (e.timestamp === entry.timestamp) return true;
                     try {
                         const t1 = new Date(e.timestamp).getTime();
@@ -190,7 +188,7 @@ class MentalStorage {
                 });
                 if (found) {
                     console.log('⚠️ Entrada duplicada detectada — ignorando novo insert', { existingId: found.id });
-                    return found; // return existing entry object
+                    return found;
                 }
             } catch (err) {
                 console.warn('Erro ao checar duplicados (seguindo com insert):', err);
@@ -202,7 +200,7 @@ class MentalStorage {
                 id: entry.id,
                 timestamp: entry.timestamp,
                 date: entry.date,
-                mood: entry.mood, // Keep unencrypted for queries
+                mood: entry.mood,
                 encryptedData: encryptedData
             };
 
@@ -221,7 +219,7 @@ class MentalStorage {
                 };
             });
         } finally {
-            this.saveMutex = false; // 🔥 NOVO: Liberar mutex
+            this.saveMutex = false;
         }
     }
 
@@ -330,16 +328,13 @@ class MentalStorage {
     calculateStreak(entries) {
         if (entries.length === 0) return 0;
 
-        const dates = new Set(entries.map(e => new Date(e.timestamp).toDateString()));
-        const today = new Date();
         let streak = 0;
+        const today = new Date().toDateString();
 
-        for (let i = 0; ; i++) {
-            const date = new Date(today);
-            date.setDate(today.getDate() - i);
-            if (dates.has(date.toDateString())) {
+        for (const entry of entries) {
+            const entryDate = new Date(entry.timestamp).toDateString();
+            if (entryDate === today) {
                 streak++;
-            } else {
                 break;
             }
         }
@@ -348,20 +343,19 @@ class MentalStorage {
     }
 
     calculateTrend(entries) {
-        if (entries.length < 7) return 'neutral';
+        if (entries.length < 2) return 'neutral';
 
-        const recent = entries.slice(0, 7);
+        const recent = entries.slice(0, 7); // Last 7 entries
+        const avgRecent = recent.reduce((sum, e) => sum + e.mood, 0) / recent.length;
+
         const older = entries.slice(7, 14);
-
         if (older.length === 0) return 'neutral';
 
-        const recentAvg = recent.reduce((sum, e) => sum + e.mood, 0) / recent.length;
-        const olderAvg = older.reduce((sum, e) => sum + e.mood, 0) / older.length;
+        const avgOlder = older.reduce((sum, e) => sum + e.mood, 0) / older.length;
 
-        const diff = recentAvg - olderAvg;
-
-        if (diff > 0.3) return 'improving';
-        if (diff < -0.3) return 'declining';
+        const diff = avgRecent - avgOlder;
+        if (diff > 0.5) return 'improving';
+        if (diff < -0.5) return 'declining';
         return 'stable';
     }
 
