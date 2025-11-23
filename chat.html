@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Chat com IA — MentalIA</title>
+  <link rel="stylesheet" href="css/chat.css">
+</head>
+<body>
+  <div class="chat-app">
+    <header class="chat-header">
+      <div class="header-left">
+        <button id="back-btn" class="back-btn">← Voltar</button>
+        <h1>Chat com IA</h1>
+      </div>
+      <div class="header-right">
+        <label class="premium-toggle">
+          <input type="checkbox" id="premium-toggle">
+          <span>Usar modelo na nuvem (premium)</span>
+        </label>
+      </div>
+    </header>
+
+    <main class="chat-main" id="chat-main" aria-live="polite">
+      <div class="empty-state" id="empty-state">Converse com a IA — tudo 100% privado neste dispositivo.</div>
+    </main>
+
+    <div class="composer">
+      <div class="composer-left">
+        <button id="generate-entry" class="btn-secondary">Gerar registro</button>
+      </div>
+      <div class="composer-center">
+        <textarea id="input" placeholder="Escreva para a IA..." rows="1"></textarea>
+      </div>
+      <div class="composer-right">
+        <button id="send" class="btn-primary">Enviar</button>
+      </div>
+    </div>
+
+    <div id="typing" class="typing" aria-hidden="true">IA digitando<span class="dots">...</span></div>
+  </div>
+
+  <script src="js/chat.js" defer></script>
+</body>
+</html>
