@@ -6,7 +6,9 @@
 
 class GoogleDriveBackup {
     constructor() {
-        this.clientId = '670002862076-ivoemo399amv728d61llbdqn3fbcr8tk.apps.googleusercontent.com';
+        // Load credentials dynamically at runtime
+        this.loadCredentials();
+
         this.scopes = 'https://www.googleapis.com/auth/drive.appdata';
         this.isSignedIn = false;
         this.accessToken = null;
@@ -16,7 +18,25 @@ class GoogleDriveBackup {
         this.init();
     }
 
+    loadCredentials() {
+        if (window.GOOGLE_CREDENTIALS && window.GOOGLE_CREDENTIALS.client_id) {
+            this.clientId = window.GOOGLE_CREDENTIALS.client_id;
+            console.log('✅ [BACKUP] Credenciais Google carregadas');
+        } else {
+            this.clientId = null;
+            console.warn('⚠️ [BACKUP] Credenciais Google não configuradas');
+            this.showToast('Configure suas credenciais Google no console do Google Cloud', 'warning');
+        }
+    }
+
     async init() {
+        if (!this.clientId) {
+            console.log('☁️ [BACKUP] Client ID não disponível, pulando inicialização');
+            window.googleDriveBackup = this;
+            this.updateBackupStatus(false, 'Credenciais não configuradas');
+            return;
+        }
+
         try {
             await this.waitForGoogleIdentityServices();
 

@@ -41,3 +41,5 @@ Thumbs.db
 # Arquivos temporários
 *.tmp
 *.temp
+# Google OAuth credentials (exposed secrets)
+client_secret_670002862076-ivoemo399amv728d61llbdqn3fbcr8tk.apps.googleusercontent.com.json
