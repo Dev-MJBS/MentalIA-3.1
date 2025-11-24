@@ -40,16 +40,7 @@ class GoogleDriveBackup {
         try {
             await this.waitForGoogleIdentityServices();
 
-            // Initialize One Tap to receive credential (ID token)
-            google.accounts.id.initialize({
-                client_id: this.clientId,
-                callback: this.handleCredentialResponse.bind(this),
-                auto_select: false,
-                cancel_on_tap_outside: true,
-                context: 'signin'
-            });
-
-            // Initialize token client for Drive access
+            // Initialize OAuth2 token client for Drive access (simplified approach)
             this.tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: this.clientId,
                 scope: this.scopes,
@@ -72,8 +63,8 @@ class GoogleDriveBackup {
                 }
             });
 
-            // Render One Tap button (não usar prompt automático para evitar conflitos)
-            this.renderOneTapButton();
+            // Create a simple sign-in button
+            this.createSignInButton();
 
             window.googleDriveBackup = this;
             this.updateBackupStatus(false, 'Pronto para login');
@@ -83,40 +74,48 @@ class GoogleDriveBackup {
         }
     }
 
-    renderOneTapButton() {
+    createSignInButton() {
         const buttonContainer = document.getElementById('google-backup-btn');
         if (buttonContainer) {
-            google.accounts.id.renderButton(buttonContainer, {
-                theme: 'outline',
-                size: 'large',
-                text: 'signin_with',
-                shape: 'rectangular'
-            });
+            buttonContainer.innerHTML = ''; // Clear existing content
+
+            const signInButton = document.createElement('button');
+            signInButton.className = 'google-signin-btn';
+            signInButton.innerHTML = `
+                <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google" style="width: 18px; height: 18px; margin-right: 8px;">
+                <span>Conectar Google Drive</span>
+            `;
+            signInButton.onclick = () => this.signIn();
+
+            buttonContainer.appendChild(signInButton);
         }
     }
 
-    async handleCredentialResponse(response) {
+    async signIn() {
         try {
-            if (!response || !response.credential) {
-                console.warn('⚠️ [ONE TAP] Resposta inválida');
-                return;
-            }
-
-            console.log('🔐 [ONE TAP] Credencial recebida');
-            const payload = this.parseJWT(response.credential);
-            const email = payload && payload.email ? payload.email : 'usuário';
-            console.log('✅ [ONE TAP] Usuário autenticado:', email);
-
-            // Request an OAuth access token for Drive using token client.
-            try {
-                this.tokenClient.requestAccessToken({ prompt: '' });
-            } catch (err) {
-                console.warn('⚠️ [TOKEN] Pedido silencioso falhou, solicitando consentimento:', err);
-                try { this.tokenClient.requestAccessToken({ prompt: 'consent' }); } catch (err2) { console.error('❌ [TOKEN] Falha ao solicitar token:', err2); this.showToast('Erro no login com Google. Tente novamente.', 'error'); }
-            }
+            this.tokenClient.requestAccessToken({ prompt: 'consent' });
         } catch (err) {
-            console.error('❌ [ONE TAP] Erro ao processar credencial:', err);
+            console.error('❌ [SIGNIN] Erro ao iniciar login:', err);
+            this.showToast('Erro ao conectar com Google', 'error');
         }
+    }
+
+    async waitForGoogleIdentityServices() {
+        return new Promise((resolve, reject) => {
+            let attempts = 0;
+            const maxAttempts = 50;
+            const check = () => {
+                attempts++;
+                if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
+                    resolve();
+                } else if (attempts >= maxAttempts) {
+                    reject(new Error('Google OAuth2 não carregou'));
+                } else {
+                    setTimeout(check, 100);
+                }
+            };
+            check();
+        });
     }
 
     parseJWT(token) {
