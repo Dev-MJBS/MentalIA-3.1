@@ -16,19 +16,21 @@ class AuthSystem {
     
     async init() {
         console.log('🔐 [AUTH] Inicializando sistema de autenticação...');
-        
-        // Initialize Google OAuth
-        await this.initGoogleAuth();
-        
+
+        // Initialize Google OAuth with delay to ensure script is loaded
+        setTimeout(() => {
+            this.initGoogleAuth();
+        }, 1000);
+
         // Check if user is already logged in
         await this.checkAuthStatus();
-        
+
         // Setup event listeners
         this.setupEventListeners();
-        
+
         // Update UI based on auth status
         this.updateUI();
-        
+
         console.log('🔐 [AUTH] Sistema de autenticação inicializado');
     }
     
@@ -86,25 +88,62 @@ class AuthSystem {
     
     async initGoogleAuth() {
         console.log('🔐 [GOOGLE] Inicializando Google OAuth...');
-        
+
         try {
             // Wait for Google API to be loaded
             if (typeof google === 'undefined') {
                 console.warn('🔐 [GOOGLE] Google API não carregada ainda, aguardando...');
+
+                // Try to initialize anyway after a delay
+                setTimeout(() => {
+                    if (window.google && window.google.accounts) {
+                        console.log('🔐 [GOOGLE] Google API carregada após delay');
+                        this.initializeGIS();
+                    } else {
+                        console.warn('🔐 [GOOGLE] Google API ainda não disponível');
+                    }
+                }, 2000);
+
                 return;
             }
-            
+
             // Check if Google API is available
             if (window.google && window.google.accounts) {
                 this.isGoogleReady = true;
                 console.log('🔐 [GOOGLE] Google API disponível');
+
+                // Initialize Google Identity Services
+                this.initializeGIS();
             } else {
-                console.log('🔐 [GOOGLE] Google API não disponível - usando método alternativo');
-                this.isGoogleReady = false;
+                console.log('🔐 [GOOGLE] Google API não disponível - tentando novamente em 2s...');
+
+                // Retry after delay
+                setTimeout(() => {
+                    this.initGoogleAuth();
+                }, 2000);
             }
-            
+
         } catch (error) {
             console.error('🔐 [GOOGLE] Erro ao inicializar OAuth:', error);
+        }
+    }
+    
+    initializeGIS() {
+        try {
+            console.log('🔐 [GOOGLE] Inicializando Google Identity Services...');
+            
+            // Initialize Google Identity Services
+            google.accounts.id.initialize({
+                client_id: '1014430012172-v8qq7daet33ug7cg2en7di05o77e4vbs.apps.googleusercontent.com',
+                callback: (response) => this.handleGoogleCallback(response),
+                auto_select: false,
+                cancel_on_tap_outside: true
+            });
+            
+            console.log('🔐 [GOOGLE] GIS inicializado com sucesso');
+            
+        } catch (error) {
+            console.error('🔐 [GOOGLE] Erro ao inicializar GIS:', error);
         }
     }
     
@@ -127,9 +166,6 @@ class AuthSystem {
                     googleAccessToken: null // Will be obtained later for Drive access
                 };
                 
-                // Get Google Drive access token
-                await this.getGoogleDriveAccess(user);
-                
                 // Save session
                 this.currentUser = user;
                 localStorage.setItem('mentalia_session', JSON.stringify(user));
@@ -142,14 +178,10 @@ class AuthSystem {
                 // Hide login screen and show main app
                 this.hideLoginScreen();
                 
-                // Initialize Google Drive backup automatically
-                if (window.googleDriveBackup && user.googleAccessToken) {
-                    console.log('📁 [BACKUP] Configurando backup automático...');
-                    await this.setupGoogleDriveIntegration(user);
-                    this.showToast('Login realizado! Backup no Google Drive ativado 📁', 'success');
-                } else {
-                    this.showToast('Login realizado com sucesso! 🎉', 'success');
-                }
+                // Setup Google Drive backup automatically
+                this.setupGoogleDriveBackupForUser(user);
+                
+                this.showToast('Login realizado com sucesso! 🎉', 'success');
                 
             } else {
                 throw new Error('Token inválido');
@@ -161,107 +193,33 @@ class AuthSystem {
         }
     }
     
-    async initGoogleAPI() {
-        return new Promise((resolve, reject) => {
-            if (window.gapi.auth2) {
-                resolve();
-                return;
-            }
-            
-            window.gapi.load('auth2:client', async () => {
-                try {
-                    // Usar credenciais públicas básicas do Google
-                    await window.gapi.client.init({
-                        apiKey: 'AIzaSyBxxxxxx-CONFIGURE_SUA_API_KEY_AQUI', // API key do usuário
-                        clientId: 'SEU_CLIENT_ID.apps.googleusercontent.com', // Client ID do usuário
-                        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-                        scope: 'https://www.googleapis.com/auth/drive.file'
-                    });
-                    
-                    console.log('📁 [GOOGLE] API inicializada');
-                    resolve();
-                } catch (error) {
-                    console.error('📁 [GOOGLE] Erro ao inicializar API:', error);
-                    reject(error);
-                }
-            });
-        });
-    }
-    
-    setupGoogleDriveBackup(accessToken) {
+    parseJWT(token) {
         try {
-            console.log('📁 [BACKUP] Configurando backup automático...');
-            
-            if (window.googleDriveBackup) {
-                window.googleDriveBackup.setGoogleToken(accessToken);
-                window.googleDriveBackup.isConfigured = true;
-                
-                // Test connection
-                window.googleDriveBackup.testConnection().then(() => {
-                    this.showToast('Backup no Google Drive ativado! 📁', 'success');
-                    console.log('📁 [BACKUP] Backup configurado com sucesso');
-                }).catch((error) => {
-                    console.error('📁 [BACKUP] Erro ao testar conexão:', error);
-                    this.showToast('Backup configurado, mas houve erro na conexão', 'warning');
-                });
-            } else {
-                console.warn('📁 [BACKUP] Sistema de backup não disponível');
-            }
-            
-        } catch (error) {
-            console.error('📁 [BACKUP] Erro ao configurar backup:', error);
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+            return JSON.parse(jsonPayload);
+        } catch (err) {
+            console.warn('⚠️ [JWT] Falha ao decodificar JWT:', err);
+            return null;
         }
     }
     
-    async setupGoogleDriveIntegration(user) {
+    setupGoogleDriveBackupForUser(user) {
         try {
-            if (!window.googleDriveBackup) {
-                console.warn('📁 [BACKUP] Sistema de backup não disponível');
-                return;
-            }
-            
-            // Set Google token for backup system
-            if (user.googleAccessToken) {
-                window.googleDriveBackup.setGoogleToken(user.googleAccessToken);
-                console.log('📁 [BACKUP] Token configurado no sistema de backup');
-            }
-            
-            // Create user credentials object for backup
-            const backupCredentials = {
-                type: 'oauth2',
-                client_id: '294945635939-o70c4svvh0g9s1qmjstj4h9a4ujp7hqp.apps.googleusercontent.com',
-                access_token: user.googleAccessToken,
-                refresh_token: null, // Would need to be obtained in a real implementation
-                user_email: user.email
-            };
-            
-            // Configure backup system
-            window.googleDriveBackup.isConfigured = true;
-            window.googleDriveBackup.userEmail = user.email;
-            
-            console.log('📁 [BACKUP] Integração do Google Drive configurada para:', user.email);
-            
-        } catch (error) {
-            console.error('📁 [BACKUP] Erro ao configurar integração:', error);
-        }
-    }
-    
-    setupGoogleDriveBackup(accessToken) {
-        try {
-            console.log('📁 [BACKUP] Configurando backup automático...');
+            console.log('📁 [BACKUP] Configurando backup automático para usuário...');
             
             if (window.googleDriveBackup) {
-                window.googleDriveBackup.setGoogleToken(accessToken);
-                window.googleDriveBackup.isConfigured = true;
+                // Set user info for backup system
+                window.googleDriveBackup.userEmail = user.email;
+                window.googleDriveBackup.userName = user.name;
                 
-                // Test connection
-                window.googleDriveBackup.testConnection().then(() => {
-                    this.showToast('Backup no Google Drive ativado! 📁', 'success');
-                    console.log('📁 [BACKUP] Backup configurado com sucesso');
-                }).catch((error) => {
-                    console.error('📁 [BACKUP] Erro ao testar conexão:', error);
-                    this.showToast('Backup configurado, mas houve erro na conexão', 'warning');
-                });
+                console.log('📁 [BACKUP] Usuário configurado no sistema de backup:', user.email);
+                
+                // Show info about backup being available
+                setTimeout(() => {
+                    this.showToast('Backup no Google Drive disponível! Clique em "Backup" para salvar seus dados 📁', 'info');
+                }, 2000);
             } else {
                 console.warn('📁 [BACKUP] Sistema de backup não disponível');
             }
@@ -275,29 +233,91 @@ class AuthSystem {
         try {
             console.log('🔐 [GOOGLE] Iniciando processo de login...');
 
-            // Check if Google Drive backup is available
-            if (window.googleDriveBackup && !window.googleDriveBackup.isOfflineMode) {
-                console.log('🔐 [GOOGLE] Usando sistema de backup do Google Drive');
-                // Use Google Drive backup system for authentication
-                window.googleDriveBackup.requestLogin().then(success => {
-                    if (success) {
-                        console.log('🔐 [GOOGLE] Login realizado via Google Drive');
-                        this.handleGoogleLoginSuccess();
-                    } else {
-                        console.log('🔐 [GOOGLE] Login falhou via Google Drive');
-                        this.showToast('Login cancelado ou falhou', 'error');
-                    }
-                }).catch(error => {
-                    console.error('🔐 [GOOGLE] Erro no login via Google Drive:', error);
-                    this.showToast('Erro no login com Google', 'error');
+            if (this.isGoogleReady && window.google && window.google.accounts && window.google.accounts.id) {
+                console.log('🔐 [GOOGLE] Usando Google Identity Services diretamente');
+
+                // Use renderButton to create a proper sign-in button
+                const tempContainer = document.createElement('div');
+                tempContainer.style.position = 'fixed';
+                tempContainer.style.top = '-1000px';
+                document.body.appendChild(tempContainer);
+
+                google.accounts.id.renderButton(tempContainer, {
+                    theme: 'outline',
+                    size: 'large',
+                    type: 'standard',
+                    text: 'signin_with',
+                    shape: 'rectangular',
+                    logo_alignment: 'left'
                 });
+
+                // Click the rendered button
+                const button = tempContainer.querySelector('div[role="button"]');
+                if (button) {
+                    button.click();
+                } else {
+                    // Fallback: try prompt
+                    google.accounts.id.prompt();
+                }
+
+                // Clean up
+                setTimeout(() => {
+                    if (tempContainer.parentNode) {
+                        tempContainer.parentNode.removeChild(tempContainer);
+                    }
+                }, 1000);
+
             } else {
-                console.log('🔐 [GOOGLE] Sistema de backup não disponível, usando método alternativo');
-                this.showGoogleSetupDialog();
+                console.log('🔐 [GOOGLE] GIS não disponível, tentando inicializar...');
+                this.tryInitializeAndSignIn();
             }
         } catch (error) {
             console.error('🔐 [GOOGLE] Erro no login:', error);
             this.showToast('Erro no login com Google. Tente novamente.', 'error');
+        }
+    }
+
+    async tryInitializeAndSignIn() {
+        try {
+            console.log('🔐 [GOOGLE] Tentando inicializar GIS...');
+
+            // Wait a bit for Google script to load
+            let attempts = 0;
+            const maxAttempts = 50;
+
+            const checkAndInit = () => {
+                attempts++;
+                console.log(`🔄 [GOOGLE] Tentativa ${attempts}/${maxAttempts} de inicialização`);
+
+                if (window.google && window.google.accounts && window.google.accounts.id) {
+                    console.log('✅ [GOOGLE] GIS carregado, inicializando...');
+
+                    // Initialize GIS
+                    google.accounts.id.initialize({
+                        client_id: '1014430012172-v8qq7daet33ug7cg2en7di05o77e4vbs.apps.googleusercontent.com',
+                        callback: (response) => this.handleGoogleCallback(response),
+                        auto_select: false,
+                        cancel_on_tap_outside: true
+                    });
+
+                    this.isGoogleReady = true;
+
+                    // Now try to sign in
+                    this.handleGoogleSignIn();
+
+                } else if (attempts >= maxAttempts) {
+                    console.warn('⚠️ [GOOGLE] GIS não carregou após tentativas, mostrando diálogo alternativo');
+                    this.showGoogleSetupDialog();
+                } else {
+                    setTimeout(checkAndInit, 200);
+                }
+            };
+
+            checkAndInit();
+
+        } catch (error) {
+            console.error('🔐 [GOOGLE] Erro ao tentar inicializar:', error);
+            this.showGoogleSetupDialog();
         }
     }
     
@@ -307,20 +327,19 @@ class AuthSystem {
         dialog.innerHTML = `
             <div class="dialog-overlay">
                 <div class="dialog-content">
-                    <h3>🔐 Login com Google + Backup Automático</h3>
-                    <p>Para usar o login com Google e backup automático, você precisa:</p>
+                    <h3>🔐 Login com Google</h3>
+                    <p>Para fazer login com sua conta Google, você precisa:</p>
                     <ol>
                         <li>Ter uma conta Google</li>
-                        <li>Autorizar acesso ao Google Drive</li>
-                        <li>Permitir armazenamento de dados do MentalIA</li>
+                        <li>Autorizar o acesso ao MentalIA</li>
+                        <li>Permitir o uso de dados básicos (nome, email)</li>
                     </ol>
                     <div class="dialog-info">
-                        <strong>📁 Vantagens:</strong>
+                        <strong>🔒 Privacidade:</strong>
                         <ul>
-                            <li>✅ Login rápido e seguro</li>
-                            <li>✅ Backup automático no Google Drive</li>
-                            <li>✅ Sincronização entre dispositivos</li>
-                            <li>✅ Recuperação de dados garantida</li>
+                            <li>✅ Apenas nome e email são usados</li>
+                            <li>✅ Dados ficam apenas no seu dispositivo</li>
+                            <li>✅ Backup opcional no Google Drive</li>
                         </ul>
                     </div>
                     <div class="dialog-buttons">
@@ -403,46 +422,49 @@ class AuthSystem {
     startGoogleFlow() {
         // Close dialog
         document.querySelector('.google-setup-dialog')?.remove();
-        
-        // Create mock user for demonstration
-        const userData = {
-            id: 'google_' + Date.now(),
-            name: 'Usuário Google',
-            email: 'usuario@gmail.com',
-            picture: 'https://via.placeholder.com/40',
-            provider: 'google',
-            googleAccessToken: 'mock_token_' + Date.now()
-        };
-        
-        // Save session
-        this.currentUser = userData;
-        localStorage.setItem('mentalia_session', JSON.stringify(userData));
-        
-        console.log('🔐 [GOOGLE] Login simulado realizado:', userData.email);
-        
-        // Update UI
-        this.updateUI();
-        
-        // Hide login screen and show main app
-        this.hideLoginScreen();
-        
-        // Setup Google Drive backup (mock)
-        this.setupMockGoogleDrive();
-        
-        this.showToast(`Bem-vindo! Login com Google ativado 🎉`, 'success');
-    }
-    
-    setupMockGoogleDrive() {
-        // Simulate Google Drive backup setup
-        setTimeout(() => {
-            this.showToast('Backup no Google Drive configurado! 📁', 'success');
-            console.log('📁 [BACKUP] Mock Google Drive backup ativo');
-            
-            // Update backup status in UI
-            if (window.googleDriveBackup) {
-                window.googleDriveBackup.isConfigured = true;
+
+        // Show message that Google login is being initialized
+        this.showToast('Iniciando login com Google...', 'info');
+
+        // Try to trigger Google Sign-In using the same logic as handleGoogleSignIn
+        if (this.isGoogleReady && window.google && window.google.accounts && window.google.accounts.id) {
+            console.log('🔐 [GOOGLE] GIS pronto, iniciando login...');
+
+            // Use renderButton to create a proper sign-in button
+            const tempContainer = document.createElement('div');
+            tempContainer.style.position = 'fixed';
+            tempContainer.style.top = '-1000px';
+            document.body.appendChild(tempContainer);
+
+            google.accounts.id.renderButton(tempContainer, {
+                theme: 'outline',
+                size: 'large',
+                type: 'standard',
+                text: 'signin_with',
+                shape: 'rectangular',
+                logo_alignment: 'left'
+            });
+
+            // Click the rendered button
+            const button = tempContainer.querySelector('div[role="button"]');
+            if (button) {
+                button.click();
+            } else {
+                // Fallback: try prompt
+                google.accounts.id.prompt();
             }
-        }, 1000);
+
+            // Clean up
+            setTimeout(() => {
+                if (tempContainer.parentNode) {
+                    tempContainer.parentNode.removeChild(tempContainer);
+                }
+            }, 1000);
+
+        } else {
+            console.log('🔐 [GOOGLE] GIS não pronto, tentando inicializar...');
+            this.tryInitializeAndSignIn();
+        }
     }
     
     async checkAuthStatus() {

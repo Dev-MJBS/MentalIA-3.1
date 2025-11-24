@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <title>Teste Backup Google Drive - MentalIA 3.1</title>
     <link rel="stylesheet" href="css/styles.css">
+    
+    <!-- Google APIs -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    
     <style>
         .backup-status {
             font-size: 1.2rem;
@@ -31,21 +35,64 @@
             margin: 20px auto;
             display: block;
         }
-        #do-backup-btn:hover {
-            background: #4f46e5;
+        .warning-box {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            margin: 20px auto;
+            max-width: 600px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .warning-box a {
+            color: #856404;
+            text-decoration: underline;
+        }
+        h1 {
+            text-align: center;
+        }
+        .google-signin-btn {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin: 20px auto;
+            min-width: 200px;
+        }
+        .google-signin-btn:hover {
+            background: #3367d6;
+        }
+        .google-signin-btn img {
+            width: 18px;
+            height: 18px;
         }
     </style>
 </head>
 <body>
-    <h1 style="text-align:center;">Teste Backup Google Drive</h1>
+    <h1>Teste Backup Google Drive</h1>
+    <div class="warning-box">
+        <strong>⚠️ Importante:</strong> Se você receber "Acesso bloqueado" do Google, isso significa que o app não foi verificado ainda.
+        <br><br>
+        <strong>Solução:</strong> O desenvolvedor precisa adicionar você como testador no Google Cloud Console.
+        <br><br>
+        <em>Para desenvolvedores:</em> Vá para <a href="https://console.cloud.google.com/apis/credentials/consent" target="_blank" rel="noopener">OAuth Consent Screen</a> e adicione testadores.
+    </div>
     <div id="google-backup-status" class="backup-status">🔴 Backup Google Drive não conectado</div>
     <div id="google-backup-btn"></div>
     <button id="do-backup-btn">Fazer Backup Agora</button>
+    <script src="js/storage.js"></script>
     <script src="js/google_drive_backup.js"></script>
     <script>
         // Google Credentials Configuration (same as main app)
         window.GOOGLE_CREDENTIALS = {
-            client_id: '670002862076-ivoemo399amv728d61llbdqn3fbcr8tk.apps.googleusercontent.com'
+            client_id: '1014430012172-v8qq7daet33ug7cg2en7di05o77e4vbs.apps.googleusercontent.com'
         };
 
         // Exemplo de dados para backup
@@ -53,6 +100,20 @@
             { date: '2025-11-22', mood: 4, note: 'Dia bom!' },
             { date: '2025-11-21', mood: 2, note: 'Pouco ansioso.' }
         ];
+
+        // Add event listener for manual backup button
+        document.getElementById('do-backup-btn').addEventListener('click', async () => {
+            if (window.googleDriveBackup) {
+                try {
+                    console.log('🔄 [TEST] Iniciando backup manual...');
+                    await window.googleDriveBackup.backupToDrive({ showToasts: true });
+                } catch (err) {
+                    console.error('❌ [TEST] Erro no backup:', err);
+                }
+            } else {
+                console.warn('⚠️ [TEST] GoogleDriveBackup não inicializado');
+            }
+        });
     </script>
 </body>
 </html>

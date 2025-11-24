@@ -38,28 +38,61 @@ class GoogleDriveBackup {
         }
 
         try {
-            await this.waitForGoogleIdentityServices();
+            // Try to wait for Google Identity Services, but don't fail if it doesn't load
+            const googleLoaded = await this.tryWaitForGoogleIdentityServices();
+            if (!googleLoaded) {
+                console.warn('⚠️ [INIT] Google Identity Services não carregou, mas continuando...');
+                window.googleDriveBackup = this;
+                this.updateBackupStatus(false, 'Google API não carregou - verifique conexão');
+                return;
+            }
 
             // Initialize OAuth2 token client for Drive access (simplified approach)
             this.tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: this.clientId,
                 scope: this.scopes,
+                ux_mode: 'popup', // Use popup for localhost
                 callback: (tokenResponse) => {
+                    console.log('🔄 [TOKEN] Callback OAuth recebido:', tokenResponse);
+
                     if (tokenResponse && tokenResponse.access_token) {
                         this.accessToken = tokenResponse.access_token;
                         this.isSignedIn = true;
-                        console.log('✅ [TOKEN] Access token obtido');
+                        console.log('✅ [TOKEN] Access token obtido com sucesso!');
+                        this.showToast('Conectado ao Google Drive!', 'success');
                         this.postSignInActions();
-                    } else {
-                        console.warn('⚠️ [TOKEN] Resposta sem access_token:', tokenResponse);
-                        if (tokenResponse && tokenResponse.error) {
-                            this.showToast(`Erro OAuth: ${tokenResponse.error}`, 'error');
+                    } else if (tokenResponse && tokenResponse.error) {
+                        console.error('❌ [TOKEN] Erro na resposta OAuth:', tokenResponse.error);
+
+                        if (tokenResponse.error === 'access_denied') {
+                            this.showToast('Acesso negado pelo Google. Verifique se você foi adicionado como testador no Google Cloud Console.', 'error');
+                            console.warn('⚠️ [OAUTH] Para resolver:');
+                            console.warn('1. Acesse https://console.cloud.google.com/');
+                            console.warn('2. Vá para APIs & Services > OAuth consent screen');
+                            console.warn('3. Adicione testadores na seção "Test users"');
+                            console.warn('4. Adicione o email: mjbs.dev@gmail.com');
+                            this.updateBackupStatus(false, 'Acesso negado - consulte GOOGLE_OAUTH_FIX.md');
+                        } else {
+                            this.showToast(`Erro na autenticação: ${tokenResponse.error}`, 'error');
                         }
+                    } else {
+                        console.warn('⚠️ [TOKEN] Resposta OAuth sem access_token:', tokenResponse);
+                        this.showToast('Autenticação incompleta - tente novamente', 'error');
                     }
                 },
                 error_callback: (error) => {
                     console.error('❌ [TOKEN] Erro no callback OAuth:', error);
-                    this.showToast('Erro na autenticação com Google', 'error');
+
+                    // Handle specific Google verification errors
+                    if (error && error.type === 'popup_closed') {
+                        this.showToast('Popup fechado pelo usuário', 'error');
+                    } else if (error && error.message && error.message.includes('access_denied')) {
+                        this.showToast('Acesso negado pelo Google. O app precisa ser verificado ou você precisa ser adicionado como testador.', 'error');
+                        console.warn('⚠️ [OAUTH] App não verificado pelo Google. Adicione testadores no Google Cloud Console.');
+                        this.updateBackupStatus(false, 'Acesso negado - consulte GOOGLE_OAUTH_FIX.md');
+                    } else {
+                        this.showToast(`Erro na autenticação: ${error.message || 'Erro desconhecido'}`, 'error');
+                    }
                 }
             });
 
@@ -70,12 +103,17 @@ class GoogleDriveBackup {
             this.updateBackupStatus(false, 'Pronto para login');
         } catch (err) {
             console.error('❌ [INIT] Erro inicializando Google Identity Services:', err);
+            // Don't fail completely, just mark as unavailable
+            window.googleDriveBackup = this;
             this.updateBackupStatus(false, 'Erro na inicialização');
         }
     }
 
     createSignInButton() {
+        console.log('🔄 [BUTTON] Criando botão de login...');
         const buttonContainer = document.getElementById('google-backup-btn');
+        console.log('🔄 [BUTTON] Container encontrado:', !!buttonContainer);
+
         if (buttonContainer) {
             buttonContainer.innerHTML = ''; // Clear existing content
 
@@ -85,33 +123,72 @@ class GoogleDriveBackup {
                 <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google" style="width: 18px; height: 18px; margin-right: 8px;">
                 <span>Conectar Google Drive</span>
             `;
-            signInButton.onclick = () => this.signIn();
+            signInButton.onclick = () => {
+                console.log('🔄 [BUTTON] Botão clicado, iniciando login...');
+                this.signIn();
+            };
 
             buttonContainer.appendChild(signInButton);
+            console.log('✅ [BUTTON] Botão criado com sucesso!');
+        } else {
+            console.warn('⚠️ [BUTTON] Container google-backup-btn não encontrado');
         }
     }
 
     async signIn() {
         try {
-            this.tokenClient.requestAccessToken({ prompt: 'consent' });
+            console.log('🔄 [SIGNIN] Iniciando fluxo OAuth...');
+            // Use popup mode for localhost development
+            this.tokenClient.requestAccessToken({
+                prompt: 'consent',
+                ux_mode: 'popup'
+            });
         } catch (err) {
             console.error('❌ [SIGNIN] Erro ao iniciar login:', err);
             this.showToast('Erro ao conectar com Google', 'error');
         }
     }
 
-    async waitForGoogleIdentityServices() {
-        return new Promise((resolve, reject) => {
+    async getMoodEntries() {
+        try {
+            // Try to get data from mentalStorage first
+            if (window.mentalStorage && typeof window.mentalStorage.getAllMoodEntries === 'function') {
+                console.log('✅ [STORAGE] Usando mentalStorage para obter dados');
+                return await window.mentalStorage.getAllMoodEntries();
+            }
+
+            // Fallback to test data if available
+            if (window.appData && Array.isArray(window.appData)) {
+                console.log('⚠️ [STORAGE] mentalStorage não disponível, usando dados de teste');
+                return window.appData;
+            }
+
+            // Return empty array if nothing is available
+            console.warn('⚠️ [STORAGE] Nenhum sistema de armazenamento disponível');
+            return [];
+        } catch (err) {
+            console.error('❌ [STORAGE] Erro ao obter dados:', err);
+            return [];
+        }
+    }
+
+    async tryWaitForGoogleIdentityServices() {
+        return new Promise((resolve) => {
             let attempts = 0;
-            const maxAttempts = 50;
+            const maxAttempts = 200; // More attempts for slower connections
             const check = () => {
                 attempts++;
+                console.log(`🔄 [GOOGLE] Tentativa ${attempts}/${maxAttempts} - google:`, typeof google, 'accounts:', typeof google?.accounts, 'oauth2:', typeof google?.accounts?.oauth2);
+
                 if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
-                    resolve();
+                    console.log('✅ [GOOGLE] Google Identity Services carregado com sucesso!');
+                    resolve(true);
                 } else if (attempts >= maxAttempts) {
-                    reject(new Error('Google OAuth2 não carregou'));
+                    console.warn('⚠️ [GOOGLE] Google Identity Services não carregou após', maxAttempts, 'tentativas');
+                    console.warn('⚠️ [GOOGLE] Verifique sua conexão com a internet e tente novamente');
+                    resolve(false);
                 } else {
-                    setTimeout(check, 100);
+                    setTimeout(check, 300); // Slightly longer delay
                 }
             };
             check();
@@ -137,7 +214,7 @@ class GoogleDriveBackup {
             try { await this.backupToDrive({ showToasts: true }); } catch (err) { console.warn('⚠️ [BACKUP] Backup automático falhou:', err); }
             // If DB empty, try restore
             try {
-                const entries = await window.mentalStorage.getAllMoodEntries();
+                const entries = await this.getMoodEntries();
                 if (!entries || entries.length === 0) {
                     const restored = await this.downloadAndRestoreBackup();
                     if (restored) this.showToast('Backup restaurado', 'success');
@@ -150,7 +227,7 @@ class GoogleDriveBackup {
         try {
             if (!this.accessToken) throw new Error('Usuário não autenticado');
             this.updateBackupStatus(true, 'Preparando dados...');
-            const entries = await window.mentalStorage.getAllMoodEntries();
+            const entries = await this.getMoodEntries();
             if (!entries || entries.length === 0) { if (options.showToasts) this.showToast('Nenhum dado para backup', 'error'); throw new Error('Nenhum dado para backup'); }
             const backupData = { version: '3.1', timestamp: new Date().toISOString(), entries, totalEntries: entries.length };
             this.updateBackupStatus(true, 'Criptografando...');
@@ -197,7 +274,19 @@ class GoogleDriveBackup {
             if (!this.accessToken) return false;
             const q = encodeURIComponent("name = 'MentalIA_backup.enc' and trashed = false and 'appDataFolder' in parents");
             const url = `https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=modifiedTime desc&fields=files(id,name)`;
-            const listResp = await fetch(url, { headers: { 'Authorization': `Bearer ${this.accessToken}` } }); if (!listResp.ok) return false; const listData = await listResp.json(); if (!listData.files || listData.files.length === 0) return false; const fileId = listData.files[0].id; const fileResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: { 'Authorization': `Bearer ${this.accessToken}` } }); if (!fileResp.ok) return false; const encryptedB64 = await fileResp.text(); const jsonString = await this.decryptData(encryptedB64); const backup = JSON.parse(jsonString); if (!backup || !backup.entries) return false; for (const entry of backup.entries) { try { await window.mentalStorage.saveMoodEntry(entry); } catch (e) { console.warn('⚠️ [RESTORE]', e); } } console.log('✅ [RESTORE] Backup restaurado com', backup.entries.length, 'entradas'); return true;
+            const listResp = await fetch(url, { headers: { 'Authorization': `Bearer ${this.accessToken}` } }); if (!listResp.ok) return false; const listData = await listResp.json(); if (!listData.files || listData.files.length === 0) return false; const fileId = listData.files[0].id; const fileResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: { 'Authorization': `Bearer ${this.accessToken}` } }); if (!fileResp.ok) return false; const encryptedB64 = await fileResp.text(); const jsonString = await this.decryptData(encryptedB64); const backup = JSON.parse(jsonString); if (!backup || !backup.entries) return false;
+
+            // Try to save entries using mentalStorage, but don't fail if it's not available
+            if (window.mentalStorage && typeof window.mentalStorage.saveMoodEntry === 'function') {
+                for (const entry of backup.entries) {
+                    try { await window.mentalStorage.saveMoodEntry(entry); } catch (e) { console.warn('⚠️ [RESTORE]', e); }
+                }
+            } else {
+                console.log('⚠️ [RESTORE] mentalStorage não disponível, dados não salvos localmente');
+            }
+
+            console.log('✅ [RESTORE] Backup restaurado com', backup.entries.length, 'entradas');
+            return true;
         } catch (err) { console.error('❌ [RESTORE] Erro:', err); return false; }
     }
 
@@ -210,17 +299,21 @@ class GoogleDriveBackup {
 
 // Initialize when page loads
 window.addEventListener('DOMContentLoaded', () => {
-    new GoogleDriveBackup();
-    const backupBtn = document.getElementById('backup-data');
-    if (backupBtn) {
-        backupBtn.addEventListener('click', async () => {
-            try {
-                if (window.googleDriveBackup && window.googleDriveBackup.tokenClient) {
-                    window.googleDriveBackup.tokenClient.requestAccessToken({ prompt: 'consent' });
-                } else if (window.googleDriveBackup) {
-                    await window.googleDriveBackup.backupToDrive({ showToasts: true });
-                }
-            } catch (err) { console.error('❌ [UI BACKUP] Erro ao iniciar backup manual:', err); }
-        });
-    }
+    // Delay initialization to allow Google scripts to load
+    setTimeout(() => {
+        console.log('🚀 [INIT] Iniciando GoogleDriveBackup...');
+        new GoogleDriveBackup();
+        const backupBtn = document.getElementById('backup-data');
+        if (backupBtn) {
+            backupBtn.addEventListener('click', async () => {
+                try {
+                    if (window.googleDriveBackup && window.googleDriveBackup.tokenClient) {
+                        window.googleDriveBackup.tokenClient.requestAccessToken({ prompt: 'consent' });
+                    } else if (window.googleDriveBackup) {
+                        await window.googleDriveBackup.backupToDrive({ showToasts: true });
+                    }
+                } catch (err) { console.error('❌ [UI BACKUP] Erro ao iniciar backup manual:', err); }
+            });
+        }
+    }, 2000); // Wait 2 seconds for scripts to load
 });

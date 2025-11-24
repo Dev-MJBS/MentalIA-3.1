@@ -55,7 +55,7 @@
                 try {
                     await gapi.client.init({
                         discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-                        clientId: '670002862076-ivoemo399amv728d61llbdqn3fbcr8tk.apps.googleusercontent.com',
+                        clientId: '1014430012172-v8qq7daet33ug7cg2en7di05o77e4vbs.apps.googleusercontent.com',
                         scope: 'https://www.googleapis.com/auth/drive.appdata'
                     });
 

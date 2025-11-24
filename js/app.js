@@ -20,6 +20,10 @@ class MentalIA {
     this.initTheme();
     this.updateMoodDisplay(this.currentMood);
     await this.loadData();
+    
+    // 🔥 NOVO: Verificar backup automaticamente na inicialização
+    await this.checkAutoRestore();
+    
     this.showScreen('welcome');
   }
 
@@ -97,7 +101,8 @@ class MentalIA {
     document.getElementById('share-report')?.addEventListener('click', (e) => { e.preventDefault(); this.shareReport(); });
     document.getElementById('generate-pdf-report')?.addEventListener('click', (e) => { e.preventDefault(); window.aiAnalysis.downloadReport(); });
     document.getElementById('delete-all-data')?.addEventListener('click', (e) => { e.preventDefault(); this.showDeleteModal(null, true); });
-    document.getElementById('backup-data')?.addEventListener('click', (e) => { e.preventDefault(); this.backupData(); });
+    document.getElementById('backup-data')?.addEventListener('click', (e) => { e.preventDefault(); this.manualBackup(); });
+    document.getElementById('restore-backup')?.addEventListener('click', (e) => { e.preventDefault(); this.restoreBackup(); });
   }
 
   // Initialize feelings accordion behavior using delegation for better mobile/touch support
@@ -398,6 +403,10 @@ class MentalIA {
       this.resetMoodForm();
       this.showScreen('history');
       await this.loadData();
+      
+      // 🔥 NOVO: Backup automático após salvar registro
+      await this.autoBackup();
+      
     } catch (err) {
       console.error('Erro ao salvar:', err);
       this.showToast('Erro ao salvar: ' + (err.message || err), 'error');
@@ -812,6 +821,108 @@ class MentalIA {
   }
 
   async backupData() { this.showToast('Backup (simulado)', 'info'); }
+
+  // 🔥 NOVO: Backup manual com feedback visual
+  async manualBackup() {
+    try {
+      if (!window.googleDriveBackup) {
+        this.showToast('Sistema de backup não disponível', 'error');
+        return;
+      }
+
+      if (!window.googleDriveBackup.isSignedIn) {
+        this.showToast('Conecte-se ao Google Drive primeiro', 'warning');
+        // Tentar conectar automaticamente
+        if (window.googleDriveBackup.tokenClient) {
+          window.googleDriveBackup.tokenClient.requestAccessToken({ prompt: 'consent' });
+        }
+        return;
+      }
+
+      this.showToast('Fazendo backup para a nuvem...', 'info');
+      await window.googleDriveBackup.backupToDrive({ showToasts: true });
+    } catch (err) {
+      console.error('Erro no backup manual:', err);
+      this.showToast('Erro no backup: ' + (err.message || err), 'error');
+    }
+  }
+
+  // 🔥 NOVO: Backup automático sempre que possível
+  async autoBackup() {
+    try {
+      if (!window.googleDriveBackup || !window.googleDriveBackup.isSignedIn) {
+        console.log('🔄 [AUTO-BACKUP] Google Drive não conectado, pulando backup automático');
+        return;
+      }
+
+      console.log('🔄 [AUTO-BACKUP] Iniciando backup automático...');
+      await window.googleDriveBackup.backupToDrive({ showToasts: false });
+      console.log('✅ [AUTO-BACKUP] Backup automático concluído silenciosamente');
+    } catch (err) {
+      console.warn('⚠️ [AUTO-BACKUP] Backup automático falhou:', err);
+      // Não mostra toast de erro para não incomodar o usuário
+    }
+  }
+
+  // 🔥 NOVO: Verificar restauração automática na inicialização
+  async checkAutoRestore() {
+    try {
+      // Verificar se há dados locais
+      const localEntries = await window.mentalStorage.getAllMoodEntries();
+      const hasLocalData = localEntries && localEntries.length > 0;
+
+      if (hasLocalData) {
+        console.log('✅ [AUTO-RESTORE] Dados locais encontrados, pulando restauração');
+        return;
+      }
+
+      // Se não há dados locais, tentar restaurar do Google Drive
+      if (window.googleDriveBackup && window.googleDriveBackup.isSignedIn) {
+        console.log('🔄 [AUTO-RESTORE] Nenhum dado local, tentando restaurar do Google Drive...');
+        const restored = await window.googleDriveBackup.downloadAndRestoreBackup();
+        if (restored) {
+          this.showToast('Backup restaurado automaticamente da nuvem! ☁️', 'success');
+          await this.loadData(); // Recarregar dados após restauração
+        }
+      } else {
+        console.log('⚠️ [AUTO-RESTORE] Google Drive não conectado, pulando restauração automática');
+      }
+    } catch (err) {
+      console.warn('⚠️ [AUTO-RESTORE] Erro na restauração automática:', err);
+    }
+  }
+
+  // 🔥 NOVO: Método para restaurar backup manualmente
+  async restoreBackup() {
+    try {
+      if (!window.googleDriveBackup) {
+        this.showToast('Sistema de backup não disponível', 'error');
+        return;
+      }
+
+      if (!window.googleDriveBackup.isSignedIn) {
+        this.showToast('Conecte-se ao Google Drive primeiro', 'warning');
+        // Tentar conectar automaticamente
+        if (window.googleDriveBackup.tokenClient) {
+          window.googleDriveBackup.tokenClient.requestAccessToken({ prompt: 'consent' });
+        }
+        return;
+      }
+
+      this.showToast('Restaurando backup da nuvem...', 'info');
+      const restored = await window.googleDriveBackup.downloadAndRestoreBackup();
+      
+      if (restored) {
+        this.showToast('Backup restaurado com sucesso! 📥', 'success');
+        await this.loadData(); // Recarregar dados após restauração
+      } else {
+        this.showToast('Nenhum backup encontrado na nuvem', 'warning');
+      }
+    } catch (err) {
+      console.error('Erro ao restaurar backup:', err);
+      this.showToast('Erro ao restaurar backup: ' + (err.message || err), 'error');
+    }
+  }
 
   showToast(msg, type='info', duration=3000) {
     const container = document.getElementById('toast-container');

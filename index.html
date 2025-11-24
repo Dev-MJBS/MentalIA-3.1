@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MentalIA 3.1 - Saúde Mental com IA Local</title>
     
-">
-">
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#1a1a2e">
     <meta name="description" content="App de saúde mental com IA local e privacidade absoluta">
@@ -41,24 +39,13 @@
     
     <!-- Google APIs -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="https://apis.google.com/js/api.js" async defer></script>
     
     <!-- Google Credentials Configuration -->
     <script>
       window.GOOGLE_CREDENTIALS = {
-        client_id: '670002862076-ivoemo399amv728d61llbdqn3fbcr8tk.apps.googleusercontent.com'
+        client_id: '1014430012172-v8qq7daet33ug7cg2en7di05o77e4vbs.apps.googleusercontent.com'
       };
     </script>
-    
-    <!-- Stripe SDK for Premium -->
-    <script src="https://js.stripe.com/v3/"></script>
-    
-    <!-- Google One Tap Configuration -->
-    <div id="g_id_onload"
-         data-client_id="670002862076-ivoemo399amv728d61llbdqn3fbcr8tk.apps.googleusercontent.com"
-         data-login_uri="https://dev-mjbs.github.io/MentalIA-3.1"
-         data-auto_prompt="true">
-    </div>
     
     <!-- CSS -->
     <link rel="stylesheet" href="css/styles.css?v=1143">
@@ -751,6 +738,19 @@
             <div class="data-management">
                 <h3>Gerenciamento de Dados</h3>
                 <p class="privacy-note">🛡️ Respeitamos sua privacidade (LGPD Art. 18)</p>
+                
+                <!-- 🔥 NOVO: Botões de Backup e Restauração -->
+                <div class="backup-controls">
+                    <button id="restore-backup" class="btn-secondary">
+                        <span class="btn-icon">📥</span>
+                        <span class="btn-text">Restaurar da Nuvem</span>
+                    </button>
+                    <button id="backup-data" class="btn-secondary">
+                        <span class="btn-icon">☁️</span>
+                        <span class="btn-text">Backup Manual</span>
+                    </button>
+                </div>
+                
                 <button id="delete-all-data" class="btn-secondary delete-all-btn">
                     <span class="btn-icon">🗑️</span>
                     <span class="btn-text">Apagar todos os meus dados</span>
