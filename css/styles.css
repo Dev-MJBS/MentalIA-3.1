@@ -3167,7 +3167,7 @@ html, body {
   transform: translateY(0);
 }
 
-/* Delete confirmation modal */
+/* Modal de Sincronização */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -3240,13 +3240,13 @@ html, body {
 }
 
 .modal-actions .btn-primary {
-  background: var(--error);
-  border-color: var(--error);
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
 }
 
 .modal-actions .btn-primary:hover {
-  background: #dc2626;
-  border-color: #dc2626;
+  background: var(--accent-secondary);
+  border-color: var(--accent-secondary);
 }
 
 .modal-actions .btn-secondary {
@@ -3259,7 +3259,7 @@ html, body {
   background: var(--bg-tertiary);
 }
 
-/* Mobile responsive for delete modal */
+/* Mobile responsive for sync modal */
 @media (max-width: 768px) {
   .modal-content {
     width: 95vw;

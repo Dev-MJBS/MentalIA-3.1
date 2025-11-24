@@ -873,6 +873,8 @@ class MentalIA {
 
       if (hasLocalData) {
         console.log('✅ [AUTO-RESTORE] Dados locais encontrados, pulando restauração');
+        // 🔥 MELHORIA: Verificar se há dados na nuvem mais recentes para sincronização
+        await this.checkCloudSync();
         return;
       }
 
@@ -892,8 +894,169 @@ class MentalIA {
     }
   }
 
+  // 🔥 NOVO: Verificar sincronização com a nuvem quando há dados locais
+  async checkCloudSync() {
+    try {
+      if (!window.googleDriveBackup || !window.googleDriveBackup.isSignedIn) {
+        return; // Não está logado, não há o que sincronizar
+      }
+
+      // Verificar se há backup na nuvem
+      const hasCloudBackup = await this.checkCloudBackupExists();
+      if (!hasCloudBackup) {
+        console.log('ℹ️ [SYNC] Nenhum backup encontrado na nuvem');
+        return;
+      }
+
+      // Obter informações dos dados locais e da nuvem
+      const localEntries = await window.mentalStorage.getAllMoodEntries();
+      const cloudInfo = await this.getCloudBackupInfo();
+
+      if (!cloudInfo) return;
+
+      const localCount = localEntries ? localEntries.length : 0;
+      const cloudCount = cloudInfo.totalEntries || 0;
+      const localLatest = localEntries && localEntries.length > 0 ?
+        new Date(Math.max(...localEntries.map(e => new Date(e.timestamp)))) : null;
+      const cloudLatest = cloudInfo.timestamp ? new Date(cloudInfo.timestamp) : null;
+
+      // Verificar se a nuvem tem dados mais recentes ou diferentes
+      const shouldSync = cloudCount > localCount ||
+                        (cloudLatest && localLatest && cloudLatest > localLatest);
+
+      if (shouldSync) {
+        console.log('🔄 [SYNC] Dados na nuvem parecem mais recentes/atualizados');
+        this.showSyncPrompt();
+      } else {
+        console.log('✅ [SYNC] Dados locais estão sincronizados ou são mais recentes');
+      }
+    } catch (err) {
+      console.warn('⚠️ [SYNC] Erro ao verificar sincronização:', err);
+    }
+  }
+
+  // 🔥 NOVO: Verificar se existe backup na nuvem
+  async checkCloudBackupExists() {
+    try {
+      if (!window.googleDriveBackup || !window.googleDriveBackup.accessToken) return false;
+
+      const q = encodeURIComponent("name = 'MentalIA_backup.enc' and trashed = false and 'appDataFolder' in parents");
+      const url = `https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=modifiedTime desc&fields=files(id,name,modifiedTime)`;
+      const resp = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${window.googleDriveBackup.accessToken}` }
+      });
+
+      if (!resp.ok) return false;
+      const data = await resp.json();
+      return data.files && data.files.length > 0;
+    } catch (err) {
+      console.warn('Erro ao verificar backup na nuvem:', err);
+      return false;
+    }
+  }
+
+  // 🔥 NOVO: Obter informações do backup na nuvem
+  async getCloudBackupInfo() {
+    try {
+      if (!window.googleDriveBackup || !window.googleDriveBackup.accessToken) return null;
+
+      const q = encodeURIComponent("name = 'MentalIA_backup.enc' and trashed = false and 'appDataFolder' in parents");
+      const url = `https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=modifiedTime desc&fields=files(id,name,modifiedTime)`;
+      const resp = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${window.googleDriveBackup.accessToken}` }
+      });
+
+      if (!resp.ok) return null;
+      const data = await resp.json();
+
+      if (!data.files || data.files.length === 0) return null;
+
+      const fileId = data.files[0].id;
+      const fileResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+        headers: { 'Authorization': `Bearer ${window.googleDriveBackup.accessToken}` }
+      });
+
+      if (!fileResp.ok) return null;
+
+      const encryptedB64 = await fileResp.text();
+      const jsonString = await window.googleDriveBackup.decryptData(encryptedB64);
+      const backup = JSON.parse(jsonString);
+
+      return {
+        totalEntries: backup.totalEntries || 0,
+        timestamp: backup.timestamp,
+        fileId: fileId
+      };
+    } catch (err) {
+      console.warn('Erro ao obter informações do backup na nuvem:', err);
+      return null;
+    }
+  }
+
+  // 🔥 NOVO: Mostrar prompt de sincronização
+  showSyncPrompt() {
+    // Criar modal de sincronização
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Sincronizar com a Nuvem ☁️</h3>
+        </div>
+        <div class="modal-body">
+          <p>Detectamos dados mais recentes ou diferentes salvos na nuvem. Deseja sincronizar seus dados locais com a nuvem?</p>
+          <p style="font-size: 0.9em; color: #666; margin-top: 0.5rem;">
+            Isso irá mesclar seus dados locais com os dados da nuvem, preservando todas as informações.
+          </p>
+        </div>
+        <div class="modal-actions">
+          <button id="sync-now" class="btn-primary">Sincronizar Agora</button>
+          <button id="sync-later" class="btn-secondary">Depois</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Handlers
+    document.getElementById('sync-now').onclick = async () => {
+      modal.remove();
+      await this.performSync();
+    };
+
+    document.getElementById('sync-later').onclick = () => {
+      modal.remove();
+    };
+
+    // Mostrar modal
+    setTimeout(() => modal.classList.remove('hidden'), 10);
+  }
+
+  // 🔥 NOVO: Executar sincronização
+  async performSync() {
+    try {
+      this.showToast('Sincronizando dados com a nuvem...', 'info');
+
+      // Fazer backup dos dados locais primeiro
+      await this.autoBackup();
+
+      // Depois restaurar da nuvem no modo MESCLAGEM (mergeMode = true)
+      const restored = await this.restoreBackup(true);
+
+      if (restored) {
+        this.showToast('Dados sincronizados com sucesso! 🔄', 'success');
+        await this.loadData();
+      } else {
+        this.showToast('Sincronização concluída - dados locais preservados', 'info');
+      }
+    } catch (err) {
+      console.error('Erro na sincronização:', err);
+      this.showToast('Erro na sincronização: ' + (err.message || err), 'error');
+    }
+  }
+
   // 🔥 NOVO: Método para restaurar backup manualmente
-  async restoreBackup() {
+  async restoreBackup(mergeMode = false) {
     try {
       if (!window.googleDriveBackup) {
         this.showToast('Sistema de backup não disponível', 'error');
@@ -909,11 +1072,11 @@ class MentalIA {
         return;
       }
 
-      this.showToast('Restaurando backup da nuvem...', 'info');
-      const restored = await window.googleDriveBackup.downloadAndRestoreBackup();
+      this.showToast(mergeMode ? 'Mesclando dados da nuvem...' : 'Restaurando backup da nuvem...', 'info');
+      const restored = await window.googleDriveBackup.downloadAndRestoreBackup(mergeMode);
       
       if (restored) {
-        this.showToast('Backup restaurado com sucesso! 📥', 'success');
+        this.showToast(mergeMode ? 'Dados mesclados com sucesso! 🔄' : 'Backup restaurado com sucesso! 📥', 'success');
         await this.loadData(); // Recarregar dados após restauração
       } else {
         this.showToast('Nenhum backup encontrado na nuvem', 'warning');

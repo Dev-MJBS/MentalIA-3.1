@@ -174,11 +174,13 @@ class MentalStorage {
 
             console.log('💾 Salvando entrada de humor:', { id: entry.id, mood: entry.mood });
 
-            // Check for duplicates
+            // 🔥 FIX: Enhanced duplicate detection to prevent mixed data
             try {
                 const existing = await this.getAllMoodEntries();
                 const found = existing.find(e => {
+                    // Exact timestamp match
                     if (e.timestamp === entry.timestamp) return true;
+                    // Close timestamp match (within 5 seconds) with same mood and diary
                     try {
                         const t1 = new Date(e.timestamp).getTime();
                         const t2 = new Date(entry.timestamp).getTime();

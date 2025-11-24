@@ -38,168 +38,107 @@ class GoogleDriveBackup {
         }
 
         try {
-            // Try to wait for Google Identity Services, but don't fail if it doesn't load
-            const googleLoaded = await this.tryWaitForGoogleIdentityServices();
-            if (!googleLoaded) {
-                console.warn('⚠️ [INIT] Google Identity Services não carregou, mas continuando...');
+            // Check if Google Identity Services are available
+            if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
+                console.log('☁️ [BACKUP] Google APIs não disponíveis (offline), pulando inicialização');
                 window.googleDriveBackup = this;
-                this.updateBackupStatus(false, 'Google API não carregou - verifique conexão');
+                this.updateBackupStatus(false, 'Modo offline - backup indisponível');
                 return;
             }
 
-            // Initialize OAuth2 token client for Drive access (simplified approach)
+            await this.waitForGoogleIdentityServices();
+
+            // Initialize One Tap to receive credential (ID token)
+            google.accounts.id.initialize({
+                client_id: this.clientId,
+                callback: this.handleCredentialResponse.bind(this),
+                auto_select: false,
+                cancel_on_tap_outside: true
+            });
+
+            // Initialize token client for Drive access
             this.tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: this.clientId,
                 scope: this.scopes,
-                ux_mode: 'popup', // Use popup for localhost
                 callback: (tokenResponse) => {
-                    console.log('🔄 [TOKEN] Callback OAuth recebido:', tokenResponse);
-
                     if (tokenResponse && tokenResponse.access_token) {
                         this.accessToken = tokenResponse.access_token;
                         this.isSignedIn = true;
-                        console.log('✅ [TOKEN] Access token obtido com sucesso!');
-                        this.showToast('Conectado ao Google Drive!', 'success');
+                        console.log('✅ [TOKEN] Access token obtido');
                         this.postSignInActions();
-                    } else if (tokenResponse && tokenResponse.error) {
-                        console.error('❌ [TOKEN] Erro na resposta OAuth:', tokenResponse.error);
-
-                        if (tokenResponse.error === 'access_denied') {
-                            this.showToast('Acesso negado pelo Google. Verifique se você foi adicionado como testador no Google Cloud Console.', 'error');
-                            console.warn('⚠️ [OAUTH] Para resolver:');
-                            console.warn('1. Acesse https://console.cloud.google.com/');
-                            console.warn('2. Vá para APIs & Services > OAuth consent screen');
-                            console.warn('3. Adicione testadores na seção "Test users"');
-                            console.warn('4. Adicione o email: mjbs.dev@gmail.com');
-                            this.updateBackupStatus(false, 'Acesso negado - consulte GOOGLE_OAUTH_FIX.md');
-                        } else {
-                            this.showToast(`Erro na autenticação: ${tokenResponse.error}`, 'error');
-                        }
                     } else {
-                        console.warn('⚠️ [TOKEN] Resposta OAuth sem access_token:', tokenResponse);
-                        this.showToast('Autenticação incompleta - tente novamente', 'error');
-                    }
-                },
-                error_callback: (error) => {
-                    console.error('❌ [TOKEN] Erro no callback OAuth:', error);
-
-                    // Handle specific Google verification errors
-                    if (error && error.type === 'popup_closed') {
-                        this.showToast('Popup fechado pelo usuário', 'error');
-                    } else if (error && error.message && error.message.includes('access_denied')) {
-                        this.showToast('Acesso negado pelo Google. O app precisa ser verificado ou você precisa ser adicionado como testador.', 'error');
-                        console.warn('⚠️ [OAUTH] App não verificado pelo Google. Adicione testadores no Google Cloud Console.');
-                        this.updateBackupStatus(false, 'Acesso negado - consulte GOOGLE_OAUTH_FIX.md');
-                    } else {
-                        this.showToast(`Erro na autenticação: ${error.message || 'Erro desconhecido'}`, 'error');
+                        console.warn('⚠️ [TOKEN] Resposta sem access_token', tokenResponse);
                     }
                 }
             });
 
-            // Create a simple sign-in button
-            this.createSignInButton();
+            // Render One Tap button
+            this.renderOneTapButton();
 
             window.googleDriveBackup = this;
             this.updateBackupStatus(false, 'Pronto para login');
-        } catch (err) {
-            console.error('❌ [INIT] Erro inicializando Google Identity Services:', err);
-            // Don't fail completely, just mark as unavailable
-            window.googleDriveBackup = this;
+        } catch (error) {
+            console.error('❌ [INIT] Erro ao inicializar:', error);
             this.updateBackupStatus(false, 'Erro na inicialização');
         }
     }
 
-    createSignInButton() {
-        console.log('🔄 [BUTTON] Criando botão de login...');
+    renderOneTapButton() {
         const buttonContainer = document.getElementById('google-backup-btn');
-        console.log('🔄 [BUTTON] Container encontrado:', !!buttonContainer);
-
         if (buttonContainer) {
-            buttonContainer.innerHTML = ''; // Clear existing content
-
-            const signInButton = document.createElement('button');
-            signInButton.className = 'google-signin-btn';
-            signInButton.innerHTML = `
-                <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google" style="width: 18px; height: 18px; margin-right: 8px;">
-                <span>Conectar Google Drive</span>
-            `;
-            signInButton.onclick = () => {
-                console.log('🔄 [BUTTON] Botão clicado, iniciando login...');
-                this.signIn();
-            };
-
-            buttonContainer.appendChild(signInButton);
-            console.log('✅ [BUTTON] Botão criado com sucesso!');
-        } else {
-            console.warn('⚠️ [BUTTON] Container google-backup-btn não encontrado');
-        }
-    }
-
-    async signIn() {
-        try {
-            console.log('🔄 [SIGNIN] Iniciando fluxo OAuth...');
-            // Use popup mode for localhost development
-            this.tokenClient.requestAccessToken({
-                prompt: 'consent',
-                ux_mode: 'popup'
+            google.accounts.id.renderButton(buttonContainer, {
+                theme: 'outline',
+                size: 'large',
+                text: 'signin_with',
+                shape: 'rectangular'
             });
-        } catch (err) {
-            console.error('❌ [SIGNIN] Erro ao iniciar login:', err);
-            this.showToast('Erro ao conectar com Google', 'error');
         }
     }
 
-    async getMoodEntries() {
-        try {
-            // Try to get data from mentalStorage first
-            if (window.mentalStorage && typeof window.mentalStorage.getAllMoodEntries === 'function') {
-                console.log('✅ [STORAGE] Usando mentalStorage para obter dados');
-                return await window.mentalStorage.getAllMoodEntries();
-            }
-
-            // Fallback to test data if available
-            if (window.appData && Array.isArray(window.appData)) {
-                console.log('⚠️ [STORAGE] mentalStorage não disponível, usando dados de teste');
-                return window.appData;
-            }
-
-            // Return empty array if nothing is available
-            console.warn('⚠️ [STORAGE] Nenhum sistema de armazenamento disponível');
-            return [];
-        } catch (err) {
-            console.error('❌ [STORAGE] Erro ao obter dados:', err);
-            return [];
-        }
-    }
-
-    async tryWaitForGoogleIdentityServices() {
-        return new Promise((resolve) => {
+    async waitForGoogleIdentityServices() {
+        return new Promise((resolve, reject) => {
             let attempts = 0;
-            const maxAttempts = 200; // More attempts for slower connections
-            const check = () => {
+            const maxAttempts = 50;
+            const checkServices = () => {
                 attempts++;
-                console.log(`🔄 [GOOGLE] Tentativa ${attempts}/${maxAttempts} - google:`, typeof google, 'accounts:', typeof google?.accounts, 'oauth2:', typeof google?.accounts?.oauth2);
-
-                if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
-                    console.log('✅ [GOOGLE] Google Identity Services carregado com sucesso!');
-                    resolve(true);
+                if (typeof google !== 'undefined' && google.accounts && google.accounts.id && google.accounts.oauth2) {
+                    resolve();
                 } else if (attempts >= maxAttempts) {
-                    console.warn('⚠️ [GOOGLE] Google Identity Services não carregou após', maxAttempts, 'tentativas');
-                    console.warn('⚠️ [GOOGLE] Verifique sua conexão com a internet e tente novamente');
-                    resolve(false);
+                    reject(new Error('Google Identity Services não carregou'));
                 } else {
-                    setTimeout(check, 300); // Slightly longer delay
+                    setTimeout(checkServices, 100);
                 }
             };
-            check();
+            checkServices();
         });
+    }
+
+    async handleCredentialResponse(response) {
+        try {
+            if (!response || !response.credential) {
+                console.warn('⚠️ [ONE TAP] Resposta inválida');
+                return;
+            }
+
+            console.log('🔐 [ONE TAP] Credencial recebida');
+            const payload = this.parseJWT(response.credential);
+            const email = payload && payload.email ? payload.email : 'usuário';
+            console.log('✅ [ONE TAP] Usuário autenticado:', email);
+
+            // Request an OAuth access token for Drive API
+            this.tokenClient.requestAccessToken({ prompt: '' });
+        } catch (error) {
+            console.error('❌ [ONE TAP] Erro ao processar credencial:', error);
+        }
     }
 
     parseJWT(token) {
         try {
             const base64Url = token.split('.')[1];
             const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-            const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(c =>
+                '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+            ).join(''));
             return JSON.parse(jsonPayload);
         } catch (err) {
             console.warn('⚠️ [JWT] Falha ao decodificar JWT:', err);
@@ -209,111 +148,328 @@ class GoogleDriveBackup {
 
     async postSignInActions() {
         try {
-            this.updateBackupStatus(true, 'Conectado ao Google Drive');
-            // Immediately backup after sign-in
-            try { await this.backupToDrive({ showToasts: true }); } catch (err) { console.warn('⚠️ [BACKUP] Backup automático falhou:', err); }
-            // If DB empty, try restore
-            try {
+            this.updateBackupStatus(true, 'Sincronizando...');
+
+            // 🔥 FIX: Always try to restore from Drive first (source of truth)
+            console.log('🔄 [SYNC] Tentando restaurar backup da nuvem...');
+            const restored = await this.downloadAndRestoreBackup(false); // false = overwrite mode
+
+            if (restored) {
+                // Backup restored successfully - local DB now matches cloud
                 const entries = await this.getMoodEntries();
-                if (!entries || entries.length === 0) {
-                    const restored = await this.downloadAndRestoreBackup();
-                    if (restored) this.showToast('Backup restaurado', 'success');
-                }
-            } catch (err) { console.warn('⚠️ [RESTORE] Falha ao tentar restaurar automaticamente:', err); }
-        } catch (err) { console.error('❌ [POST SIGNIN] Erro pós-login:', err); }
+                this.showToast(`Restaurado ${entries.length} entradas do backup`, 'success');
+                this.updateBackupStatus(true, 'Sincronizado com a nuvem');
+                console.log('✅ [SYNC] Dados locais sincronizados com a nuvem');
+            } else {
+                // No backup found - upload current local entries to cloud
+                console.log('🔄 [SYNC] Nenhum backup encontrado, fazendo upload dos dados locais...');
+                await this.backupToDrive({ showToasts: false });
+                this.showToast('Sincronizado com a nuvem', 'success');
+                this.updateBackupStatus(true, 'Sincronizado com a nuvem');
+            }
+        } catch (err) {
+            console.error('❌ [POST SIGNIN] Erro na sincronização:', err);
+            this.updateBackupStatus(false, 'Erro na sincronização');
+            this.showToast('Erro na sincronização com a nuvem', 'error');
+        }
     }
 
     async backupToDrive(options = { showToasts: false }) {
         try {
-            if (!this.accessToken) throw new Error('Usuário não autenticado');
+            console.log('📤 [BACKUP] Iniciando backup...');
+
+            if (!this.isSignedIn || !this.accessToken) {
+                throw new Error('Usuário não autenticado');
+            }
+
             this.updateBackupStatus(true, 'Preparando dados...');
+
+            // Get data from storage
             const entries = await this.getMoodEntries();
-            if (!entries || entries.length === 0) { if (options.showToasts) this.showToast('Nenhum dado para backup', 'error'); throw new Error('Nenhum dado para backup'); }
-            const backupData = { version: '3.1', timestamp: new Date().toISOString(), entries, totalEntries: entries.length };
+            if (!entries || entries.length === 0) {
+                if (options.showToasts) this.showToast('Nenhum dado para backup', 'warning');
+                return false;
+            }
+
+            // Prepare backup data
+            const backupData = {
+                version: '3.1',
+                timestamp: new Date().toISOString(),
+                entries: entries,
+                totalEntries: entries.length
+            };
+
             this.updateBackupStatus(true, 'Criptografando...');
+
+            // Encrypt data
             const encryptedData = await this.encryptData(JSON.stringify(backupData));
+
             this.updateBackupStatus(true, 'Enviando para Drive...');
-            const uploaded = await this.uploadEncryptedFile(encryptedData);
-            if (uploaded) { if (options.showToasts) this.showToast('Backup salvo na nuvem', 'success'); this.updateBackupStatus(true, 'Backup salvo na nuvem'); return true; }
-            if (options.showToasts) this.showToast('Erro ao enviar backup', 'error'); throw new Error('Falha no upload');
-        } catch (err) { console.error('❌ [BACKUP] Erro:', err); this.updateBackupStatus(false, 'Erro no backup'); if (options.showToasts) this.showToast('Erro no backup: ' + err.message, 'error'); throw err; }
+
+            // Upload to Drive
+            const success = await this.uploadEncryptedFile(encryptedData);
+
+            if (success) {
+                if (options.showToasts) this.showToast('Backup salvo na nuvem! ☁️', 'success');
+                this.updateBackupStatus(true, 'Backup salvo na nuvem');
+                return true;
+            } else {
+                throw new Error('Falha no upload');
+            }
+
+        } catch (error) {
+            console.error('❌ [BACKUP] Erro no backup:', error);
+            this.updateBackupStatus(false, 'Erro no backup');
+            if (options.showToasts) this.showToast('Erro no backup: ' + error.message, 'error');
+            return false;
+        }
+    }
+
+    async getMoodEntries() {
+        try {
+            if (window.mentalStorage && typeof window.mentalStorage.getAllMoodEntries === 'function') {
+                return await window.mentalStorage.getAllMoodEntries();
+            }
+            return [];
+        } catch (err) {
+            console.error('❌ [STORAGE] Erro ao obter dados:', err);
+            return [];
+        }
     }
 
     async encryptData(data) {
         try {
             const key = await this.generateEncryptionKey();
             const iv = crypto.getRandomValues(new Uint8Array(12));
-            const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(data));
-            const result = new Uint8Array(iv.length + encrypted.byteLength); result.set(iv); result.set(new Uint8Array(encrypted), iv.length); return btoa(String.fromCharCode.apply(null, result));
-        } catch (err) { console.error('❌ [ENCRYPT] Erro na criptografia:', err); throw err; }
+            const encrypted = await crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv },
+                key,
+                new TextEncoder().encode(data)
+            );
+            const result = new Uint8Array(iv.length + encrypted.byteLength);
+            result.set(iv);
+            result.set(new Uint8Array(encrypted), iv.length);
+            return btoa(String.fromCharCode.apply(null, result));
+        } catch (err) {
+            console.error('❌ [ENCRYPT] Erro na criptografia:', err);
+            throw err;
+        }
+    }
+
+    async decryptData(encryptedB64) {
+        try {
+            const combined = Uint8Array.from(atob(encryptedB64), c => c.charCodeAt(0));
+            const iv = combined.slice(0, 12);
+            const encrypted = combined.slice(12);
+            const key = await this.generateEncryptionKey();
+            const decrypted = await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv },
+                key,
+                encrypted
+            );
+            return new TextDecoder().decode(decrypted);
+        } catch (err) {
+            console.error('❌ [DECRYPT] Erro na descriptografia:', err);
+            throw err;
+        }
     }
 
     async generateEncryptionKey() {
         const fingerprint = this.generateDeviceFingerprint();
-        const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(fingerprint), 'PBKDF2', false, ['deriveKey']);
-        return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: new TextEncoder().encode('MentalIA-Backup-Salt-2024'), iterations: 100000, hash: 'SHA-256' }, keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+        const keyMaterial = await crypto.subtle.importKey(
+            'raw',
+            new TextEncoder().encode(fingerprint),
+            'PBKDF2',
+            false,
+            ['deriveKey']
+        );
+        return await crypto.subtle.deriveKey(
+            {
+                name: 'PBKDF2',
+                salt: new TextEncoder().encode('MentalIA-Backup-Salt-2024'),
+                iterations: 100000,
+                hash: 'SHA-256'
+            },
+            keyMaterial,
+            { name: 'AES-GCM', length: 256 },
+            false,
+            ['encrypt', 'decrypt']
+        );
     }
 
-    async decryptData(encryptedB64) {
-        const combined = Uint8Array.from(atob(encryptedB64), c => c.charCodeAt(0)); const iv = combined.slice(0, 12); const data = combined.slice(12); const key = await this.generateEncryptionKey(); const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data); return new TextDecoder().decode(decrypted);
+    generateDeviceFingerprint() {
+        const components = [
+            navigator.userAgent,
+            navigator.language,
+            screen.width + 'x' + screen.height,
+            new Date().getTimezoneOffset().toString()
+        ];
+        return 'MentalIA-' + btoa(components.join('|')).substring(0, 32);
     }
-
-    generateDeviceFingerprint() { const components = [navigator.userAgent, navigator.language, screen.width + 'x' + screen.height, new Date().getTimezoneOffset().toString()]; return 'MentalIA-' + btoa(components.join('|')).substring(0, 32); }
 
     async uploadEncryptedFile(encryptedData) {
         try {
-            const metadata = { name: 'MentalIA_backup.enc', parents: ['appDataFolder'] };
-            const form = new FormData(); form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' })); form.append('file', new Blob([encryptedData], { type: 'application/octet-stream' }));
-            const resp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', headers: { 'Authorization': `Bearer ${this.accessToken}` }, body: form });
-            if (resp.ok) { const data = await resp.json(); console.log('✅ [UPLOAD] Upload concluído:', data.id); return true; } console.warn('⚠️ [UPLOAD] Resposta não OK:', resp.status); return false;
-        } catch (err) { console.error('❌ [UPLOAD] Erro:', err); return false; }
-    }
+            console.log('☁️ [UPLOAD] Fazendo upload...');
 
-    async downloadAndRestoreBackup() {
-        try {
-            if (!this.accessToken) return false;
-            const q = encodeURIComponent("name = 'MentalIA_backup.enc' and trashed = false and 'appDataFolder' in parents");
-            const url = `https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=modifiedTime desc&fields=files(id,name)`;
-            const listResp = await fetch(url, { headers: { 'Authorization': `Bearer ${this.accessToken}` } }); if (!listResp.ok) return false; const listData = await listResp.json(); if (!listData.files || listData.files.length === 0) return false; const fileId = listData.files[0].id; const fileResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: { 'Authorization': `Bearer ${this.accessToken}` } }); if (!fileResp.ok) return false; const encryptedB64 = await fileResp.text(); const jsonString = await this.decryptData(encryptedB64); const backup = JSON.parse(jsonString); if (!backup || !backup.entries) return false;
+            const metadata = {
+                name: 'MentalIA_backup.enc',
+                parents: ['appDataFolder']
+            };
 
-            // Try to save entries using mentalStorage, but don't fail if it's not available
-            if (window.mentalStorage && typeof window.mentalStorage.saveMoodEntry === 'function') {
-                for (const entry of backup.entries) {
-                    try { await window.mentalStorage.saveMoodEntry(entry); } catch (e) { console.warn('⚠️ [RESTORE]', e); }
-                }
+            const form = new FormData();
+            form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+            form.append('file', new Blob([encryptedData], { type: 'application/octet-stream' }));
+
+            const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.accessToken}`
+                },
+                body: form
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ [UPLOAD] Upload concluído:', result.id);
+                return true;
             } else {
-                console.log('⚠️ [RESTORE] mentalStorage não disponível, dados não salvos localmente');
+                console.error('❌ [UPLOAD] Erro na resposta:', response.status);
+                return false;
             }
 
-            console.log('✅ [RESTORE] Backup restaurado com', backup.entries.length, 'entradas');
-            return true;
-        } catch (err) { console.error('❌ [RESTORE] Erro:', err); return false; }
+        } catch (error) {
+            console.error('❌ [UPLOAD] Erro no upload:', error);
+            return false;
+        }
+    }
+
+    async downloadAndRestoreBackup(overwriteMode = false) {
+        try {
+            console.log('📥 [RESTORE] Iniciando restauração...');
+
+            if (!this.accessToken) {
+                console.log('📥 [RESTORE] Sem access token');
+                return false;
+            }
+
+            // Find existing backup file
+            const fileId = await this.findBackupFile();
+            if (!fileId) {
+                console.log('📥 [RESTORE] Nenhum backup encontrado');
+                return false;
+            }
+
+            // Download and decrypt
+            const encryptedData = await this.downloadFile(fileId);
+            const decryptedData = await this.decryptData(encryptedData);
+            const backupData = JSON.parse(decryptedData);
+
+            if (!backupData || !backupData.entries || backupData.entries.length === 0) {
+                console.log('📥 [RESTORE] Backup vazio ou inválido');
+                return false;
+            }
+
+            console.log(`📥 [RESTORE] Restaurando ${backupData.entries.length} entradas...`);
+
+            // 🔥 FIX: In overwrite mode (default for first login), clear local DB first
+            if (overwriteMode && window.mentalStorage && typeof window.mentalStorage.deleteAllEntries === 'function') {
+                await window.mentalStorage.deleteAllEntries();
+                console.log('🧹 [RESTORE] Dados locais limpos antes da restauração');
+            }
+
+            // Restore entries
+            let restoredCount = 0;
+            for (const entry of backupData.entries) {
+                try {
+                    await window.mentalStorage.saveMoodEntry(entry);
+                    restoredCount++;
+                } catch (error) {
+                    console.warn('📥 [RESTORE] Erro ao restaurar entrada:', error);
+                }
+            }
+
+            console.log(`✅ [RESTORE] ${restoredCount} entradas restauradas`);
+            return restoredCount > 0;
+
+        } catch (error) {
+            console.error('❌ [RESTORE] Erro na restauração:', error);
+            return false;
+        }
+    }
+
+    async findBackupFile() {
+        try {
+            const response = await fetch('https://www.googleapis.com/drive/v3/files?q=name="MentalIA_backup.enc"&spaces=appDataFolder', {
+                headers: {
+                    'Authorization': `Bearer ${this.accessToken}`
+                }
+            });
+
+            const data = await response.json();
+            if (data.files && data.files.length > 0) {
+                return data.files[0].id;
+            }
+            return null;
+        } catch (error) {
+            console.error('❌ [BACKUP] Erro ao procurar arquivo:', error);
+            return null;
+        }
+    }
+
+    async downloadFile(fileId) {
+        const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+            headers: {
+                'Authorization': `Bearer ${this.accessToken}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Erro ao baixar arquivo');
+        }
+
+        return await response.text();
     }
 
     updateBackupStatus(connected, statusText) {
-        const statusElement = document.getElementById('google-backup-status'); if (statusElement) { statusElement.className = `backup-status ${connected ? 'connected' : 'error'}`; statusElement.textContent = connected ? `🟢 ${statusText}` : `🔴 ${statusText}`; }
+        const statusElement = document.getElementById('google-backup-status');
+        if (statusElement) {
+            statusElement.className = `backup-status ${connected ? 'connected' : 'error'}`;
+            statusElement.textContent = connected ? `🟢 ${statusText}` : `🔴 ${statusText}`;
+        }
     }
 
-    showToast(message, type = 'info') { const toast = document.createElement('div'); toast.style.cssText = `position: fixed; top: 20px; right: 20px; z-index: 9999; padding: 12px 20px; border-radius: 8px; color: white; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.3); background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'}; animation: slideIn 0.3s ease-out;`; toast.textContent = message; document.body.appendChild(toast); setTimeout(() => { toast.style.animation = 'slideOut 0.3s ease-in'; setTimeout(() => toast.remove(), 300); }, 4000); }
+    showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            position: fixed; top: 20px; right: 20px; z-index: 9999;
+            padding: 12px 20px; border-radius: 8px; color: white;
+            font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : type === 'warning' ? '#FF9800' : '#2196F3'};
+            animation: slideIn 0.3s ease-out;
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.animation = 'slideOut 0.3s ease-in';
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
+    }
 }
 
 // Initialize when page loads
 window.addEventListener('DOMContentLoaded', () => {
-    // Delay initialization to allow Google scripts to load
-    setTimeout(() => {
-        console.log('🚀 [INIT] Iniciando GoogleDriveBackup...');
-        new GoogleDriveBackup();
-        const backupBtn = document.getElementById('backup-data');
-        if (backupBtn) {
-            backupBtn.addEventListener('click', async () => {
-                try {
-                    if (window.googleDriveBackup && window.googleDriveBackup.tokenClient) {
-                        window.googleDriveBackup.tokenClient.requestAccessToken({ prompt: 'consent' });
-                    } else if (window.googleDriveBackup) {
-                        await window.googleDriveBackup.backupToDrive({ showToasts: true });
-                    }
-                } catch (err) { console.error('❌ [UI BACKUP] Erro ao iniciar backup manual:', err); }
-            });
-        }
-    }, 2000); // Wait 2 seconds for scripts to load
+    new GoogleDriveBackup();
+
+    // Setup backup button
+    const backupBtn = document.getElementById('backup-data');
+    if (backupBtn) {
+        backupBtn.addEventListener('click', () => {
+            if (window.googleDriveBackup && window.googleDriveBackup.isSignedIn) {
+                window.googleDriveBackup.backupToDrive({ showToasts: true });
+            } else {
+                window.googleDriveBackup.showToast('Conecte-se ao Google Drive primeiro', 'warning');
+            }
+        });
+    }
 });
