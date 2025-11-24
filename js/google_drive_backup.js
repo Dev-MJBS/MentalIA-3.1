@@ -45,7 +45,8 @@ class GoogleDriveBackup {
                 client_id: this.clientId,
                 callback: this.handleCredentialResponse.bind(this),
                 auto_select: false,
-                cancel_on_tap_outside: true
+                cancel_on_tap_outside: true,
+                context: 'signin'
             });
 
             // Initialize token client for Drive access
@@ -59,13 +60,20 @@ class GoogleDriveBackup {
                         console.log('✅ [TOKEN] Access token obtido');
                         this.postSignInActions();
                     } else {
-                        console.warn('⚠️ [TOKEN] Resposta sem access_token', tokenResponse);
+                        console.warn('⚠️ [TOKEN] Resposta sem access_token:', tokenResponse);
+                        if (tokenResponse && tokenResponse.error) {
+                            this.showToast(`Erro OAuth: ${tokenResponse.error}`, 'error');
+                        }
                     }
+                },
+                error_callback: (error) => {
+                    console.error('❌ [TOKEN] Erro no callback OAuth:', error);
+                    this.showToast('Erro na autenticação com Google', 'error');
                 }
             });
 
-            // Prompt One Tap UI
-            google.accounts.id.prompt();
+            // Render One Tap button (não usar prompt automático para evitar conflitos)
+            this.renderOneTapButton();
 
             window.googleDriveBackup = this;
             this.updateBackupStatus(false, 'Pronto para login');
@@ -75,22 +83,16 @@ class GoogleDriveBackup {
         }
     }
 
-    async waitForGoogleIdentityServices() {
-        return new Promise((resolve, reject) => {
-            let attempts = 0;
-            const maxAttempts = 50;
-            const check = () => {
-                attempts++;
-                if (typeof google !== 'undefined' && google.accounts && google.accounts.id && google.accounts.oauth2) {
-                    resolve();
-                } else if (attempts >= maxAttempts) {
-                    reject(new Error('Google Identity Services não carregou'));
-                } else {
-                    setTimeout(check, 100);
-                }
-            };
-            check();
-        });
+    renderOneTapButton() {
+        const buttonContainer = document.getElementById('google-backup-btn');
+        if (buttonContainer) {
+            google.accounts.id.renderButton(buttonContainer, {
+                theme: 'outline',
+                size: 'large',
+                text: 'signin_with',
+                shape: 'rectangular'
+            });
+        }
     }
 
     async handleCredentialResponse(response) {

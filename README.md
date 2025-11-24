@@ -11,10 +11,20 @@ Para habilitar o backup automático no Google Drive, siga estes passos:
 3. Vá para "APIs e Serviços" > "Credenciais"
 4. Clique em "Criar Credenciais" > "ID do cliente OAuth"
 5. Configure:
-   - Tipo: Aplicação Web
-   - Origens JavaScript autorizadas: `https://dev-mjbs.github.io` (para produção)
-   - URIs de redirecionamento autorizadas: `https://dev-mjbs.github.io/MentalIA-3.1` (para produção)
+   - **Tipo**: Aplicação Web
+   - **Origens JavaScript autorizadas**:
+     - `http://localhost:8000` (para desenvolvimento local)
+     - `https://dev-mjbs.github.io` (para produção)
+   - **URIs de redirecionamento autorizadas**:
+     - `http://localhost:8000` (para desenvolvimento local)
+     - `https://dev-mjbs.github.io/MentalIA-3.1` (para produção)
 6. Baixe o arquivo JSON das credenciais
+
+### ⚠️ **Importante para Desenvolvimento Local:**
+
+- Adicione `http://localhost:8000` às origens JavaScript autorizadas
+- Adicione `http://localhost:8000` aos URIs de redirecionamento autorizados
+- Use `python -m http.server 8000` para testar localmente
 
 ### 2. Configurar no MentalIA
 
@@ -49,9 +59,32 @@ Para habilitar o backup automático no Google Drive, siga estes passos:
 
 ### 4. Segurança
 
--  Dados criptografados antes do envio
--  Chave de criptografia derivada do dispositivo
--  Client Secret nunca exposto no frontend
--  Apenas Client ID público necessário
+- 🔒 Dados criptografados antes do envio
+- 🔒 Chave de criptografia derivada do dispositivo
+- 🔒 Client Secret nunca exposto no frontend
+- 🔒 Apenas Client ID público necessário
+
+## 🔧 Troubleshooting
+
+### Erro "405 Not Allowed" no login
+
+Se você receber "405 Not Allowed" ao fazer login:
+
+1. **Verifique a configuração do Google Cloud Console**:
+   - As origens JavaScript devem incluir `http://localhost:8000`
+   - Os URIs de redirecionamento devem incluir `http://localhost:8000`
+
+2. **Certifique-se de estar rodando na porta correta**:
+   ```bash
+   python -m http.server 8000
+   ```
+
+3. **Verifique se o Client ID está correto**:
+   - Deve ser injetado via `window.GOOGLE_CREDENTIALS.client_id`
+   - Não deve conter o client_secret
+
+4. **Teste em produção**:
+   - Para GitHub Pages, use apenas URLs HTTPS
+   - Certifique-se de que o domínio está na lista de origens autorizadas
 
 Para mais detalhes, consulte `CORREÇÕES-IMPLEMENTADAS.md`.
